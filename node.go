@@ -50,12 +50,12 @@ func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
 	go m.Run(context.Background())
 
 	fsub := floodsub.NewFloodSub(context.Background(), h)
-	txsub, err := fsub.SubscribeWithOpts(&floodsub.TopicDescriptor{Name: &TxsTopic}, nil)
+	txsub, err := fsub.Subscribe(TxsTopic)
 	if err != nil {
 		return nil, err
 	}
 
-	blksub, err := fsub.SubscribeWithOpts(&floodsub.TopicDescriptor{Name: &BlocksTopic}, nil)
+	blksub, err := fsub.Subscribe(BlocksTopic)
 	if err != nil {
 		return nil, err
 	}

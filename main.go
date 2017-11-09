@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/filecoin-project/specs/experiments/go-filecoin/libp2p"
+	"github.com/filecoin-project/playground/go-filecoin/libp2p"
 	ipfsaddr "github.com/ipfs/go-ipfs-addr"
 	logging "github.com/ipfs/go-log"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
