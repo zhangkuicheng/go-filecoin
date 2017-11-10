@@ -17,7 +17,7 @@ type NetMessage struct {
 	Head        *cid.Cid
 	Block       *Block
 	BlockHeight uint64
-	Msgs        []*Message
+	Txs         []*Transaction
 
 	MsgType uint64
 }
@@ -49,7 +49,7 @@ func (fcn *FilecoinNode) handleNewStream(s net.Stream) {
 		// TODO: should the transaction pool take care of sending new
 		// transactions to our other peers? or should we have some explicit
 		// method "gossipTransactions" that we call here?
-		for _, tx := range msg.Msgs {
+		for _, tx := range msg.Txs {
 			if err := fcn.txPool.Add(tx); err != nil {
 				log.Warning("got invalid transaction: ", err)
 			}

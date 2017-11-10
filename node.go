@@ -47,9 +47,12 @@ func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
 	}
 	fcn.miner = m
 
+	// Run miner
 	go m.Run(context.Background())
 
+	// TODO: maybe this gets passed in?
 	fsub := floodsub.NewFloodSub(context.Background(), h)
+
 	txsub, err := fsub.Subscribe(TxsTopic)
 	if err != nil {
 		return nil, err
@@ -73,13 +76,14 @@ func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
 }
 
 func (fcn *FilecoinNode) processNewTransactions(txsub *floodsub.Subscription) {
+	// TODO: this function should really just be a validator function for the pubsub subscription
 	for {
 		msg, err := txsub.Next(context.Background())
 		if err != nil {
 			panic(err)
 		}
 
-		var txmsg Message
+		var txmsg Transaction
 		if err := json.Unmarshal(msg.GetData(), &txmsg); err != nil {
 			panic(err)
 		}
@@ -91,6 +95,7 @@ func (fcn *FilecoinNode) processNewTransactions(txsub *floodsub.Subscription) {
 }
 
 func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
+	// TODO: this function should really just be a validator function for the pubsub subscription
 	for {
 		msg, err := blksub.Next(context.Background())
 		if err != nil {
@@ -100,6 +105,11 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 		var blk Block
 		if err := json.Unmarshal(msg.GetData(), &blk); err != nil {
 			panic(err)
+		}
+
+		if err := fcn.validateBlock(&blk); err != nil {
+			log.Error("invalid block: ", err)
+			continue
 		}
 
 		if blk.Score() > fcn.bestBlock.Score() {

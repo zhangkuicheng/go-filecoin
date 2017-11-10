@@ -15,7 +15,8 @@ type Block struct {
 	// could use a hamt for these, really only need a set. a merkle patricia
 	// trie (or radix trie, to be technically correct, thanks @wanderer) is
 	// inefficient due to all the branch nodes
-	Txs *cid.Cid
+	//Txs *cid.Cid
+	Txs []*Transaction
 
 	// Height is the chain height of this block
 	Height uint64
@@ -26,6 +27,8 @@ type Block struct {
 	TickLimit *big.Int
 	TicksUsed *big.Int
 }
+
+type Address string
 
 // Score returns a score for this block. This is used to choose the best chain.
 func (b *Block) Score() uint64 {
@@ -55,15 +58,15 @@ type Signature struct {
 	S *big.Int
 }
 
-// Message is the equivalent of an ethereum transaction. But since ethereum
+// Transaction is the equivalent of an ethereum transaction. But since ethereum
 // transactions arent really transactions, theyre more just sending information
 // from A to B, I (along with wanderer) want to call it a message. At the same
 // time, we want to rename gas to ticks, since what the hell is gas anyways?
-type Message struct {
+type Transaction struct {
 	Nonce    uint64
 	TickCost *big.Int
 	Ticks    *big.Int
-	To       peer.ID // actually, should be an 'account' not a peer
+	To       Address
 	Value    *big.Int
 	Data     []byte
 
@@ -72,6 +75,6 @@ type Message struct {
 
 // TODO: we could control creation of transaction instances to guarantee this
 // never errors. Pretty annoying to do though
-func (tx *Message) Cid() (*cid.Cid, error) {
+func (tx *Transaction) Cid() (*cid.Cid, error) {
 	panic("NYI")
 }

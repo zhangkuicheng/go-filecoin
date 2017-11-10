@@ -9,7 +9,7 @@ type TransactionPool struct {
 	txset *cid.Set
 }
 
-func (txp *TransactionPool) Add(tx *Message) error {
+func (txp *TransactionPool) Add(tx *Transaction) error {
 	c, err := tx.Cid()
 	if err != nil {
 		return err
