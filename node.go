@@ -139,7 +139,7 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 			panic(err)
 		}
 
-		if err := fcn.validateBlock(&blk); err != nil {
+		if err := fcn.validateBlock(context.Background(), &blk); err != nil {
 			log.Error("invalid block: ", err)
 			continue
 		}
@@ -204,7 +204,7 @@ func (fcn *FilecoinNode) validateBlock(ctx context.Context, b *Block) error {
 			return err
 		}
 
-		if err := fcn.checkSingleBlock(next); err != nil {
+		if err := fcn.checkBlockValid(ctx, next); err != nil {
 			return err
 		}
 
