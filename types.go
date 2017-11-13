@@ -38,12 +38,17 @@ func (b *Block) Score() uint64 {
 }
 
 func (b *Block) Cid() *cid.Cid {
+	return b.ToNode().Cid()
+}
+
+func (b *Block) ToNode() *dag.RawNode {
+	// TODO: really, anything but this. stop. please.
 	data, err := json.Marshal(b)
 	if err != nil {
 		panic(err)
 	}
 
-	return dag.NewRawNode(data).Cid()
+	return dag.NewRawNode(data)
 }
 
 // Signature over a transaction, like how ethereum does it

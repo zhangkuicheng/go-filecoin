@@ -24,7 +24,7 @@ import (
 
 var ProtocolID = protocol.ID("/fil/0.0.0")
 
-var GenesisBlock = dag.NewRawNode([]byte(`{"genesis":"yay"}`))
+var GenesisBlock = &Block{}
 
 type FilecoinNode struct {
 	h host.Host
@@ -53,7 +53,7 @@ type FilecoinNode struct {
 func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
 	fcn := &FilecoinNode{
 		h:               h,
-		bestBlock:       new(Block),
+		bestBlock:       GenesisBlock,
 		knownGoodBlocks: cid.NewSet(),
 	}
 
@@ -78,7 +78,7 @@ func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
 	bserv := bserv.New(bs, bswap)
 	fcn.dag = dag.NewDAGService(bserv)
 
-	c, err := fcn.dag.Add(GenesisBlock)
+	c, err := fcn.dag.Add(GenesisBlock.ToNode())
 	if err != nil {
 		return nil, err
 	}
@@ -229,17 +229,14 @@ func (fcn *FilecoinNode) validateBlock(ctx context.Context, b *Block) error {
 }
 
 func (fcn *FilecoinNode) SendNewBlock(b *Block) error {
-	data, err := json.Marshal(b)
-	if err != nil {
-		return err
-	}
-
 	// this is a hack... but... whatever...
-	c, err := fcn.dag.Add(dag.NewRawNode(data))
+	nd := b.ToNode()
+	c, err := fcn.dag.Add(nd)
 	if err != nil {
 		return err
 	}
+	fmt.Println("adding block: ", c)
 	_ = c
 
-	return fcn.pubsub.Publish(BlocksTopic, data)
+	return fcn.pubsub.Publish(BlocksTopic, nd.RawData())
 }
