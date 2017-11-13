@@ -1,12 +1,11 @@
 package main
 
 import (
-	"math"
+	"encoding/json"
 	"math/big"
 
-	"github.com/ipfs/go-cid"
-	cbor "github.com/ipfs/go-ipld-cbor"
-	"github.com/libp2p/go-libp2p-peer"
+	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
+	dag "gx/ipfs/QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX/go-ipfs/merkledag"
 )
 
 type Block struct {
@@ -15,6 +14,9 @@ type Block struct {
 	// could use a hamt for these, really only need a set. a merkle patricia
 	// trie (or radix trie, to be technically correct, thanks @wanderer) is
 	// inefficient due to all the branch nodes
+	// the important thing here is minizing the number of intermediate nodes
+	// the simplest thing might just be to use a sorted list of cids for now.
+	// A simple array can fit over 5000 cids in a single 256k block.
 	//Txs *cid.Cid
 	Txs []*Transaction
 
@@ -36,17 +38,12 @@ func (b *Block) Score() uint64 {
 }
 
 func (b *Block) Cid() *cid.Cid {
-	// godawful cbor package
-	data, err := cbor.DumpObject(b)
-	if err != nil {
-		panic(err)
-	}
-	nd, err := cbor.Decode(data, math.MaxUint64, -1)
+	data, err := json.Marshal(b)
 	if err != nil {
 		panic(err)
 	}
 
-	return nd.Cid()
+	return dag.NewRawNode(data).Cid()
 }
 
 // Signature over a transaction, like how ethereum does it

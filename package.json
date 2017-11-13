@@ -1,0 +1,21 @@
+{
+  "name": "playground",
+  "author": "dignifiedquire",
+  "version": "0.0.0",
+  "gxDependencies": [
+    {
+      "name": "go-ipfs",
+      "hash": "QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX",
+      "version": "0.4.12"
+    }
+  ],
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "language": "go",
+  "license": "",
+  "bugs": {},
+  "gxVersion": "0.11.0",
+  "gx": {
+    "dvcsimport": "github.com/filecoin-project/playground"
+  }
+}
+
