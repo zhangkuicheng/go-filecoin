@@ -2,24 +2,21 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	"gx/ipfs/QmUUSLfvihARhCxxgnjW4hmycJpPvzNu12Aaz6JWVdfnLg/go-libp2p-floodsub"
+	"gx/ipfs/QmRS46AyqtpJBsf1zmQdeizSDEzo1qkWR7rdEuPFAv8237/go-libp2p-host"
+	"gx/ipfs/QmVNv1WV6XxzQV4MBuiLX5729wMazaf8TNzm2Sq6ejyHh7/go-libp2p-floodsub"
 	"gx/ipfs/QmXYjuNuxVzXKJCfWasQk1RqkhVLDM9jtUKhqc2WPQmFSB/go-libp2p-peer"
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
-	"gx/ipfs/Qmc1XhrFEiSeBNn3mpfg6gEuYCt5im2gYmNVmncsvmpeAk/go-libp2p-host"
 
-	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
-	bstore "gx/ipfs/QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX/go-ipfs/blocks/blockstore"
-	bserv "gx/ipfs/QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX/go-ipfs/blockservice"
-	bitswap "gx/ipfs/QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX/go-ipfs/exchange/bitswap"
-	bsnet "gx/ipfs/QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX/go-ipfs/exchange/bitswap/network"
-	dag "gx/ipfs/QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX/go-ipfs/merkledag"
-	none "gx/ipfs/QmdKL1GVaUaDVt3JUWiYQSLYRsJMym2KRWxsiXAeEU6pzX/go-ipfs/routing/none"
+	hamt "github.com/ipfs/go-hamt-ipld"
+	bserv "github.com/ipfs/go-ipfs/blockservice"
+	dag "github.com/ipfs/go-ipfs/merkledag"
 )
 
 var ProtocolID = protocol.ID("/fil/0.0.0")
@@ -29,10 +26,12 @@ var GenesisBlock = &Block{}
 type FilecoinNode struct {
 	h host.Host
 
-	txPool TransactionPool
+	txPool *TransactionPool
 
 	peersLk sync.Mutex
 	peers   map[peer.ID]*peerHandle
+
+	Addresses []Address
 
 	bsub, txsub *floodsub.Subscription
 	pubsub      *floodsub.PubSub
@@ -44,39 +43,46 @@ type FilecoinNode struct {
 
 	miner *Miner
 
-	bestBlock    *Block
-	bestBlockCid *cid.Cid // doesnt need to be separate, but since i'm kinda cheating with the whole serialization thing it works for now
+	stateRoot *State
+	cs        *hamt.CborIpldStore
+
+	bestBlock *Block
 
 	knownGoodBlocks *cid.Set
 }
 
-func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
+func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bserv.BlockService) (*FilecoinNode, error) {
 	fcn := &FilecoinNode{
 		h:               h,
 		bestBlock:       GenesisBlock,
 		knownGoodBlocks: cid.NewSet(),
+		dag:             dag,
+		cs:              &hamt.CborIpldStore{bs},
+		txPool:          NewTransactionPool(),
 	}
+	baseAddr := fcn.createNewAddress()
+	fcn.Addresses = []Address{baseAddr}
+	fmt.Println("my mining address is ", baseAddr)
 
+	// TODO: better miner construction and delay start until synced
 	m := &Miner{
 		newBlocks:     make(chan *Block),
 		blockCallback: fcn.SendNewBlock,
 		currentBlock:  fcn.bestBlock,
+		address:       baseAddr,
+		fcn:           fcn,
+		txPool:        fcn.txPool,
 	}
 	fcn.miner = m
 
 	// Run miner
 	go m.Run(context.Background())
 
-	// TODO: maybe this gets passed in?
-	fsub := floodsub.NewFloodSub(context.Background(), h)
-
-	// Also should probably pass in the dagservice instance
-	bs := bstore.NewBlockstore(ds.NewMapDatastore())
-	nilr, _ := none.ConstructNilRouting(nil, nil, nil)
-	bsnet := bsnet.NewFromIpfsHost(h, nilr)
-	bswap := bitswap.New(context.Background(), h.ID(), bsnet, bs, true)
-	bserv := bserv.New(bs, bswap)
-	fcn.dag = dag.NewDAGService(bserv)
+	stateRoot, err := fcn.cs.Put(context.Background(), hamt.NewNode(fcn.cs))
+	if err != nil {
+		return nil, err
+	}
+	GenesisBlock.StateRoot = stateRoot
 
 	c, err := fcn.dag.Add(GenesisBlock.ToNode())
 	if err != nil {
@@ -85,12 +91,12 @@ func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
 	fmt.Println("genesis block cid is: ", c)
 	fcn.knownGoodBlocks.Add(c)
 
-	txsub, err := fsub.Subscribe(TxsTopic)
+	txsub, err := fs.Subscribe(TxsTopic)
 	if err != nil {
 		return nil, err
 	}
 
-	blksub, err := fsub.Subscribe(BlocksTopic)
+	blksub, err := fs.Subscribe(BlocksTopic)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +108,7 @@ func NewFilecoinNode(h host.Host) (*FilecoinNode, error) {
 
 	fcn.txsub = txsub
 	fcn.bsub = blksub
-	fcn.pubsub = fsub
+	fcn.pubsub = fs
 
 	return fcn, nil
 }
@@ -126,6 +132,12 @@ func (fcn *FilecoinNode) processNewTransactions(txsub *floodsub.Subscription) {
 	}
 }
 
+func (fcn *FilecoinNode) createNewAddress() Address {
+	buf := make([]byte, 20)
+	rand.Read(buf)
+	return Address(buf)
+}
+
 func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 	// TODO: this function should really just be a validator function for the pubsub subscription
 	for {
@@ -133,38 +145,75 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 		if err != nil {
 			panic(err)
 		}
-
-		var blk Block
-		if err := json.Unmarshal(msg.GetData(), &blk); err != nil {
-			panic(err)
-		}
-
-		if err := fcn.validateBlock(context.Background(), &blk); err != nil {
-			log.Error("invalid block: ", err)
+		if msg.GetFrom() == fcn.h.ID() {
 			continue
 		}
 
-		if blk.Score() > fcn.bestBlock.Score() {
-			fcn.bestBlock = &blk
-			if msg.GetFrom() != fcn.h.ID() {
-				fmt.Printf("new block from %s: score %d\n", msg.GetFrom(), blk.Score())
-				fcn.miner.newBlocks <- &blk
-			}
+		blk, err := DecodeBlock(msg.GetData())
+		if err != nil {
+			panic(err)
 		}
+
+		if err := fcn.processNewBlock(context.Background(), blk); err != nil {
+			log.Error(err)
+			continue
+		}
+		fcn.miner.newBlocks <- blk
 	}
+}
+
+func (fcn *FilecoinNode) processNewBlock(ctx context.Context, blk *Block) error {
+	if err := fcn.validateBlock(ctx, blk); err != nil {
+		return fmt.Errorf("validate block failed: %s", err)
+	}
+
+	if blk.Score() > fcn.bestBlock.Score() {
+		return fcn.acceptNewBlock(blk)
+	}
+
+	return fmt.Errorf("new block not better than current block (%d <= %d)",
+		blk.Score(), fcn.bestBlock.Score())
+}
+
+// acceptNewBlock sets the given block as our current 'best chain' block
+func (fcn *FilecoinNode) acceptNewBlock(blk *Block) error {
+	_, err := fcn.dag.Add(blk.ToNode())
+	if err != nil {
+		return fmt.Errorf("failed to put block to disk: %s", err)
+	}
+
+	fcn.knownGoodBlocks.Add(blk.Cid())
+	fcn.bestBlock = blk
+
+	// TODO: actually go through transactions for each block back to the last
+	// common block and remove transactions/re-add transactions in blocks we
+	// had but arent in the new chain
+	for _, tx := range blk.Txs {
+		c, err := tx.Cid()
+		if err != nil {
+			return err
+		}
+
+		fcn.txPool.ClearTx(c)
+	}
+
+	s, err := LoadState(context.Background(), fcn.cs, blk.StateRoot)
+	if err != nil {
+		return fmt.Errorf("failed to get newly approved state: %s", err)
+	}
+	fcn.stateRoot = s
+
+	fmt.Printf("accepted new block, [s=%d, h=%s, st=%s]\n", blk.Score(), blk.Cid(), blk.StateRoot)
+	return nil
+
 }
 
 func (fcn *FilecoinNode) fetchBlock(ctx context.Context, c *cid.Cid) (*Block, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
-	nd, err := fcn.dag.Get(ctx, c)
-	if err != nil {
-		return nil, err
-	}
-
 	var blk Block
-	if err := json.Unmarshal(nd.RawData(), &blk); err != nil {
+	if err := fcn.cs.Get(ctx, c, &blk); err != nil {
 		return nil, err
 	}
 
@@ -180,63 +229,107 @@ func (fcn *FilecoinNode) checkBlockValid(ctx context.Context, b *Block) error {
 	return nil
 }
 
-func (fcn *FilecoinNode) checkBlockStateChangeValid(ctx context.Context, b *Block /* and argument for current state */) error {
-	// TODO
+func (fcn *FilecoinNode) checkBlockStateChangeValid(ctx context.Context, s *State, b *Block) error {
+	if err := s.ApplyTransactions(ctx, b.Txs); err != nil {
+		return err
+	}
+
+	c, err := s.Flush(ctx)
+	if err != nil {
+		return err
+	}
+
+	if !c.Equals(b.StateRoot) {
+		return fmt.Errorf("state root failed to validate! (%s != %s)", c, b.StateRoot)
+	}
+
 	return nil
 }
 
 func (fcn *FilecoinNode) validateBlock(ctx context.Context, b *Block) error {
 	if err := fcn.checkBlockValid(ctx, b); err != nil {
-		return err
+		return fmt.Errorf("check block valid failed: %s", err)
 	}
 
 	if b.Score() <= fcn.bestBlock.Score() {
 		return fmt.Errorf("new block is not better than our current block")
 	}
+
 	if fcn.knownGoodBlocks.Has(b.Parent) {
 		return nil
 	}
+
+	var knownBlock *cid.Cid
 	validating := []*Block{b}
 	cur := b
 	for { // probably should be some sort of limit here
 		next, err := fcn.fetchBlock(ctx, cur.Parent)
 		if err != nil {
-			return err
+			return fmt.Errorf("fetch block failed: %s", err)
 		}
 
 		if err := fcn.checkBlockValid(ctx, next); err != nil {
 			return err
 		}
 
+		validating = append(validating, next)
 		if fcn.knownGoodBlocks.Has(next.Parent) {
+			fmt.Println("breaking on next = ", next.Score())
 			// we have a known good root
+			knownBlock = next.Parent
 			break
 		}
-		validating = append(validating, next)
 		cur = next
 	}
 
+	baseBlk, err := fcn.fetchBlock(ctx, knownBlock)
+	if err != nil {
+		return fmt.Errorf("second fetch block failed: %s", err)
+	}
+
+	s, err := LoadState(ctx, fcn.cs, baseBlk.StateRoot)
+	if err != nil {
+		return fmt.Errorf("load state failed: %s", err)
+	}
+	fmt.Println("known good block: ", baseBlk.Score())
+	for _, b := range validating {
+		fmt.Printf("%d ", b.Score())
+	}
+	fmt.Println()
+
 	for i := len(validating) - 1; i >= 0; i-- {
-		if err := fcn.checkBlockStateChangeValid(ctx, validating[i]); err != nil {
+		fmt.Printf("applying block %d\n", validating[i].Score())
+		if err := fcn.checkBlockStateChangeValid(ctx, s, validating[i]); err != nil {
 			return err
 		}
 	}
 
 	// do we set this as our 'best block' here? Or should the caller handle that?
+	fmt.Println("new known block: ", b.Cid())
 	fcn.knownGoodBlocks.Add(b.Cid())
 
 	return nil
 }
 
 func (fcn *FilecoinNode) SendNewBlock(b *Block) error {
-	// this is a hack... but... whatever...
 	nd := b.ToNode()
-	c, err := fcn.dag.Add(nd)
+	_, err := fcn.dag.Add(nd)
 	if err != nil {
 		return err
 	}
-	fmt.Println("adding block: ", c)
-	_ = c
+
+	if err := fcn.processNewBlock(context.Background(), b); err != nil {
+		return err
+	}
 
 	return fcn.pubsub.Publish(BlocksTopic, nd.RawData())
+}
+
+func (fcn *FilecoinNode) SendNewTransaction(tx *Transaction) error {
+	data, err := json.Marshal(tx)
+	if err != nil {
+		return err
+	}
+
+	return fcn.pubsub.Publish(TxsTopic, data)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"time"
 )
@@ -20,6 +21,15 @@ type Miner struct {
 
 	// currentBlock is the block that the miner will be mining on top of
 	currentBlock *Block
+
+	// address is the address that the miner will mine rewards to
+	address Address
+
+	// transaction pool to pull transactions for the next block from
+	txPool *TransactionPool
+
+	// cheating.
+	fcn *FilecoinNode
 }
 
 // predictFuture reads an oracle that tells us how long we must wait to mine
@@ -31,6 +41,8 @@ func predictFuture() time.Duration {
 	}
 	return v
 }
+
+var MiningReward = big.NewInt(1000000)
 
 func (m *Miner) Run(ctx context.Context) {
 	blockFound := time.NewTimer(predictFuture())
@@ -46,12 +58,13 @@ func (m *Miner) Run(ctx context.Context) {
 			m.currentBlock = b
 			fmt.Printf("got a new block in %s [av: %s]\n", time.Since(start), time.Since(begin)/n)
 		case <-blockFound.C:
-			nb := &Block{
-				Height: m.currentBlock.Height + 1,
-				Parent: m.currentBlock.Cid(),
+			nb, err := m.getNextBlock(ctx)
+			if err != nil {
+				log.Error(err)
+				break
 			}
 
-			fmt.Printf("mined a new block [score %d] in %s [av: %s]\n", nb.Score(), time.Since(start), time.Since(begin)/n)
+			fmt.Printf("==> mined a new block [score %d, %s] in %s [av: %s]\n", nb.Score(), nb.Cid(), time.Since(start), time.Since(begin)/n)
 
 			m.currentBlock = nb
 			if err := m.blockCallback(nb); err != nil {
@@ -60,4 +73,35 @@ func (m *Miner) Run(ctx context.Context) {
 		}
 		blockFound.Reset(predictFuture())
 	}
+}
+
+func (m *Miner) getNextBlock(ctx context.Context) (*Block, error) {
+	reward := &Transaction{
+		To:    m.address,
+		Value: MiningReward,
+	}
+
+	txs := m.txPool.GetBestTxs()
+	txs = append([]*Transaction{reward}, txs...)
+	nb := &Block{
+		Height: m.currentBlock.Height + 1,
+		Parent: m.currentBlock.Cid(),
+		Txs:    txs,
+	}
+
+	s, err := LoadState(ctx, m.fcn.cs, m.currentBlock.StateRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.ApplyTransactions(ctx, nb.Txs); err != nil {
+		return nil, fmt.Errorf("applying state from newly mined block: %s", err)
+	}
+	stateCid, err := s.Flush(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("flushing state changes: %s", err)
+	}
+
+	nb.StateRoot = stateCid
+	return nb, nil
 }
