@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 
 	pstore "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
@@ -24,8 +25,10 @@ import (
 	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap"
 	bsnet "github.com/ipfs/go-ipfs/exchange/bitswap/network"
 	dag "github.com/ipfs/go-ipfs/merkledag"
+	path "github.com/ipfs/go-ipfs/path"
 	none "github.com/ipfs/go-ipfs/routing/none"
 	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
+	dssync "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore/sync"
 )
 
 type RPC struct {
@@ -55,14 +58,14 @@ var daemonCmd = cli.Command{
 		fsub := floodsub.NewFloodSub(context.Background(), h)
 
 		// Also should probably pass in the dagservice instance
-		bs := bstore.NewBlockstore(ds.NewMapDatastore())
+		bs := bstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 		nilr, _ := none.ConstructNilRouting(nil, nil, nil)
 		bsnet := bsnet.NewFromIpfsHost(h, nilr)
 		bswap := bitswap.New(context.Background(), h.ID(), bsnet, bs, true)
 		bserv := bserv.New(bs, bswap)
 		dag := dag.NewDAGService(bserv)
 
-		fcn, err := NewFilecoinNode(h, fsub, dag, bserv)
+		fcn, err := NewFilecoinNode(h, fsub, dag, bserv, bswap.(*bitswap.Bitswap))
 		if err != nil {
 			panic(err)
 		}
@@ -107,6 +110,33 @@ var daemonCmd = cli.Command{
 				naddr := fcn.createNewAddress()
 				fcn.Addresses = append(fcn.Addresses, naddr)
 				out = naddr
+			case "wantlist":
+				var cstrs []string
+				for _, c := range fcn.bswap.GetWantlist() {
+					cstrs = append(cstrs, c.String())
+				}
+				out = strings.Join(cstrs, "\n")
+
+			case "dagGet":
+				p, err := path.ParsePath(rpc.Args[0])
+				if err != nil {
+					out = err.Error()
+					break
+				}
+
+				res := path.NewBasicResolver(fcn.dag)
+				nd, err := res.ResolvePath(context.Background(), p)
+				if err != nil {
+					out = err.Error()
+					break
+				}
+
+				b, err := json.MarshalIndent(nd, "", "  ")
+				if err != nil {
+					out = err
+					break
+				}
+				out = string(b)
 			case "sendTx":
 				if len(rpc.Args) != 2 {
 					out = fmt.Errorf("must pass two arguments")
@@ -125,8 +155,9 @@ var daemonCmd = cli.Command{
 
 				tx := &Transaction{
 					FROMTEMP: fcn.Addresses[0],
-					To:       toaddr,
-					Value:    amount,
+					To:       FilecoinContractAddr,
+					Method:   "transfer",
+					Params:   []interface{}{toaddr, amount},
 				}
 
 				fcn.SendNewTransaction(tx)
@@ -142,13 +173,26 @@ var daemonCmd = cli.Command{
 					break
 				}
 
-				acc, err := fcn.stateRoot.GetAccount(context.Background(), addr)
+				act, err := fcn.stateRoot.GetActor(context.Background(), FilecoinContractAddr)
 				if err != nil {
 					out = err
 					break
 				}
 
-				out = acc.Balance.String()
+				ct, err := fcn.stateRoot.LoadContract(context.Background(), act.Code)
+				if err != nil {
+					out = err
+					break
+				}
+
+				cctx := &CallContext{Ctx: context.Background()}
+				ret, err := ct.Call(cctx, "getBalance", []interface{}{addr})
+				if err != nil {
+					out = err
+					break
+				}
+
+				out = ret
 			}
 
 			json.NewEncoder(w).Encode(out)

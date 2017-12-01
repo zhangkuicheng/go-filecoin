@@ -16,12 +16,11 @@ import (
 
 	hamt "github.com/ipfs/go-hamt-ipld"
 	bserv "github.com/ipfs/go-ipfs/blockservice"
+	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 )
 
 var ProtocolID = protocol.ID("/fil/0.0.0")
-
-var GenesisBlock = &Block{}
 
 type FilecoinNode struct {
 	h host.Host
@@ -36,7 +35,8 @@ type FilecoinNode struct {
 	bsub, txsub *floodsub.Subscription
 	pubsub      *floodsub.PubSub
 
-	dag dag.DAGService
+	dag   dag.DAGService
+	bswap *bitswap.Bitswap
 
 	// Head is the cid of the head of the blockchain as far as this node knows
 	Head *cid.Cid
@@ -51,18 +51,31 @@ type FilecoinNode struct {
 	knownGoodBlocks *cid.Set
 }
 
-func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bserv.BlockService) (*FilecoinNode, error) {
+func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bserv.BlockService, bswap *bitswap.Bitswap) (*FilecoinNode, error) {
 	fcn := &FilecoinNode{
 		h:               h,
-		bestBlock:       GenesisBlock,
 		knownGoodBlocks: cid.NewSet(),
 		dag:             dag,
+		bswap:           bswap,
 		cs:              &hamt.CborIpldStore{bs},
 		txPool:          NewTransactionPool(),
 	}
 	baseAddr := fcn.createNewAddress()
 	fcn.Addresses = []Address{baseAddr}
 	fmt.Println("my mining address is ", baseAddr)
+
+	genesis, err := CreateGenesisBlock(fcn.cs)
+	if err != nil {
+		return nil, err
+	}
+	fcn.bestBlock = genesis
+
+	c, err := fcn.dag.Add(genesis.ToNode())
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("genesis block cid is: ", c)
+	fcn.knownGoodBlocks.Add(c)
 
 	// TODO: better miner construction and delay start until synced
 	m := &Miner{
@@ -77,19 +90,6 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 
 	// Run miner
 	go m.Run(context.Background())
-
-	stateRoot, err := fcn.cs.Put(context.Background(), hamt.NewNode(fcn.cs))
-	if err != nil {
-		return nil, err
-	}
-	GenesisBlock.StateRoot = stateRoot
-
-	c, err := fcn.dag.Add(GenesisBlock.ToNode())
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("genesis block cid is: ", c)
-	fcn.knownGoodBlocks.Add(c)
 
 	txsub, err := fs.Subscribe(TxsTopic)
 	if err != nil {
@@ -255,15 +255,12 @@ func (fcn *FilecoinNode) validateBlock(ctx context.Context, b *Block) error {
 		return fmt.Errorf("new block is not better than our current block")
 	}
 
-	if fcn.knownGoodBlocks.Has(b.Parent) {
-		return nil
-	}
+	var validating []*Block
+	baseBlk := b
+	for !fcn.knownGoodBlocks.Has(baseBlk.Cid()) { // probably should be some sort of limit here
+		validating = append(validating, baseBlk)
 
-	var knownBlock *cid.Cid
-	validating := []*Block{b}
-	cur := b
-	for { // probably should be some sort of limit here
-		next, err := fcn.fetchBlock(ctx, cur.Parent)
+		next, err := fcn.fetchBlock(ctx, baseBlk.Parent)
 		if err != nil {
 			return fmt.Errorf("fetch block failed: %s", err)
 		}
@@ -272,42 +269,22 @@ func (fcn *FilecoinNode) validateBlock(ctx context.Context, b *Block) error {
 			return err
 		}
 
-		validating = append(validating, next)
-		if fcn.knownGoodBlocks.Has(next.Parent) {
-			fmt.Println("breaking on next = ", next.Score())
-			// we have a known good root
-			knownBlock = next.Parent
-			break
-		}
-		cur = next
-	}
-
-	baseBlk, err := fcn.fetchBlock(ctx, knownBlock)
-	if err != nil {
-		return fmt.Errorf("second fetch block failed: %s", err)
+		baseBlk = next
 	}
 
 	s, err := LoadState(ctx, fcn.cs, baseBlk.StateRoot)
 	if err != nil {
 		return fmt.Errorf("load state failed: %s", err)
 	}
-	fmt.Println("known good block: ", baseBlk.Score())
-	for _, b := range validating {
-		fmt.Printf("%d ", b.Score())
-	}
-	fmt.Println()
 
 	for i := len(validating) - 1; i >= 0; i-- {
-		fmt.Printf("applying block %d\n", validating[i].Score())
 		if err := fcn.checkBlockStateChangeValid(ctx, s, validating[i]); err != nil {
 			return err
 		}
+		fcn.knownGoodBlocks.Add(validating[i].Cid())
 	}
 
-	// do we set this as our 'best block' here? Or should the caller handle that?
 	fmt.Println("new known block: ", b.Cid())
-	fcn.knownGoodBlocks.Add(b.Cid())
-
 	return nil
 }
 

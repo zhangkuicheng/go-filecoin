@@ -60,16 +60,18 @@ func (m *Miner) Run(ctx context.Context) {
 		case <-blockFound.C:
 			nb, err := m.getNextBlock(ctx)
 			if err != nil {
+				log.Error("failed to build block on top of: ", m.currentBlock.Cid())
 				log.Error(err)
 				break
 			}
 
 			fmt.Printf("==> mined a new block [score %d, %s] in %s [av: %s]\n", nb.Score(), nb.Cid(), time.Since(start), time.Since(begin)/n)
 
-			m.currentBlock = nb
 			if err := m.blockCallback(nb); err != nil {
 				log.Error("mined new block, but failed to push it out: ", err)
+				break
 			}
+			m.currentBlock = nb
 		}
 		blockFound.Reset(predictFuture())
 	}
@@ -77,8 +79,10 @@ func (m *Miner) Run(ctx context.Context) {
 
 func (m *Miner) getNextBlock(ctx context.Context) (*Block, error) {
 	reward := &Transaction{
-		To:    m.address,
-		Value: MiningReward,
+		FROMTEMP: FilecoinContractAddr,
+		To:       FilecoinContractAddr,
+		Method:   "transfer",
+		Params:   []interface{}{m.address, MiningReward},
 	}
 
 	txs := m.txPool.GetBestTxs()

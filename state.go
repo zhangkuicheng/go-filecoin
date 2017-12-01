@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/big"
 
 	hamt "github.com/ipfs/go-hamt-ipld"
 	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
@@ -24,24 +23,23 @@ type State struct {
 	store *hamt.CborIpldStore
 }
 
-func loadAccount(ctx context.Context, st *hamt.Node, a Address) (*Account, error) {
-	accData, err := st.Find(ctx, string(a))
-	switch err {
-	case hamt.ErrNotFound:
-		// no account exists, return empty account
-		return &Account{Balance: big.NewInt(0)}, nil
-	default:
+type Actor struct {
+	Code   Address // actually should be a hash
+	Memory *cid.Cid
+}
+
+func loadActor(ctx context.Context, st *hamt.Node, a Address) (*Actor, error) {
+	actData, err := st.Find(ctx, string(a))
+	if err != nil {
 		return nil, err
-	case nil:
-		// noop
 	}
 
-	var acc Account
-	if err := json.Unmarshal(accData, &acc); err != nil {
+	var act Actor
+	if err := json.Unmarshal(actData, &act); err != nil {
 		return nil, fmt.Errorf("invalid account: %s", err)
 	}
 
-	return &acc, nil
+	return &act, nil
 }
 
 func (s *State) Copy() *State {
@@ -51,17 +49,17 @@ func (s *State) Copy() *State {
 	}
 }
 
-func (s *State) GetAccount(ctx context.Context, a Address) (*Account, error) {
-	return loadAccount(ctx, s.root, a)
+func (s *State) GetActor(ctx context.Context, a Address) (*Actor, error) {
+	return loadActor(ctx, s.root, a)
 
 }
 
-func (s *State) UpdateAccount(ctx context.Context, a Address, acc *Account) error {
-	accDataOut, err := json.Marshal(acc)
+func (s *State) SetActor(ctx context.Context, a Address, act *Actor) error {
+	data, err := json.Marshal(act)
 	if err != nil {
 		return err
 	}
-	if err := s.root.Set(ctx, string(a), accDataOut); err != nil {
+	if err := s.root.Set(ctx, string(a), data); err != nil {
 		return err
 	}
 
@@ -69,40 +67,51 @@ func (s *State) UpdateAccount(ctx context.Context, a Address, acc *Account) erro
 }
 
 func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
-	for i, tx := range txs {
-		miningReward := (i == 0 && tx.Value.Cmp(MiningReward) == 0)
-		if !miningReward {
-			acc, err := s.GetAccount(ctx, tx.FROMTEMP)
-			if err != nil {
-				return err
-			}
-
-			// TODO: account for transaction fees
-			if acc.Balance.Cmp(tx.Value) < 0 {
-				return fmt.Errorf("not enough funds for transaction")
-			}
-
-			acc.Balance = acc.Balance.Sub(acc.Balance, tx.Value)
-
-			if err := s.UpdateAccount(ctx, tx.FROMTEMP, acc); err != nil {
-				return err
-			}
+	for _, tx := range txs {
+		act, err := s.GetActor(ctx, tx.To)
+		if err != nil {
+			return fmt.Errorf("get actor: %s", err)
 		}
 
-		toacc, err := s.GetAccount(ctx, tx.To)
+		contract, err := s.LoadContract(ctx, act.Code)
+		if err != nil {
+			return fmt.Errorf("load contract: %s %s", act.Code, err)
+		}
+
+		// TODO: 'state transaction'
+		var ctrState hamt.Node
+		if err := s.store.Get(ctx, act.Memory, &ctrState); err != nil {
+			return fmt.Errorf("load contract state: %s", err)
+		}
+
+		if err := contract.LoadState(&ctrState); err != nil {
+			return err
+		}
+
+		callCtx := &CallContext{Ctx: ctx, From: tx.FROMTEMP}
+		_, err = contract.Call(callCtx, tx.Method, tx.Params)
+		if err != nil {
+			fmt.Println("call error: ", err)
+			return err
+		}
+
+		if err := ctrState.Flush(ctx); err != nil {
+			return err
+		}
+
+		nmemory, err := s.store.Put(ctx, ctrState)
 		if err != nil {
 			return err
 		}
 
-		toacc.Balance = toacc.Balance.Add(toacc.Balance, tx.Value)
+		act.Memory = nmemory
 
-		if err := s.UpdateAccount(ctx, tx.To, toacc); err != nil {
-			return err
+		if err := s.SetActor(ctx, tx.To, act); err != nil {
+			return fmt.Errorf("set actor: %s", err)
 		}
 	}
 
 	return nil
-
 }
 
 func (s *State) Flush(ctx context.Context) (*cid.Cid, error) {
@@ -111,4 +120,24 @@ func (s *State) Flush(ctx context.Context) (*cid.Cid, error) {
 	}
 
 	return s.store.Put(ctx, s.root)
+}
+
+// Actually, this probably should take a cid, not an address
+func (s *State) LoadContract(ctx context.Context, codeHash Address) (Contract, error) {
+	act, err := s.GetActor(ctx, codeHash)
+	if err != nil {
+		return nil, fmt.Errorf("get actor: %s", err)
+	}
+
+	var n hamt.Node
+	if err := s.store.Get(ctx, act.Memory, &n); err != nil {
+		return nil, fmt.Errorf("store get: %s", err)
+	}
+
+	switch act.Code {
+	case FilecoinContractAddr:
+		return &FilecoinTokenContract{s: &n}, nil
+	default:
+		return nil, fmt.Errorf("no contract code found")
+	}
 }

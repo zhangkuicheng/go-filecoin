@@ -118,8 +118,8 @@ type Transaction struct {
 	TickCost *big.Int
 	Ticks    *big.Int
 	To       Address
-	Value    *big.Int
-	Data     []byte
+	Method   string
+	Params   []interface{}
 
 	Signature *Signature
 	FROMTEMP  Address // TODO: extract 'from' field from signature via pubkey recovery
@@ -134,8 +134,4 @@ func (tx *Transaction) Cid() (*cid.Cid, error) {
 	}
 
 	return obj.Cid(), nil
-}
-
-type Account struct {
-	Balance *big.Int
 }
