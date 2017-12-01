@@ -73,19 +73,9 @@ func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error
 			return fmt.Errorf("get actor: %s", err)
 		}
 
-		contract, err := s.LoadContract(ctx, act.Code)
+		contract, err := act.LoadContract(ctx, s)
 		if err != nil {
 			return fmt.Errorf("load contract: %s %s", act.Code, err)
-		}
-
-		// TODO: 'state transaction'
-		var ctrState hamt.Node
-		if err := s.store.Get(ctx, act.Memory, &ctrState); err != nil {
-			return fmt.Errorf("load contract state: %s", err)
-		}
-
-		if err := contract.LoadState(&ctrState); err != nil {
-			return err
 		}
 
 		callCtx := &CallContext{Ctx: ctx, From: tx.FROMTEMP}
@@ -95,11 +85,7 @@ func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error
 			return err
 		}
 
-		if err := ctrState.Flush(ctx); err != nil {
-			return err
-		}
-
-		nmemory, err := s.store.Put(ctx, ctrState)
+		nmemory, err := contract.Flush(ctx, s.store)
 		if err != nil {
 			return err
 		}
@@ -122,11 +108,10 @@ func (s *State) Flush(ctx context.Context) (*cid.Cid, error) {
 	return s.store.Put(ctx, s.root)
 }
 
-// Actually, this probably should take a cid, not an address
-func (s *State) LoadContract(ctx context.Context, codeHash Address) (Contract, error) {
-	act, err := s.GetActor(ctx, codeHash)
+func (act *Actor) LoadContract(ctx context.Context, s *State) (Contract, error) {
+	contract, err := s.GetContract(ctx, act.Code)
 	if err != nil {
-		return nil, fmt.Errorf("get actor: %s", err)
+		return nil, err
 	}
 
 	var n hamt.Node
@@ -134,9 +119,18 @@ func (s *State) LoadContract(ctx context.Context, codeHash Address) (Contract, e
 		return nil, fmt.Errorf("store get: %s", err)
 	}
 
-	switch act.Code {
+	if err := contract.LoadState(&n); err != nil {
+		return nil, err
+	}
+
+	return contract, nil
+}
+
+// Actually, this probably should take a cid, not an address
+func (s *State) GetContract(ctx context.Context, codeHash Address) (Contract, error) {
+	switch codeHash {
 	case FilecoinContractAddr:
-		return &FilecoinTokenContract{s: &n}, nil
+		return &FilecoinTokenContract{}, nil
 	default:
 		return nil, fmt.Errorf("no contract code found")
 	}

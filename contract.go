@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	hamt "github.com/ipfs/go-hamt-ipld"
+	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
 )
 
 var FilecoinContractAddr = Address("filecoin")
@@ -18,6 +19,9 @@ type CallContext struct {
 type Contract interface {
 	Call(ctx *CallContext, method string, args []interface{}) (interface{}, error)
 	LoadState(s *hamt.Node) error
+
+	// TODO: this signature sucks, need to get the abstractions right
+	Flush(ctx context.Context, cs *hamt.CborIpldStore) (*cid.Cid, error)
 }
 
 type FilecoinTokenContract struct {
@@ -38,6 +42,14 @@ func (ftc *FilecoinTokenContract) Call(ctx *CallContext, method string, args []i
 	default:
 		return nil, fmt.Errorf("unrecognized method")
 	}
+}
+
+func (ftc *FilecoinTokenContract) Flush(ctx context.Context, cs *hamt.CborIpldStore) (*cid.Cid, error) {
+	if err := ftc.s.Flush(ctx); err != nil {
+		return nil, err
+	}
+
+	return cs.Put(ctx, ftc.s)
 }
 
 func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, args []interface{}) (interface{}, error) {

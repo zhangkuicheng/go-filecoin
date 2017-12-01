@@ -95,6 +95,9 @@ var daemonCmd = cli.Command{
 		}
 
 		http.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			// TODO: don't use a json rpc. it sucks. but its easy.
 			var rpc RPC
 			if err := json.NewDecoder(r.Body).Decode(&rpc); err != nil {
@@ -125,7 +128,7 @@ var daemonCmd = cli.Command{
 				}
 
 				res := path.NewBasicResolver(fcn.dag)
-				nd, err := res.ResolvePath(context.Background(), p)
+				nd, err := res.ResolvePath(ctx, p)
 				if err != nil {
 					out = err.Error()
 					break
@@ -173,13 +176,13 @@ var daemonCmd = cli.Command{
 					break
 				}
 
-				act, err := fcn.stateRoot.GetActor(context.Background(), FilecoinContractAddr)
+				act, err := fcn.stateRoot.GetActor(ctx, FilecoinContractAddr)
 				if err != nil {
 					out = err
 					break
 				}
 
-				ct, err := fcn.stateRoot.LoadContract(context.Background(), act.Code)
+				ct, err := act.LoadContract(ctx, fcn.stateRoot)
 				if err != nil {
 					out = err
 					break
