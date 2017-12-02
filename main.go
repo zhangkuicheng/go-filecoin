@@ -5,9 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"net/http"
-	"strings"
 
 	pstore "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
@@ -20,21 +18,16 @@ import (
 
 	"gx/ipfs/QmVNv1WV6XxzQV4MBuiLX5729wMazaf8TNzm2Sq6ejyHh7/go-libp2p-floodsub"
 
+	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
+	dssync "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore/sync"
+
 	bstore "github.com/ipfs/go-ipfs/blocks/blockstore"
 	bserv "github.com/ipfs/go-ipfs/blockservice"
 	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap"
 	bsnet "github.com/ipfs/go-ipfs/exchange/bitswap/network"
 	dag "github.com/ipfs/go-ipfs/merkledag"
-	path "github.com/ipfs/go-ipfs/path"
 	none "github.com/ipfs/go-ipfs/routing/none"
-	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
-	dssync "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore/sync"
 )
-
-type RPC struct {
-	Method string
-	Args   []string
-}
 
 var log = logging.Logger("filecoin")
 
@@ -94,112 +87,8 @@ var daemonCmd = cli.Command{
 			select {}
 		}
 
-		http.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			// TODO: don't use a json rpc. it sucks. but its easy.
-			var rpc RPC
-			if err := json.NewDecoder(r.Body).Decode(&rpc); err != nil {
-				http.Error(w, err.Error(), 500)
-				return
-			}
-
-			var out interface{}
-			switch rpc.Method {
-			case "listAddrs":
-				out = fcn.Addresses
-			case "newAddr":
-				naddr := fcn.createNewAddress()
-				fcn.Addresses = append(fcn.Addresses, naddr)
-				out = naddr
-			case "wantlist":
-				var cstrs []string
-				for _, c := range fcn.bswap.GetWantlist() {
-					cstrs = append(cstrs, c.String())
-				}
-				out = strings.Join(cstrs, "\n")
-
-			case "dagGet":
-				p, err := path.ParsePath(rpc.Args[0])
-				if err != nil {
-					out = err.Error()
-					break
-				}
-
-				res := path.NewBasicResolver(fcn.dag)
-				nd, err := res.ResolvePath(ctx, p)
-				if err != nil {
-					out = err.Error()
-					break
-				}
-
-				b, err := json.MarshalIndent(nd, "", "  ")
-				if err != nil {
-					out = err
-					break
-				}
-				out = string(b)
-			case "sendTx":
-				if len(rpc.Args) != 2 {
-					out = fmt.Errorf("must pass two arguments")
-					break
-				}
-				amount, ok := big.NewInt(0).SetString(rpc.Args[0], 10)
-				if !ok {
-					out = fmt.Errorf("failed to parse amount")
-					break
-				}
-				toaddr, err := ParseAddress(rpc.Args[1])
-				if err != nil {
-					out = err
-					break
-				}
-
-				tx := &Transaction{
-					FROMTEMP: fcn.Addresses[0],
-					To:       FilecoinContractAddr,
-					Method:   "transfer",
-					Params:   []interface{}{toaddr, amount},
-				}
-
-				fcn.SendNewTransaction(tx)
-			case "getBalance":
-				if len(rpc.Args) != 1 {
-					out = fmt.Errorf("must pass address as argument")
-					break
-				}
-
-				addr, err := ParseAddress(rpc.Args[0])
-				if err != nil {
-					out = err
-					break
-				}
-
-				act, err := fcn.stateRoot.GetActor(ctx, FilecoinContractAddr)
-				if err != nil {
-					out = err
-					break
-				}
-
-				ct, err := act.LoadContract(ctx, fcn.stateRoot)
-				if err != nil {
-					out = err
-					break
-				}
-
-				cctx := &CallContext{Ctx: context.Background()}
-				ret, err := ct.Call(cctx, "getBalance", []interface{}{addr})
-				if err != nil {
-					out = err
-					break
-				}
-
-				out = ret
-			}
-
-			json.NewEncoder(w).Encode(out)
-		})
+		ba := NewBadApi(fcn)
+		http.HandleFunc("/api", ba.ApiHandlerPleaseReplace)
 
 		panic(http.ListenAndServe(c.String("api"), nil))
 	},

@@ -66,34 +66,44 @@ func (s *State) SetActor(ctx context.Context, a Address, act *Actor) error {
 	return nil
 }
 
+func (s *State) ActorExec(ctx context.Context, addr Address, op func(Contract) error) error {
+	act, err := s.GetActor(ctx, addr)
+	if err != nil {
+		return fmt.Errorf("get actor: %s", err)
+	}
+
+	contract, err := act.LoadContract(ctx, s)
+	if err != nil {
+		return fmt.Errorf("load contract: %s %s", act.Code, err)
+	}
+
+	if err := op(contract); err != nil {
+		return err
+	}
+
+	nmemory, err := contract.Flush(ctx, s.store)
+	if err != nil {
+		return err
+	}
+
+	act.Memory = nmemory
+
+	if err := s.SetActor(ctx, addr, act); err != nil {
+		return fmt.Errorf("set actor: %s", err)
+	}
+
+	return nil
+}
+
 func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
 	for _, tx := range txs {
-		act, err := s.GetActor(ctx, tx.To)
-		if err != nil {
-			return fmt.Errorf("get actor: %s", err)
-		}
-
-		contract, err := act.LoadContract(ctx, s)
-		if err != nil {
-			return fmt.Errorf("load contract: %s %s", act.Code, err)
-		}
-
-		callCtx := &CallContext{Ctx: ctx, From: tx.FROMTEMP}
-		_, err = contract.Call(callCtx, tx.Method, tx.Params)
-		if err != nil {
-			fmt.Println("call error: ", err)
+		err := s.ActorExec(ctx, tx.To, func(contract Contract) error {
+			callCtx := &CallContext{Ctx: ctx, From: tx.FROMTEMP}
+			_, err := contract.Call(callCtx, tx.Method, tx.Params)
 			return err
-		}
-
-		nmemory, err := contract.Flush(ctx, s.store)
+		})
 		if err != nil {
 			return err
-		}
-
-		act.Memory = nmemory
-
-		if err := s.SetActor(ctx, tx.To, act); err != nil {
-			return fmt.Errorf("set actor: %s", err)
 		}
 	}
 
@@ -114,16 +124,25 @@ func (act *Actor) LoadContract(ctx context.Context, s *State) (Contract, error) 
 		return nil, err
 	}
 
-	var n hamt.Node
-	if err := s.store.Get(ctx, act.Memory, &n); err != nil {
-		return nil, fmt.Errorf("store get: %s", err)
+	st, err := s.LoadContractState(ctx, act.Memory)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := contract.LoadState(&n); err != nil {
+	if err := contract.LoadState(st); err != nil {
 		return nil, err
 	}
 
 	return contract, nil
+}
+
+func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractState, error) {
+	var n hamt.Node
+	if err := s.store.Get(ctx, mem, &n); err != nil {
+		return nil, fmt.Errorf("store get: %s", err)
+	}
+
+	return &ContractState{&n}, nil
 }
 
 // Actually, this probably should take a cid, not an address
@@ -134,4 +153,20 @@ func (s *State) GetContract(ctx context.Context, codeHash Address) (Contract, er
 	default:
 		return nil, fmt.Errorf("no contract code found")
 	}
+}
+
+type ContractState struct {
+	n *hamt.Node
+}
+
+func (cs *ContractState) Flush(ctx context.Context) error {
+	return cs.n.Flush(ctx)
+}
+
+func (cs *ContractState) Get(ctx context.Context, k string) ([]byte, error) {
+	return cs.n.Find(ctx, k)
+}
+
+func (cs *ContractState) Set(ctx context.Context, k string, val []byte) error {
+	return cs.n.Set(ctx, k, val)
 }
