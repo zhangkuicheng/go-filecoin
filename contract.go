@@ -9,9 +9,19 @@ import (
 	hamt "github.com/ipfs/go-hamt-ipld"
 
 	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
+	mh "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
 )
 
+var FilecoinContractCid = identCid("filecoin")
 var FilecoinContractAddr = Address("filecoin")
+
+func identCid(s string) *cid.Cid {
+	h, err := mh.Sum([]byte(s), mh.ID, len(s))
+	if err != nil {
+		panic(err)
+	}
+	return cid.NewCidV1(cid.Raw, h)
+}
 
 type CallContext struct {
 	Ctx   context.Context

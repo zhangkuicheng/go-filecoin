@@ -24,7 +24,7 @@ type State struct {
 }
 
 type Actor struct {
-	Code   Address // actually should be a hash
+	Code   *cid.Cid
 	Memory *cid.Cid
 }
 
@@ -150,13 +150,13 @@ func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractS
 }
 
 // Actually, this probably should take a cid, not an address
-func (s *State) GetContract(ctx context.Context, codeHash Address) (Contract, error) {
-	switch codeHash {
-	case FilecoinContractAddr:
-		return &FilecoinTokenContract{}, nil
-	case StorageContractCodeAddress:
+func (s *State) GetContract(ctx context.Context, codeHash *cid.Cid) (Contract, error) {
+	switch {
+	case codeHash.Equals(FilecoinContractCid):
+		return new(FilecoinTokenContract), nil
+	case codeHash.Equals(StorageContractCodeCid):
 		return new(StorageContract), nil
-	case MinerContractCodeHash:
+	case codeHash.Equals(MinerContractCodeHash):
 		return new(MinerContract), nil
 	default:
 		return nil, fmt.Errorf("no contract code found")

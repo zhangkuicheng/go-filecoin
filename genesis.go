@@ -29,7 +29,7 @@ func CreateGenesisBlock(cs *hamt.CborIpldStore) (*Block, error) {
 	}
 
 	filTokActor := &Actor{
-		Code:   FilecoinContractAddr,
+		Code:   FilecoinContractCid,
 		Memory: tsCid,
 	}
 	if err := s.SetActor(ctx, FilecoinContractAddr, filTokActor); err != nil {
@@ -44,7 +44,7 @@ func CreateGenesisBlock(cs *hamt.CborIpldStore) (*Block, error) {
 	}
 
 	storMarketActor := &Actor{
-		Code:   StorageContractCodeAddress,
+		Code:   StorageContractCodeCid,
 		Memory: stsCid,
 	}
 	if err := s.SetActor(ctx, StorageContractAddress, storMarketActor); err != nil {

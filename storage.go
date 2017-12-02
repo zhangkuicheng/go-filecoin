@@ -11,8 +11,8 @@ import (
 	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
 )
 
-var StorageContractCodeAddress = Address("storageContract")
-var StorageContractAddress = Address("storageContractAddr")
+var StorageContractCodeCid = identCid("storageContract")
+var StorageContractAddress = Address("storageContract")
 
 // Only Duration or BlockHeight are allowed to be defined
 type Bid struct {
@@ -150,6 +150,7 @@ func (sc *StorageContract) createMiner(ctx *CallContext, args []interface{}) (in
 		Code:   MinerContractCodeHash,
 		Memory: mem,
 	}
+
 	if err := ctx.State.SetActor(ctx.Ctx, ca, act); err != nil {
 		return nil, err
 	}

@@ -10,7 +10,7 @@ import (
 	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
 )
 
-var MinerContractCodeHash = Address("fcminer")
+var MinerContractCodeHash = identCid("fcminer")
 
 type MinerContract struct {
 	Owner         Address
