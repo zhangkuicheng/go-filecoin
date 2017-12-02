@@ -98,7 +98,7 @@ func (s *State) ActorExec(ctx context.Context, addr Address, op func(Contract) e
 func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
 	for _, tx := range txs {
 		err := s.ActorExec(ctx, tx.To, func(contract Contract) error {
-			callCtx := &CallContext{Ctx: ctx, From: tx.FROMTEMP}
+			callCtx := &CallContext{Ctx: ctx, From: tx.FROMTEMP, State: s}
 			_, err := contract.Call(callCtx, tx.Method, tx.Params)
 			return err
 		})
@@ -121,19 +121,23 @@ func (s *State) Flush(ctx context.Context) (*cid.Cid, error) {
 func (act *Actor) LoadContract(ctx context.Context, s *State) (Contract, error) {
 	contract, err := s.GetContract(ctx, act.Code)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get code: %s", err)
 	}
 
 	st, err := s.LoadContractState(ctx, act.Memory)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state load: %s", err)
 	}
 
 	if err := contract.LoadState(st); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load state in contract: %s", err)
 	}
 
 	return contract, nil
+}
+
+func (s *State) NewContractState() *ContractState {
+	return &ContractState{hamt.NewNode(s.store)}
 }
 
 func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractState, error) {
@@ -150,6 +154,10 @@ func (s *State) GetContract(ctx context.Context, codeHash Address) (Contract, er
 	switch codeHash {
 	case FilecoinContractAddr:
 		return &FilecoinTokenContract{}, nil
+	case StorageContractCodeAddress:
+		return new(StorageContract), nil
+	case MinerContractCodeHash:
+		return new(MinerContract), nil
 	default:
 		return nil, fmt.Errorf("no contract code found")
 	}

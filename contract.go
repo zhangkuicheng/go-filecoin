@@ -14,8 +14,9 @@ import (
 var FilecoinContractAddr = Address("filecoin")
 
 type CallContext struct {
-	Ctx  context.Context
-	From Address
+	Ctx   context.Context
+	From  Address
+	State *State
 }
 
 type Contract interface {

@@ -22,12 +22,13 @@ func NewBadApi(fcn *FilecoinNode) *BadApi {
 	ba := &BadApi{fcn: fcn}
 
 	ba.commands = map[string]badRpcFunc{
-		"listAddrs":  listAddrs,
-		"newAddr":    newAddr,
-		"wantlist":   wantlistCmd,
-		"dagGet":     dagGetCmd,
-		"sendTx":     sendTxCmd,
-		"getBalance": getBalanceCmd,
+		"listAddrs":   listAddrs,
+		"newAddr":     newAddrCmd,
+		"wantlist":    wantlistCmd,
+		"dagGet":      dagGetCmd,
+		"sendTx":      sendTxCmd,
+		"getBalance":  getBalanceCmd,
+		"createMiner": createMinerCmd,
 	}
 
 	return ba
@@ -65,8 +66,8 @@ func listAddrs(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 	return fcn.Addresses, nil
 }
 
-func newAddr(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
-	naddr := fcn.createNewAddress()
+func newAddrCmd(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
+	naddr := createNewAddress()
 	fcn.Addresses = append(fcn.Addresses, naddr)
 	return naddr, nil
 }
@@ -146,4 +147,24 @@ func getBalanceCmd(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 
 	cctx := &CallContext{Ctx: context.Background()}
 	return ct.Call(cctx, "getBalance", []interface{}{addr})
+}
+
+func createMinerCmd(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
+	if len(rpc.Args) != 1 {
+		return nil, fmt.Errorf("must pass pledge as argument")
+	}
+
+	pledge, ok := big.NewInt(0).SetString(rpc.Args[0], 10)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse pledge as number")
+	}
+
+	tx := &Transaction{
+		FROMTEMP: fcn.Addresses[0],
+		To:       StorageContractAddress,
+		Method:   "createMiner",
+		Params:   []interface{}{pledge},
+	}
+
+	return nil, fcn.SendNewTransaction(tx)
 }

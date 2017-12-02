@@ -60,7 +60,7 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 		cs:              &hamt.CborIpldStore{bs},
 		txPool:          NewTransactionPool(),
 	}
-	baseAddr := fcn.createNewAddress()
+	baseAddr := createNewAddress()
 	fcn.Addresses = []Address{baseAddr}
 	fmt.Println("my mining address is ", baseAddr)
 
@@ -132,7 +132,7 @@ func (fcn *FilecoinNode) processNewTransactions(txsub *floodsub.Subscription) {
 	}
 }
 
-func (fcn *FilecoinNode) createNewAddress() Address {
+func createNewAddress() Address {
 	buf := make([]byte, 20)
 	rand.Read(buf)
 	return Address(buf)
