@@ -141,12 +141,13 @@ func getBalanceCmd(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 		return nil, err
 	}
 
-	act, err := fcn.stateRoot.GetActor(ctx, FilecoinContractAddr)
+	stroot := fcn.stateMgr.stateRoot
+	act, err := stroot.GetActor(ctx, FilecoinContractAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	ct, err := act.LoadContract(ctx, fcn.stateRoot)
+	ct, err := act.LoadContract(ctx, stroot)
 	if err != nil {
 		return nil, err
 	}
@@ -247,12 +248,13 @@ func addAsk(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 
 func getOpenOrders(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 	ctx := context.Background()
-	sact, err := fcn.stateRoot.GetActor(ctx, StorageContractAddress)
+	stroot := fcn.stateMgr.stateRoot
+	sact, err := stroot.GetActor(ctx, StorageContractAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	c, err := sact.LoadContract(ctx, fcn.stateRoot)
+	c, err := sact.LoadContract(ctx, stroot)
 	if err != nil {
 		return nil, err
 	}
