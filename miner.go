@@ -79,10 +79,10 @@ func (m *Miner) Run(ctx context.Context) {
 
 func (m *Miner) getNextBlock(ctx context.Context) (*Block, error) {
 	reward := &Transaction{
-		FROMTEMP: FilecoinContractAddr,
-		To:       FilecoinContractAddr,
-		Method:   "transfer",
-		Params:   []interface{}{m.address, MiningReward},
+		From:   FilecoinContractAddr,
+		To:     FilecoinContractAddr,
+		Method: "transfer",
+		Params: []interface{}{m.address, MiningReward},
 	}
 
 	txs := m.txPool.GetBestTxs()

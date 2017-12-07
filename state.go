@@ -98,11 +98,12 @@ func (s *State) ActorExec(ctx context.Context, addr Address, op func(Contract) e
 func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
 	for _, tx := range txs {
 		err := s.ActorExec(ctx, tx.To, func(contract Contract) error {
-			callCtx := &CallContext{Ctx: ctx, From: tx.FROMTEMP, State: s}
+			callCtx := &CallContext{Ctx: ctx, From: tx.From, State: s}
 			_, err := contract.Call(callCtx, tx.Method, tx.Params)
 			return err
 		})
 		if err != nil {
+			// TODO: just revert the state changes and continue
 			return err
 		}
 	}

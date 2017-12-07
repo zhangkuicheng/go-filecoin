@@ -113,16 +113,19 @@ type Signature struct {
 // transactions arent really transactions, theyre more just sending information
 // from A to B, I (along with wanderer) want to call it a message. At the same
 // time, we want to rename gas to ticks, since what the hell is gas anyways?
+// TODO: ensure that transactions are not malleable *at all*, this is very important
 type Transaction struct {
-	Nonce    uint64
+	To   Address // address of contract to invoke
+	From Address
+
+	Nonce uint64
+
 	TickCost *big.Int
 	Ticks    *big.Int
-	To       Address
 	Method   string
 	Params   []interface{}
 
 	Signature *Signature
-	FROMTEMP  Address // TODO: extract 'from' field from signature via pubkey recovery
 }
 
 // TODO: we could control creation of transaction instances to guarantee this

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	pstore "gx/ipfs/QmPgDWmTmuzvP7QE5zwo1TmjbJme9pmZHNujB2453jkCTr/go-libp2p-peerstore"
@@ -18,8 +19,8 @@ import (
 
 	"gx/ipfs/QmVNv1WV6XxzQV4MBuiLX5729wMazaf8TNzm2Sq6ejyHh7/go-libp2p-floodsub"
 
-	ds "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore"
-	dssync "gx/ipfs/QmVSase1JP7cq9QkPT46oNwdp9pT6kBkG3oqS14y3QcZjG/go-datastore/sync"
+	ds "gx/ipfs/QmdHG8MAuARdGHxx4rPQASLcvhz24fzjSQq7AJRAQEorq5/go-datastore"
+	dssync "gx/ipfs/QmdHG8MAuARdGHxx4rPQASLcvhz24fzjSQq7AJRAQEorq5/go-datastore/sync"
 
 	bstore "github.com/ipfs/go-ipfs/blocks/blockstore"
 	bserv "github.com/ipfs/go-ipfs/blockservice"
@@ -118,6 +119,15 @@ func main() {
 		resp, err := http.Post(fmt.Sprintf("http://localhost%s/api", c.String("api")), "application/json", buf)
 		if err != nil {
 			return err
+		}
+
+		if resp.StatusCode != 200 {
+			msg, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+
+			return fmt.Errorf("%s: %s", resp.Status, string(msg))
 		}
 
 		var i interface{}

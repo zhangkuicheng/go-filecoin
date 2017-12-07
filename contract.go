@@ -23,6 +23,7 @@ func identCid(s string) *cid.Cid {
 	return cid.NewCidV1(cid.Raw, h)
 }
 
+// CallContext is information accessible to the contract during a given invocation
 type CallContext struct {
 	Ctx   context.Context
 	From  Address
@@ -84,6 +85,11 @@ func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, args []interface{
 	}
 
 	return big.NewInt(0).SetBytes(accData), nil
+}
+
+type Account struct {
+	Balance *big.Int
+	Nonce   uint64
 }
 
 func addressCast(i interface{}) (Address, error) {

@@ -46,6 +46,8 @@ func (mc *MinerContract) LoadState(s *ContractState) error {
 	}
 	mc.LockedStorage = big.NewInt(0).SetBytes(lckb)
 
+	mc.s = s
+
 	return nil
 }
 
