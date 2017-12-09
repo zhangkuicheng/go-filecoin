@@ -24,10 +24,16 @@ type StateManager struct {
 
 	cs  *hamt.CborIpldStore
 	dag dag.DAGService
+
+	miner *Miner
 }
 
 func (s *StateManager) Inform(p peer.ID, blk *Block) {
-
+	if err := s.processNewBlock(context.Background(), blk); err != nil {
+		log.Error(err)
+		return
+	}
+	s.miner.newBlocks <- blk
 }
 
 func (s *StateManager) processNewBlock(ctx context.Context, blk *Block) error {
@@ -52,6 +58,7 @@ func (s *StateManager) acceptNewBlock(blk *Block) error {
 
 	s.knownGoodBlocks.Add(blk.Cid())
 	s.bestBlock = blk
+	s.headCid = blk.Cid()
 
 	// TODO: actually go through transactions for each block back to the last
 	// common block and remove transactions/re-add transactions in blocks we
@@ -152,6 +159,5 @@ func (s *StateManager) validateBlock(ctx context.Context, b *Block) error {
 		s.knownGoodBlocks.Add(validating[i].Cid())
 	}
 
-	fmt.Println("new known block: ", b.Cid())
 	return nil
 }

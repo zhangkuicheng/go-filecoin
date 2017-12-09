@@ -29,12 +29,9 @@ type FilecoinNode struct {
 
 	dag   dag.DAGService
 	bswap *bitswap.Bitswap
+	cs    *hamt.CborIpldStore
 
 	stateMgr *StateManager
-
-	miner *Miner
-
-	cs *hamt.CborIpldStore
 }
 
 func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bserv.BlockService, bswap *bitswap.Bitswap) (*FilecoinNode, error) {
@@ -80,7 +77,7 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 		fcn:           fcn,
 		txPool:        s.txPool,
 	}
-	fcn.miner = m
+	s.miner = m
 
 	// Run miner
 	go m.Run(context.Background())
@@ -98,7 +95,8 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 	go fcn.processNewBlocks(blksub)
 	go fcn.processNewTransactions(txsub)
 
-	h.SetStreamHandler(ProtocolID, fcn.handleHelloStream)
+	h.SetStreamHandler(HelloProtocol, fcn.handleHelloStream)
+	h.Network().Notify((*fcnNotifiee)(fcn))
 
 	fcn.txsub = txsub
 	fcn.bsub = blksub
@@ -148,11 +146,7 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 			panic(err)
 		}
 
-		if err := fcn.stateMgr.processNewBlock(context.Background(), blk); err != nil {
-			log.Error(err)
-			continue
-		}
-		fcn.miner.newBlocks <- blk
+		fcn.stateMgr.Inform(msg.GetFrom(), blk)
 	}
 }
 

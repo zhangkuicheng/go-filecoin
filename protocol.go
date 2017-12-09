@@ -50,7 +50,20 @@ func (fcn *FilecoinNode) handleHelloStream(s net.Stream) {
 		return
 	}
 
-	// TODO: inform the syncer
+	if hello.Head == nil {
+		return
+	}
+
+	if hello.BlockHeight <= fcn.stateMgr.bestBlock.Score() {
+		return
+	}
+
+	var blk Block
+	if err := fcn.cs.Get(context.Background(), hello.Head, &blk); err != nil {
+		log.Error("getting block from hello message: ", err)
+		return
+	}
+	fcn.stateMgr.Inform(s.Conn().RemotePeer(), &blk)
 }
 
 type fcnNotifiee FilecoinNode
@@ -60,6 +73,7 @@ var _ net.Notifiee = (*fcnNotifiee)(nil)
 func (n *fcnNotifiee) ClosedStream(_ net.Network, s net.Stream) {}
 func (n *fcnNotifiee) OpenedStream(_ net.Network, s net.Stream) {}
 func (n *fcnNotifiee) Connected(_ net.Network, c net.Conn) {
+	go (*FilecoinNode)(n).HelloPeer(c.RemotePeer())
 }
 
 func (n *fcnNotifiee) Disconnected(_ net.Network, c net.Conn)    {}
