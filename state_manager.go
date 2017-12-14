@@ -12,6 +12,8 @@ import (
 	dag "github.com/ipfs/go-ipfs/merkledag"
 )
 
+// StateManager manages the current state of the chain and handles validating
+// and applying updates.
 type StateManager struct {
 	bestBlock *Block
 	headCid   *cid.Cid
@@ -28,6 +30,8 @@ type StateManager struct {
 	miner *Miner
 }
 
+// Inform informs the state manager that we received a new block from the given
+// peer
 func (s *StateManager) Inform(p peer.ID, blk *Block) {
 	if err := s.processNewBlock(context.Background(), blk); err != nil {
 		log.Error(err)
@@ -56,10 +60,12 @@ func (s *StateManager) acceptNewBlock(blk *Block) error {
 		return fmt.Errorf("failed to put block to disk: %s", err)
 	}
 
+	// update our accounting of the 'best block'
 	s.knownGoodBlocks.Add(blk.Cid())
 	s.bestBlock = blk
 	s.headCid = blk.Cid()
 
+	// Remove any transactions that were mined in the new block from the mempool
 	// TODO: actually go through transactions for each block back to the last
 	// common block and remove transactions/re-add transactions in blocks we
 	// had but arent in the new chain
@@ -80,7 +86,6 @@ func (s *StateManager) acceptNewBlock(blk *Block) error {
 
 	fmt.Printf("accepted new block, [s=%d, h=%s, st=%s]\n", blk.Score(), blk.Cid(), blk.StateRoot)
 	return nil
-
 }
 
 func (s *StateManager) fetchBlock(ctx context.Context, c *cid.Cid) (*Block, error) {
@@ -121,12 +126,16 @@ func (s *StateManager) checkBlockStateChangeValid(ctx context.Context, st *State
 	return nil
 }
 
+// TODO: this method really needs to be thought through carefully. Probably one
+// of the most complicated bits of the system
 func (s *StateManager) validateBlock(ctx context.Context, b *Block) error {
 	if err := s.checkBlockValid(ctx, b); err != nil {
 		return fmt.Errorf("check block valid failed: %s", err)
 	}
 
 	if b.Score() <= s.bestBlock.Score() {
+		// TODO: likely should still validate this chain and keep it around.
+		// Someone else could mine on top of it
 		return fmt.Errorf("new block is not better than our current block")
 	}
 

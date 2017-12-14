@@ -96,6 +96,7 @@ var daemonCmd = cli.Command{
 }
 
 func main() {
+	// TODO: replace all this nonsense with the ipfs cmds lib code once its ready
 	app := cli.NewApp()
 	app.Commands = []cli.Command{
 		daemonCmd,
