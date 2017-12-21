@@ -16,6 +16,8 @@ type MinerContract struct {
 	s *ContractState
 }
 
+// LoadState is purely a helper function that loads information from the
+// contract state into the structs variables.
 func (mc *MinerContract) LoadState(s *ContractState) error {
 	ownb, err := s.Get(context.TODO(), "owner")
 	if err != nil {
@@ -50,6 +52,7 @@ func (mc *MinerContract) Call(ctx *CallContext, method string, args []interface{
 	panic("NYI")
 }
 
+// Flush writes the values in the structs fields to the state tree
 func (mc *MinerContract) Flush(ctx context.Context) error {
 	if err := mc.s.Set(ctx, "owner", []byte(mc.Owner)); err != nil {
 		return err
