@@ -147,7 +147,7 @@ func getBalanceCmd(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 		return nil, err
 	}
 
-	ct, err := act.LoadContract(ctx, stroot)
+	ct, err := stroot.GetContract(ctx, act.Code)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,12 @@ func getOpenOrders(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 		return nil, err
 	}
 
-	c, err := sact.LoadContract(ctx, stroot)
+	c, err := stroot.GetContract(ctx, sact.Code)
+	if err != nil {
+		return nil, err
+	}
+
+	cst, err := stroot.LoadContractState(ctx, sact.Memory)
 	if err != nil {
 		return nil, err
 	}
@@ -264,15 +269,17 @@ func getOpenOrders(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 		return nil, fmt.Errorf("was not actually a storage contract somehow")
 	}
 
+	cctx := &CallContext{ContractState: cst, Ctx: ctx}
+
 	switch rpc.Args[0] {
 	case "bids":
-		ids, err := sc.loadArray(ctx, bidsArrKey)
+		ids, err := sc.loadArray(cctx, bidsArrKey)
 		if err != nil {
 			return nil, err
 		}
 		var bids []*Bid
 		for _, id := range ids {
-			data, err := sc.st.Get(ctx, "b"+fmt.Sprint(id))
+			data, err := cst.Get(ctx, "b"+fmt.Sprint(id))
 			if err != nil {
 				return nil, err
 			}
@@ -284,13 +291,13 @@ func getOpenOrders(fcn *FilecoinNode, rpc *RPC) (interface{}, error) {
 		}
 		return bids, nil
 	case "asks":
-		ids, err := sc.loadArray(ctx, asksArrKey)
+		ids, err := sc.loadArray(cctx, asksArrKey)
 		if err != nil {
 			return nil, err
 		}
 		var asks []*Ask
 		for _, id := range ids {
-			data, err := sc.st.Get(ctx, "a"+fmt.Sprint(id))
+			data, err := cst.Get(ctx, "a"+fmt.Sprint(id))
 			if err != nil {
 				return nil, err
 			}

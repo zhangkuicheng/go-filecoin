@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -49,38 +48,31 @@ type Ask struct {
 	MinerID Address
 }
 
-type StorageContract struct {
-	st *ContractState
+type StorageContract struct{}
 
-	bidCount  uint64
-	askCount  uint64
-	dealCount uint64
+func (sc *StorageContract) getBids(cctx *CallContext) (uint64, error) {
+	return sc.loadUint64(cctx, "bids")
 }
 
-func (sc *StorageContract) LoadState(st *ContractState) error {
-	sc.st = st
-	bidsd, err := st.Get(context.Background(), "bids")
+func (sc *StorageContract) getAsks(cctx *CallContext) (uint64, error) {
+	return sc.loadUint64(cctx, "asks")
+}
+
+func (sc *StorageContract) getDeals(cctx *CallContext) (uint64, error) {
+	return sc.loadUint64(cctx, "deals")
+}
+
+func (sc *StorageContract) loadUint64(cctx *CallContext, k string) (uint64, error) {
+	asksd, err := cctx.ContractState.Get(cctx.Ctx, k)
 	if err != nil && err != hamt.ErrNotFound {
-		return err
+		return 0, err
 	}
 
-	sc.bidCount = big.NewInt(0).SetBytes(bidsd).Uint64()
+	return big.NewInt(0).SetBytes(asksd).Uint64(), nil
+}
 
-	asksd, err := st.Get(context.Background(), "asks")
-	if err != nil && err != hamt.ErrNotFound {
-		return err
-	}
-
-	sc.askCount = big.NewInt(0).SetBytes(asksd).Uint64()
-
-	dealsd, err := st.Get(context.Background(), "deals")
-	if err != nil && err != hamt.ErrNotFound {
-		return err
-	}
-
-	sc.dealCount = big.NewInt(0).SetBytes(dealsd).Uint64()
-
-	return nil
+func (sc *StorageContract) storeUint64(cctx *CallContext, k string, v uint64) error {
+	return cctx.ContractState.Set(cctx.Ctx, k, big.NewInt(0).SetUint64(v).Bytes())
 }
 
 func (sc *StorageContract) Call(ctx *CallContext, method string, args []interface{}) (interface{}, error) {
@@ -92,16 +84,12 @@ func (sc *StorageContract) Call(ctx *CallContext, method string, args []interfac
 	case "createMiner":
 		return sc.createMiner(ctx, args)
 	case "getAsks":
-		return sc.loadArray(ctx.Ctx, asksArrKey)
+		return sc.loadArray(ctx, asksArrKey)
 	case "getBids":
-		return sc.loadArray(ctx.Ctx, bidsArrKey)
+		return sc.loadArray(ctx, bidsArrKey)
 	default:
 		return nil, ErrMethodNotFound
 	}
-}
-
-func (sc *StorageContract) Flush(ctx context.Context, cs *hamt.CborIpldStore) (*cid.Cid, error) {
-	return cs.Put(ctx, sc.st.n)
 }
 
 func castBid(i interface{}) (*Bid, error) {
@@ -158,25 +146,27 @@ func (sc *StorageContract) addBid(ctx *CallContext, arg interface{}) (interface{
 		return nil, err
 	}
 
-	bidID := sc.bidCount
-	sc.bidCount++
+	bidID, err := sc.getBids(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	data, err := json.Marshal(arg)
 	if err != nil {
 		return nil, err
 	}
-	if err := sc.st.Set(ctx.Ctx, "b"+fmt.Sprint(bidID), data); err != nil {
+	if err := ctx.ContractState.Set(ctx.Ctx, "b"+fmt.Sprint(bidID), data); err != nil {
 		return nil, err
 	}
 
-	if err := sc.addActiveBid(ctx.Ctx, bidID); err != nil {
+	if err := sc.addActiveBid(ctx, bidID); err != nil {
 		return nil, err
 	}
 
 	return bidID, nil
 }
 
-func (sc *StorageContract) addActiveAsk(ctx context.Context, id uint64) error {
+func (sc *StorageContract) addActiveAsk(ctx *CallContext, id uint64) error {
 	asks, err := sc.loadArray(ctx, asksArrKey)
 	if err != nil {
 		return err
@@ -187,20 +177,20 @@ func (sc *StorageContract) addActiveAsk(ctx context.Context, id uint64) error {
 	return sc.storeArray(ctx, asksArrKey, asks)
 }
 
-func (sc *StorageContract) storeArray(ctx context.Context, k string, arr []uint64) error {
+func (sc *StorageContract) storeArray(ctx *CallContext, k string, arr []uint64) error {
 	// TODO: find a better structure for arrays
 	data, err := json.Marshal(arr)
 	if err != nil {
 		return err
 	}
 
-	return sc.st.Set(ctx, k, data)
+	return ctx.ContractState.Set(ctx.Ctx, k, data)
 
 }
 
-func (sc *StorageContract) loadArray(ctx context.Context, k string) ([]uint64, error) {
+func (sc *StorageContract) loadArray(ctx *CallContext, k string) ([]uint64, error) {
 	// TODO: find a better structure for arrays
-	data, err := sc.st.Get(ctx, k)
+	data, err := ctx.ContractState.Get(ctx.Ctx, k)
 	switch err {
 	case hamt.ErrNotFound:
 		return nil, nil
@@ -219,7 +209,7 @@ func (sc *StorageContract) loadArray(ctx context.Context, k string) ([]uint64, e
 
 }
 
-func (sc *StorageContract) addActiveBid(ctx context.Context, id uint64) error {
+func (sc *StorageContract) addActiveBid(ctx *CallContext, id uint64) error {
 	bids, err := sc.loadArray(ctx, bidsArrKey)
 	if err != nil {
 		return err
@@ -230,14 +220,14 @@ func (sc *StorageContract) addActiveBid(ctx context.Context, id uint64) error {
 	return sc.storeArray(ctx, bidsArrKey, bids)
 }
 
-func (sc *StorageContract) removeActiveAsk(ctx context.Context, id uint64) error {
+func (sc *StorageContract) removeActiveAsk(ctx *CallContext, id uint64) error {
 	return sc.removeFromArray(ctx, asksArrKey, id)
 }
-func (sc *StorageContract) removeActiveBid(ctx context.Context, id uint64) error {
+func (sc *StorageContract) removeActiveBid(ctx *CallContext, id uint64) error {
 	return sc.removeFromArray(ctx, bidsArrKey, id)
 }
 
-func (sc *StorageContract) removeFromArray(ctx context.Context, k string, id uint64) error {
+func (sc *StorageContract) removeFromArray(ctx *CallContext, k string, id uint64) error {
 	arr, err := sc.loadArray(ctx, k)
 	if err != nil {
 		return err
@@ -261,8 +251,8 @@ func (sc *StorageContract) validateBid(b *Bid) error {
 	return nil
 }
 
-func (sc *StorageContract) getAsk(ctx context.Context, id uint64) (*Ask, error) {
-	d, err := sc.st.Get(ctx, fmt.Sprintf("a%d", id))
+func (sc *StorageContract) getAsk(ctx *CallContext, id uint64) (*Ask, error) {
+	d, err := ctx.ContractState.Get(ctx.Ctx, fmt.Sprintf("a%d", id))
 	if err != nil {
 		return nil, err
 	}
@@ -275,8 +265,8 @@ func (sc *StorageContract) getAsk(ctx context.Context, id uint64) (*Ask, error) 
 	return &a, nil
 }
 
-func (sc *StorageContract) getBid(ctx context.Context, id uint64) (*Bid, error) {
-	d, err := sc.st.Get(ctx, fmt.Sprintf("b%d", id))
+func (sc *StorageContract) getBid(ctx *CallContext, id uint64) (*Bid, error) {
+	d, err := ctx.ContractState.Get(ctx.Ctx, fmt.Sprintf("b%d", id))
 	if err != nil {
 		return nil, err
 	}
@@ -303,14 +293,18 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 	ask.MinerID = ctx.From
 
 	// validate the ask with the miners contract
-	err = ctx.State.ActorExec(ctx.Ctx, miner, func(c Contract) error {
+	err = ctx.State.ActorExec(ctx.Ctx, miner, func(st *ContractState, c Contract) error {
 		mn, ok := c.(*MinerContract)
 		if !ok {
 			return fmt.Errorf("wasnt a miner contract")
 		}
 
+		if err := mn.LoadState(st); err != nil {
+			return fmt.Errorf("load state: %s", err)
+		}
+
 		if mn.Owner != ctx.From {
-			return fmt.Errorf("not authorized to access that miner")
+			return fmt.Errorf("not authorized to access that miner (%s != %s)", mn.Owner, ctx.From)
 		}
 
 		s := big.NewInt(int64(ask.Size))
@@ -322,36 +316,48 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 		}
 
 		mn.LockedStorage = mn.LockedStorage.Add(mn.LockedStorage, s)
+
+		if err := mn.Flush(ctx.Ctx); err != nil {
+			return err
+		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	id := sc.askCount
-	sc.askCount++
-	fmt.Println("Add ask: ", id)
-	if err := sc.putOrder(ctx.Ctx, fmt.Sprintf("a%d", id), ask); err != nil {
+	id, err := sc.getAsks(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := sc.addActiveAsk(ctx.Ctx, id); err != nil {
+	if err := sc.storeUint64(ctx, "asks", id+1); err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Add ask: ", id)
+	if err := sc.putOrder(ctx, fmt.Sprintf("a%d", id), ask); err != nil {
+		return nil, err
+	}
+
+	if err := sc.addActiveAsk(ctx, id); err != nil {
 		return nil, err
 	}
 
 	return id, nil
 }
 
-func (sc *StorageContract) putOrder(ctx context.Context, k string, o interface{}) error {
+func (sc *StorageContract) putOrder(ctx *CallContext, k string, o interface{}) error {
 	d, err := json.Marshal(o)
 	if err != nil {
 		return err
 	}
 
-	return sc.st.Set(ctx, k, d)
+	return ctx.ContractState.Set(ctx.Ctx, k, d)
 }
 
-func (sc *StorageContract) addActiveDeal(ctx context.Context, id uint64) error {
+func (sc *StorageContract) addActiveDeal(ctx *CallContext, id uint64) error {
 	arr, err := sc.loadArray(ctx, dealsArrKey)
 	if err != nil {
 		return err
@@ -371,12 +377,12 @@ type Deal struct {
 }
 
 func (sc *StorageContract) makeDeal(ctx *CallContext, d *Deal) (uint64, error) {
-	ask, err := sc.getAsk(ctx.Ctx, d.Ask)
+	ask, err := sc.getAsk(ctx, d.Ask)
 	if err != nil {
 		return 0, err
 	}
 
-	bid, err := sc.getBid(ctx.Ctx, d.Bid)
+	bid, err := sc.getBid(ctx, d.Bid)
 	if err != nil {
 		return 0, err
 	}
@@ -394,8 +400,14 @@ func (sc *StorageContract) makeDeal(ctx *CallContext, d *Deal) (uint64, error) {
 		return 0, fmt.Errorf("cannot create a deal for someone elses bid")
 	}
 
-	id := sc.dealCount
-	sc.dealCount++
+	id, err := sc.getDeals(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := sc.storeUint64(ctx, "deals", id+1); err != nil {
+		return 0, err
+	}
 
 	data, err := json.Marshal(d)
 	if err != nil {
@@ -404,16 +416,16 @@ func (sc *StorageContract) makeDeal(ctx *CallContext, d *Deal) (uint64, error) {
 
 	// DEBATABLE:
 	ask.Size -= bid.Size
-	if err := sc.putOrder(ctx.Ctx, fmt.Sprintf("a%d", d.Ask), ask); err != nil {
+	if err := sc.putOrder(ctx, fmt.Sprintf("a%d", d.Ask), ask); err != nil {
 		return 0, err
 	}
 
 	fmt.Println("Add deal: ", id)
-	if err := sc.st.Set(ctx.Ctx, fmt.Sprintf("d%d", id), data); err != nil {
+	if err := ctx.ContractState.Set(ctx.Ctx, fmt.Sprintf("d%d", id), data); err != nil {
 		return 0, err
 	}
 
-	if err := sc.addActiveDeal(ctx.Ctx, id); err != nil {
+	if err := sc.addActiveDeal(ctx, id); err != nil {
 		return 0, err
 	}
 
@@ -434,7 +446,11 @@ func (sc *StorageContract) createMiner(ctx *CallContext, args []interface{}) (in
 		s:             ctx.State.NewContractState(),
 	}
 
-	mem, err := nminer.Flush(ctx.Ctx, ctx.State.store)
+	if err := nminer.Flush(ctx.Ctx); err != nil {
+		return nil, err
+	}
+
+	mem, err := nminer.s.Flush(ctx.Ctx)
 	if err != nil {
 		return nil, err
 	}

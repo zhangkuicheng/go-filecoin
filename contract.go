@@ -25,28 +25,17 @@ func identCid(s string) *cid.Cid {
 
 // CallContext is information accessible to the contract during a given invocation
 type CallContext struct {
-	Ctx   context.Context
-	From  Address
-	State *State
+	Ctx           context.Context
+	From          Address
+	State         *State
+	ContractState *ContractState
 }
 
 type Contract interface {
 	Call(ctx *CallContext, method string, args []interface{}) (interface{}, error)
-	LoadState(s *ContractState) error
-
-	// TODO: this signature sucks, need to get the abstractions right
-	Flush(ctx context.Context, cs *hamt.CborIpldStore) (*cid.Cid, error)
 }
 
-type FilecoinTokenContract struct {
-	s *ContractState
-}
-
-// TODO: maybe it makes sense to have the state be part of the CallContext?
-func (ftc *FilecoinTokenContract) LoadState(s *ContractState) error {
-	ftc.s = s
-	return nil
-}
+type FilecoinTokenContract struct{}
 
 var ErrMethodNotFound = fmt.Errorf("unrecognized method")
 
@@ -61,14 +50,6 @@ func (ftc *FilecoinTokenContract) Call(ctx *CallContext, method string, args []i
 	}
 }
 
-func (ftc *FilecoinTokenContract) Flush(ctx context.Context, cs *hamt.CborIpldStore) (*cid.Cid, error) {
-	if err := ftc.s.Flush(ctx); err != nil {
-		return nil, err
-	}
-
-	return cs.Put(ctx, ftc.s.n)
-}
-
 func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, args []interface{}) (interface{}, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("getBalance takes exactly 1 argument")
@@ -79,7 +60,8 @@ func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, args []interface{
 		return nil, fmt.Errorf("argument must be an Address")
 	}
 
-	accData, err := ftc.s.Get(ctx.Ctx, string(addr))
+	cs := ctx.ContractState
+	accData, err := cs.Get(ctx.Ctx, string(addr))
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +124,8 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 		return nil, err
 	}
 
-	fromData, err := ftc.s.Get(ctx.Ctx, string(ctx.From))
+	cs := ctx.ContractState
+	fromData, err := cs.Get(ctx.Ctx, string(ctx.From))
 	if err != nil && err != hamt.ErrNotFound {
 		return nil, err
 	}
@@ -155,7 +138,7 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 
 	fromBalance = fromBalance.Sub(fromBalance, amount)
 
-	toData, err := ftc.s.Get(ctx.Ctx, string(toAddr))
+	toData, err := cs.Get(ctx.Ctx, string(toAddr))
 	if err != nil && err != hamt.ErrNotFound {
 		return nil, err
 	}
@@ -163,11 +146,11 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 	toBalance := big.NewInt(0).SetBytes(toData)
 	toBalance = toBalance.Add(toBalance, amount)
 
-	if err := ftc.s.Set(ctx.Ctx, string(ctx.From), fromBalance.Bytes()); err != nil {
+	if err := cs.Set(ctx.Ctx, string(ctx.From), fromBalance.Bytes()); err != nil {
 		return nil, err
 	}
 
-	if err := ftc.s.Set(ctx.Ctx, string(toAddr), toBalance.Bytes()); err != nil {
+	if err := cs.Set(ctx.Ctx, string(toAddr), toBalance.Bytes()); err != nil {
 		return nil, err
 	}
 

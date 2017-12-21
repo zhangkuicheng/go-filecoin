@@ -44,6 +44,7 @@ var daemonCmd = cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		// set up networking
 		h, err := libp2p.Construct(context.Background(), nil)
 		if err != nil {
 			panic(err)
@@ -51,7 +52,7 @@ var daemonCmd = cli.Command{
 
 		fsub := floodsub.NewFloodSub(context.Background(), h)
 
-		// Also should probably pass in the dagservice instance
+		// set up storage (a bit more complicated than it realistically needs to be right now)
 		bs := bstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
 		nilr, _ := none.ConstructNilRouting(nil, nil, nil)
 		bsnet := bsnet.NewFromIpfsHost(h, nilr)
@@ -59,6 +60,7 @@ var daemonCmd = cli.Command{
 		bserv := bserv.New(bs, bswap)
 		dag := dag.NewDAGService(bserv)
 
+		// TODO: work on what parameters we pass to the filecoin node
 		fcn, err := NewFilecoinNode(h, fsub, dag, bserv, bswap.(*bitswap.Bitswap))
 		if err != nil {
 			panic(err)

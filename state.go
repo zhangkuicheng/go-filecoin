@@ -66,22 +66,27 @@ func (s *State) SetActor(ctx context.Context, a Address, act *Actor) error {
 	return nil
 }
 
-func (s *State) ActorExec(ctx context.Context, addr Address, op func(Contract) error) error {
+func (s *State) ActorExec(ctx context.Context, addr Address, op func(*ContractState, Contract) error) error {
 	act, err := s.GetActor(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("get actor: %s", err)
 	}
 
-	contract, err := act.LoadContract(ctx, s)
+	contract, err := s.GetContract(ctx, act.Code)
 	if err != nil {
-		return fmt.Errorf("load contract: %s %s", act.Code, err)
+		return fmt.Errorf("get contract: %s %s", act.Code, err)
 	}
 
-	if err := op(contract); err != nil {
+	st, err := s.LoadContractState(ctx, act.Memory)
+	if err != nil {
+		return fmt.Errorf("state load: %s", err)
+	}
+
+	if err := op(st, contract); err != nil {
 		return err
 	}
 
-	nmemory, err := contract.Flush(ctx, s.store)
+	nmemory, err := st.Flush(ctx)
 	if err != nil {
 		return err
 	}
@@ -97,8 +102,8 @@ func (s *State) ActorExec(ctx context.Context, addr Address, op func(Contract) e
 
 func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
 	for _, tx := range txs {
-		err := s.ActorExec(ctx, tx.To, func(contract Contract) error {
-			callCtx := &CallContext{Ctx: ctx, From: tx.From, State: s}
+		err := s.ActorExec(ctx, tx.To, func(st *ContractState, contract Contract) error {
+			callCtx := &CallContext{State: s, From: tx.From, Ctx: ctx, ContractState: st}
 			_, err := contract.Call(callCtx, tx.Method, tx.Params)
 			return err
 		})
@@ -119,26 +124,8 @@ func (s *State) Flush(ctx context.Context) (*cid.Cid, error) {
 	return s.store.Put(ctx, s.root)
 }
 
-func (act *Actor) LoadContract(ctx context.Context, s *State) (Contract, error) {
-	contract, err := s.GetContract(ctx, act.Code)
-	if err != nil {
-		return nil, fmt.Errorf("get code: %s", err)
-	}
-
-	st, err := s.LoadContractState(ctx, act.Memory)
-	if err != nil {
-		return nil, fmt.Errorf("state load: %s", err)
-	}
-
-	if err := contract.LoadState(st); err != nil {
-		return nil, fmt.Errorf("load state in contract: %s", err)
-	}
-
-	return contract, nil
-}
-
 func (s *State) NewContractState() *ContractState {
-	return &ContractState{hamt.NewNode(s.store)}
+	return &ContractState{hamt.NewNode(s.store), s.store}
 }
 
 func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractState, error) {
@@ -147,7 +134,7 @@ func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractS
 		return nil, fmt.Errorf("store get: %s", err)
 	}
 
-	return &ContractState{&n}, nil
+	return &ContractState{&n, s.store}, nil
 }
 
 // Actually, this probably should take a cid, not an address
@@ -165,11 +152,16 @@ func (s *State) GetContract(ctx context.Context, codeHash *cid.Cid) (Contract, e
 }
 
 type ContractState struct {
-	n *hamt.Node
+	n    *hamt.Node
+	cstr *hamt.CborIpldStore
 }
 
-func (cs *ContractState) Flush(ctx context.Context) error {
-	return cs.n.Flush(ctx)
+func (cs *ContractState) Flush(ctx context.Context) (*cid.Cid, error) {
+	if err := cs.n.Flush(ctx); err != nil {
+		return nil, err
+	}
+
+	return cs.cstr.Put(ctx, cs.n)
 }
 
 func (cs *ContractState) Get(ctx context.Context, k string) ([]byte, error) {
