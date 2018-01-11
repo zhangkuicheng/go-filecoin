@@ -85,6 +85,8 @@ func (m *Miner) getNextBlock(ctx context.Context) (*Block, error) {
 		Params: []interface{}{m.address, MiningReward},
 	}
 
+	fmt.Println("mining to: ", m.address)
+
 	txs := m.txPool.GetBestTxs()
 	txs = append([]*Transaction{reward}, txs...)
 	nb := &Block{

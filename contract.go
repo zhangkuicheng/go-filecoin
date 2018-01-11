@@ -8,8 +8,8 @@ import (
 	// TODO: no usage of this package directly
 	hamt "github.com/ipfs/go-hamt-ipld"
 
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
-	mh "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
+	mh "gx/ipfs/QmYeKnKpubCMRiq3PGZcTREErthbb5Q9cXsCoSkD9bjEBd/go-multihash"
+	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 )
 
 var FilecoinContractCid = identCid("filecoin")
@@ -59,6 +59,8 @@ func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, args []interface{
 	if !ok {
 		return nil, fmt.Errorf("argument must be an Address")
 	}
+
+	fmt.Println("getting address: ", addr)
 
 	cs := ctx.ContractState
 	accData, err := cs.Get(ctx.Ctx, string(addr))

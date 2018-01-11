@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	hamt "github.com/ipfs/go-hamt-ipld"
-	cid "gx/ipfs/QmNp85zy9RLrQ5oQD4hPyS39ezrrXpcaa7R4Y9kxdWQLLQ/go-cid"
+	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 )
 
 func LoadState(ctx context.Context, cs *hamt.CborIpldStore, c *cid.Cid) (*State, error) {
@@ -108,7 +108,8 @@ func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error
 			return err
 		})
 		if err != nil {
-			// TODO: just revert the state changes and continue
+			// TODO: if the contract execution above fails, return special
+			// error such that the state isnt updated, but we continue here
 			return err
 		}
 	}
