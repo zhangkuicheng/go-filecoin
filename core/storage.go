@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"crypto/sha256"
@@ -90,6 +90,47 @@ func (sc *StorageContract) Call(ctx *CallContext, method string, args []interfac
 	default:
 		return nil, ErrMethodNotFound
 	}
+}
+
+func (sc *StorageContract) ListAsks(cctx *CallContext) ([]*Ask, error) {
+	cst := cctx.ContractState
+	ids, err := sc.loadArray(cctx, asksArrKey)
+	if err != nil {
+		return nil, err
+	}
+	var asks []*Ask
+	for _, id := range ids {
+		data, err := cst.Get(cctx.Ctx, "a"+fmt.Sprint(id))
+		if err != nil {
+			return nil, err
+		}
+		var a Ask
+		if err := json.Unmarshal(data, &a); err != nil {
+			return nil, err
+		}
+		asks = append(asks, &a)
+	}
+	return asks, nil
+}
+
+func (sc *StorageContract) ListBids(cctx *CallContext) ([]*Bid, error) {
+	ids, err := sc.loadArray(cctx, bidsArrKey)
+	if err != nil {
+		return nil, err
+	}
+	var bids []*Bid
+	for _, id := range ids {
+		data, err := cctx.ContractState.Get(cctx.Ctx, "b"+fmt.Sprint(id))
+		if err != nil {
+			return nil, err
+		}
+		var b Bid
+		if err := json.Unmarshal(data, &b); err != nil {
+			return nil, err
+		}
+		bids = append(bids, &b)
+	}
+	return bids, nil
 }
 
 func castBid(i interface{}) (*Bid, error) {

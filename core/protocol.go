@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"context"
@@ -33,8 +33,8 @@ func (fcn *FilecoinNode) HelloPeer(p peer.ID) {
 	defer s.Close()
 
 	hello := &HelloMessage{
-		Head:        fcn.stateMgr.headCid,
-		BlockHeight: fcn.stateMgr.bestBlock.Score(),
+		Head:        fcn.StateMgr.headCid,
+		BlockHeight: fcn.StateMgr.bestBlock.Score(),
 	}
 
 	if err := json.NewEncoder(s).Encode(hello); err != nil {
@@ -54,7 +54,7 @@ func (fcn *FilecoinNode) handleHelloStream(s net.Stream) {
 		return
 	}
 
-	if hello.BlockHeight <= fcn.stateMgr.bestBlock.Score() {
+	if hello.BlockHeight <= fcn.StateMgr.bestBlock.Score() {
 		return
 	}
 
@@ -63,7 +63,7 @@ func (fcn *FilecoinNode) handleHelloStream(s net.Stream) {
 		log.Error("getting block from hello message: ", err)
 		return
 	}
-	fcn.stateMgr.Inform(s.Conn().RemotePeer(), &blk)
+	fcn.StateMgr.Inform(s.Conn().RemotePeer(), &blk)
 }
 
 type fcnNotifiee FilecoinNode

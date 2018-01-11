@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"context"
@@ -38,6 +38,12 @@ func (s *StateManager) Inform(p peer.ID, blk *Block) {
 		return
 	}
 	s.miner.newBlocks <- blk
+}
+
+func (s *StateManager) GetStateRoot() *State {
+	// TODO: maybe return immutable copy or something? Don't necessarily want
+	// the caller to be able to mutate this without them intending to
+	return s.stateRoot
 }
 
 func (s *StateManager) processNewBlock(ctx context.Context, blk *Block) error {

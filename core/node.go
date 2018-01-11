@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"gx/ipfs/QmP1T1SGU6276R2MHKP2owbck37Fnzd6ZkpyNJvnG2LoTG/go-libp2p-floodsub"
 	"gx/ipfs/QmP46LGWhzVZTMmt5akNNLfoV8qL4h5wTwmzQxLyDafggd/go-libp2p-host"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
 	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 
@@ -16,6 +17,8 @@ import (
 	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 )
+
+var log = logging.Logger("core")
 
 var ProtocolID = protocol.ID("/fil/0.0.0")
 
@@ -27,31 +30,31 @@ type FilecoinNode struct {
 	bsub, txsub *floodsub.Subscription
 	pubsub      *floodsub.PubSub
 
-	dag   dag.DAGService
-	bswap *bitswap.Bitswap
-	cs    *hamt.CborIpldStore
+	DAG     dag.DAGService
+	Bitswap *bitswap.Bitswap
+	cs      *hamt.CborIpldStore
 
-	stateMgr *StateManager
+	StateMgr *StateManager
 }
 
 func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bserv.BlockService, bswap *bitswap.Bitswap) (*FilecoinNode, error) {
 	fcn := &FilecoinNode{
-		h:     h,
-		dag:   dag,
-		bswap: bswap,
-		cs:    &hamt.CborIpldStore{bs},
+		h:       h,
+		DAG:     dag,
+		Bitswap: bswap,
+		cs:      &hamt.CborIpldStore{bs},
 	}
 
 	s := &StateManager{
 		knownGoodBlocks: cid.NewSet(),
 		txPool:          NewTransactionPool(),
 		cs:              fcn.cs,
-		dag:             fcn.dag,
+		dag:             fcn.DAG,
 	}
 
-	fcn.stateMgr = s
+	fcn.StateMgr = s
 
-	baseAddr := createNewAddress()
+	baseAddr := CreateNewAddress()
 	fcn.Addresses = []Address{baseAddr}
 	fmt.Println("my mining address is ", baseAddr)
 
@@ -61,7 +64,7 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 	}
 	s.bestBlock = genesis
 
-	c, err := fcn.dag.Add(genesis.ToNode())
+	c, err := fcn.DAG.Add(genesis.ToNode())
 	if err != nil {
 		return nil, err
 	}
@@ -118,13 +121,13 @@ func (fcn *FilecoinNode) processNewTransactions(txsub *floodsub.Subscription) {
 			panic(err)
 		}
 
-		if err := fcn.stateMgr.txPool.Add(&txmsg); err != nil {
+		if err := fcn.StateMgr.txPool.Add(&txmsg); err != nil {
 			panic(err)
 		}
 	}
 }
 
-func createNewAddress() Address {
+func CreateNewAddress() Address {
 	buf := make([]byte, 20)
 	rand.Read(buf)
 	return Address(buf)
@@ -146,18 +149,18 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 			panic(err)
 		}
 
-		fcn.stateMgr.Inform(msg.GetFrom(), blk)
+		fcn.StateMgr.Inform(msg.GetFrom(), blk)
 	}
 }
 
 func (fcn *FilecoinNode) SendNewBlock(b *Block) error {
 	nd := b.ToNode()
-	_, err := fcn.dag.Add(nd)
+	_, err := fcn.DAG.Add(nd)
 	if err != nil {
 		return err
 	}
 
-	if err := fcn.stateMgr.processNewBlock(context.Background(), b); err != nil {
+	if err := fcn.StateMgr.processNewBlock(context.Background(), b); err != nil {
 		return err
 	}
 

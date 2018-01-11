@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"io/ioutil"
@@ -23,7 +23,7 @@ func removeDaemonLock() {
 	_ = os.Remove(getPath())
 }
 
-func daemonIsRunning() (bool, error) {
+func DaemonIsRunning() (bool, error) {
 	p := getPath()
 	if _, err := os.Stat(p); err != nil {
 		if os.IsNotExist(err) {
