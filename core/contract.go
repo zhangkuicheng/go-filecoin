@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"reflect"
 
 	// TODO: no usage of this package directly
 	hamt "github.com/ipfs/go-hamt-ipld"
@@ -44,22 +45,13 @@ func (ftc *FilecoinTokenContract) Call(ctx *CallContext, method string, args []i
 	case "transfer":
 		return ftc.transfer(ctx, args)
 	case "getBalance":
-		return ftc.getBalance(ctx, args)
+		return typedCall(ctx, args, ftc.getBalance)
 	default:
 		return nil, ErrMethodNotFound
 	}
 }
 
-func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, args []interface{}) (interface{}, error) {
-	if len(args) != 1 {
-		return nil, fmt.Errorf("getBalance takes exactly 1 argument")
-	}
-
-	addr, ok := args[0].(Address)
-	if !ok {
-		return nil, fmt.Errorf("argument must be an Address")
-	}
-
+func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, addr Address) (interface{}, error) {
 	fmt.Println("getting address: ", addr)
 
 	cs := ctx.ContractState
@@ -157,4 +149,41 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 	}
 
 	return nil, nil
+}
+
+var (
+	addrType = reflect.TypeOf(Address(""))
+)
+
+func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{}, error) {
+	fval := reflect.ValueOf(f)
+	if fval.Kind() != reflect.Func {
+		return nil, fmt.Errorf("must pass a function")
+	}
+
+	ftype := fval.Type()
+	if ftype.In(0) != reflect.TypeOf(&CallContext{}) {
+		return nil, fmt.Errorf("first parameter must be call context")
+	}
+
+	var callargs []reflect.Value
+	for i := 1; i < ftype.NumIn(); i++ {
+		switch ftype.In(i) {
+		case addrType:
+			v, err := castToAddress(reflect.ValueOf(args[i-1]))
+			if err != nil {
+				return nil, err
+			}
+			callargs = append(callargs, v)
+		default:
+			return nil, fmt.Errorf("unsupported type: %s", ftype.In(i))
+		}
+	}
+
+	out := fval.Call(callargs)
+	return out[0].Interface(), out[1].Interface().(error)
+}
+
+func castToAddress(v reflect.Value) (reflect.Value, error) {
+	return v, nil
 }
