@@ -63,11 +63,6 @@ func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, addr Address) (in
 	return big.NewInt(0).SetBytes(accData), nil
 }
 
-type Account struct {
-	Balance *big.Int
-	Nonce   uint64
-}
-
 func addressCast(i interface{}) (Address, error) {
 	switch i := i.(type) {
 	case Address:
@@ -164,6 +159,10 @@ func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{
 	ftype := fval.Type()
 	if ftype.In(0) != reflect.TypeOf(&CallContext{}) {
 		return nil, fmt.Errorf("first parameter must be call context")
+	}
+
+	if ftype.NumIn()-1 != len(args) {
+		return nil, fmt.Errorf("expected %d args", ftype.NumIn()-1)
 	}
 
 	var callargs []reflect.Value

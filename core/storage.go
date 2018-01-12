@@ -93,24 +93,47 @@ func (sc *StorageContract) Call(ctx *CallContext, method string, args []interfac
 }
 
 func (sc *StorageContract) ListAsks(cctx *CallContext) ([]*Ask, error) {
-	cst := cctx.ContractState
 	ids, err := sc.loadArray(cctx, asksArrKey)
 	if err != nil {
 		return nil, err
 	}
 	var asks []*Ask
 	for _, id := range ids {
-		data, err := cst.Get(cctx.Ctx, "a"+fmt.Sprint(id))
+		a, err := sc.GetAsk(cctx, id)
 		if err != nil {
 			return nil, err
 		}
-		var a Ask
-		if err := json.Unmarshal(data, &a); err != nil {
-			return nil, err
-		}
-		asks = append(asks, &a)
+		asks = append(asks, a)
 	}
 	return asks, nil
+}
+
+func (sc *StorageContract) GetAsk(cctx *CallContext, id uint64) (*Ask, error) {
+	data, err := cctx.ContractState.Get(cctx.Ctx, "a"+fmt.Sprint(id))
+	if err != nil {
+		return nil, err
+	}
+
+	var a Ask
+	if err := json.Unmarshal(data, &a); err != nil {
+		return nil, err
+	}
+
+	return &a, nil
+}
+
+func (sc *StorageContract) GetBid(cctx *CallContext, id uint64) (*Bid, error) {
+	data, err := cctx.ContractState.Get(cctx.Ctx, "b"+fmt.Sprint(id))
+	if err != nil {
+		return nil, err
+	}
+
+	var b Bid
+	if err := json.Unmarshal(data, &b); err != nil {
+		return nil, err
+	}
+
+	return &b, nil
 }
 
 func (sc *StorageContract) ListBids(cctx *CallContext) ([]*Bid, error) {
@@ -120,15 +143,11 @@ func (sc *StorageContract) ListBids(cctx *CallContext) ([]*Bid, error) {
 	}
 	var bids []*Bid
 	for _, id := range ids {
-		data, err := cctx.ContractState.Get(cctx.Ctx, "b"+fmt.Sprint(id))
+		b, err := sc.GetBid(cctx, id)
 		if err != nil {
 			return nil, err
 		}
-		var b Bid
-		if err := json.Unmarshal(data, &b); err != nil {
-			return nil, err
-		}
-		bids = append(bids, &b)
+		bids = append(bids, b)
 	}
 	return bids, nil
 }

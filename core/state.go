@@ -103,6 +103,7 @@ func (s *State) ActorExec(ctx context.Context, addr Address, op func(*ContractSt
 func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
 	for _, tx := range txs {
 		err := s.ActorExec(ctx, tx.To, func(st *ContractState, contract Contract) error {
+
 			callCtx := &CallContext{State: s, From: tx.From, Ctx: ctx, ContractState: st}
 			_, err := contract.Call(callCtx, tx.Method, tx.Params)
 			return err
@@ -126,7 +127,10 @@ func (s *State) Flush(ctx context.Context) (*cid.Cid, error) {
 }
 
 func (s *State) NewContractState() *ContractState {
-	return &ContractState{hamt.NewNode(s.store), s.store}
+	return &ContractState{
+		n:    hamt.NewNode(s.store),
+		cstr: s.store,
+	}
 }
 
 func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractState, error) {
@@ -135,7 +139,10 @@ func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractS
 		return nil, fmt.Errorf("store get: %s", err)
 	}
 
-	return &ContractState{&n, s.store}, nil
+	return &ContractState{
+		n:    &n,
+		cstr: s.store,
+	}, nil
 }
 
 // Actually, this probably should take a cid, not an address

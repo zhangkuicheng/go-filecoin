@@ -605,3 +605,53 @@ func listBids(ctx context.Context, fcn *core.FilecoinNode) ([]*core.Bid, error) 
 	cctx := &core.CallContext{ContractState: cst, Ctx: ctx}
 	return sc.ListBids(cctx)
 }
+
+var OrderDealCmd = &cmds.Command{
+	Subcommands: map[string]*cmds.Command{
+		"make": OrderDealMakeCmd,
+	},
+}
+
+var OrderDealMakeCmd = &cmds.Command{
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ask", true, false, "id of ask for deal"),
+		cmdkit.StringArg("bid", true, false, "id of bid for deal"),
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+		ctx := req.Context
+		fcn := GetNode(env)
+		stroot := fcn.StateMgr.GetStateRoot()
+		sact, err := stroot.GetActor(ctx, core.StorageContractAddress)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		c, err := stroot.GetContract(ctx, sact.Code)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		cst, err := stroot.LoadContractState(ctx, sact.Memory)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		_ = cst
+		sc, ok := c.(*core.StorageContract)
+		if !ok {
+			re.SetError(fmt.Errorf("was not actually a storage contract somehow"), cmdkit.ErrNormal)
+			return
+		}
+
+		_ = sc
+	},
+	Type: []*core.Ask{},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
+			return nil
+		}),
+	},
+}

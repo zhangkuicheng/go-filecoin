@@ -3,9 +3,11 @@ package core
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	cbor "github.com/ipfs/go-ipld-cbor"
+	atlas "github.com/polydawn/refmt/obj/atlas"
 	node "gx/ipfs/QmNwUEK7QbwSqyKBu3mMtToo8SUc6wQJ7gdZq4gGGJqfnf/go-ipld-format"
 	mh "gx/ipfs/QmYeKnKpubCMRiq3PGZcTREErthbb5Q9cXsCoSkD9bjEBd/go-multihash"
 	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
@@ -13,8 +15,8 @@ import (
 
 func init() {
 	cbor.RegisterCborType(Block{})
-	cbor.RegisterCborType(Transaction{})
 	cbor.RegisterCborType(Signature{})
+	cbor.RegisterCborType(transactionCborEntry)
 }
 
 type Block struct {
@@ -126,6 +128,55 @@ type Transaction struct {
 	Params   []interface{}
 
 	Signature *Signature
+}
+
+var transactionCborEntry = atlas.BuildEntry(Transaction{}).Transform().
+	TransformMarshal(atlas.MakeMarshalTransformFunc(
+		func(tx Transaction) ([]interface{}, error) {
+			return []interface{}{
+				tx.To,
+				tx.From,
+				tx.Nonce,
+				tx.TickCost,
+				tx.Ticks,
+				tx.Method,
+				tx.Params,
+				// TODO: signature
+			}, nil
+		})).
+	TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
+		func(x []interface{}) (Transaction, error) {
+			if len(x) != 7 {
+				return Transaction{}, fmt.Errorf("expected six fields in a transaction")
+			}
+			fmt.Printf("%#v\n", x[0])
+
+			var tickcost, ticks *big.Int
+			if b, ok := x[3].([]byte); ok {
+				tickcost = big.NewInt(0).SetBytes(b)
+			}
+			if b, ok := x[4].([]byte); ok {
+				ticks = big.NewInt(0).SetBytes(b)
+			}
+
+			return Transaction{
+				To:       Address(x[0].(string)),
+				From:     Address(x[1].(string)),
+				Nonce:    x[2].(uint64),
+				TickCost: tickcost,
+				Ticks:    ticks,
+				Method:   x[5].(string),
+				Params:   x[6].([]interface{}),
+			}, nil
+		})).
+	Complete()
+
+func (tx *Transaction) FromWire(b []byte) error {
+	return cbor.DecodeInto(b, tx)
+}
+
+func (tx *Transaction) ToWire() ([]byte, error) {
+	return cbor.DumpObject(tx)
 }
 
 // TODO: we could control creation of transaction instances to guarantee this
