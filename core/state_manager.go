@@ -90,7 +90,7 @@ func (s *StateManager) acceptNewBlock(blk *Block) error {
 	}
 	s.stateRoot = st
 
-	fmt.Printf("accepted new block, [s=%d, h=%s, st=%s]\n", blk.Score(), blk.Cid(), blk.StateRoot)
+	fmt.Printf("accepted new block, [s=%d, h=%s, st=%s]\n\n", blk.Score(), blk.Cid(), blk.StateRoot)
 	return nil
 }
 

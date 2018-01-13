@@ -353,9 +353,18 @@ var WalletSendCmd = &cmds.Command{
 			return
 		}
 
+		from := fcn.Addresses[0]
+
+		nonce, err := fcn.StateMgr.GetStateRoot().NonceForActor(req.Context, from)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
 		tx := &core.Transaction{
-			From:   fcn.Addresses[0],
+			From:   from,
 			To:     core.FilecoinContractAddr,
+			Nonce:  nonce,
 			Method: "transfer",
 			Params: []interface{}{toaddr, amount},
 		}
@@ -546,7 +555,7 @@ var OrderAskListCmd = &cmds.Command{
 			}
 
 			for _, a := range *asks {
-				fmt.Fprintf(w, "%s\t%d\t%s\t%s\n", a.MinerID, a.Size, a.Price, a.Expiry)
+				fmt.Fprintf(w, "%s\t%d\t%s\t%d\n", a.MinerID, a.Size, a.Price, a.Expiry)
 			}
 			return nil
 		}),

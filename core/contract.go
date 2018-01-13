@@ -30,6 +30,7 @@ type CallContext struct {
 	From          Address
 	State         *State
 	ContractState *ContractState
+	Address       Address
 }
 
 type Contract interface {
@@ -52,10 +53,7 @@ func (ftc *FilecoinTokenContract) Call(ctx *CallContext, method string, args []i
 }
 
 func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, addr Address) (interface{}, error) {
-	fmt.Println("getting address: ", addr)
-
-	cs := ctx.ContractState
-	accData, err := cs.Get(ctx.Ctx, string(addr))
+	accData, err := ctx.ContractState.Get(ctx.Ctx, string(addr))
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +111,20 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 		return nil, err
 	}
 
+	// TODO: formalize the creation of new accounts
+	_, err = ctx.State.GetActor(ctx.Ctx, toAddr)
+	switch err {
+	case hamt.ErrNotFound:
+		if err := ctx.State.SetActor(ctx.Ctx, toAddr, &Actor{}); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, err
+	case nil:
+		// ok
+	}
+	//*/
+
 	cs := ctx.ContractState
 	fromData, err := cs.Get(ctx.Ctx, string(ctx.From))
 	if err != nil && err != hamt.ErrNotFound {
@@ -148,6 +160,7 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 
 var (
 	addrType = reflect.TypeOf(Address(""))
+	askType  = reflect.TypeOf(&Ask{})
 )
 
 func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{}, error) {
@@ -165,7 +178,7 @@ func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{
 		return nil, fmt.Errorf("expected %d args", ftype.NumIn()-1)
 	}
 
-	var callargs []reflect.Value
+	callargs := []reflect.Value{reflect.ValueOf(cctx)}
 	for i := 1; i < ftype.NumIn(); i++ {
 		switch ftype.In(i) {
 		case addrType:
@@ -174,13 +187,22 @@ func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{
 				return nil, err
 			}
 			callargs = append(callargs, v)
+		case askType:
+			callargs = append(callargs, reflect.ValueOf(args[i-1]))
 		default:
 			return nil, fmt.Errorf("unsupported type: %s", ftype.In(i))
 		}
 	}
 
 	out := fval.Call(callargs)
-	return out[0].Interface(), out[1].Interface().(error)
+	outv := out[0].Interface()
+
+	var outErr error
+	if e, ok := out[1].Interface().(error); ok {
+		outErr = e
+	}
+
+	return outv, outErr
 }
 
 func castToAddress(v reflect.Value) (reflect.Value, error) {

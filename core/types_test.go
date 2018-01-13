@@ -19,13 +19,13 @@ func TestTransactionRoundTrip(t *testing.T) {
 		},
 	}
 
-	data, err := tx.ToWire()
+	data, err := tx.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var otx Transaction
-	if err := otx.FromWire(data); err != nil {
+	if err := otx.Unmarshal(data); err != nil {
 		t.Fatal(err)
 	}
 

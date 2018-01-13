@@ -26,6 +26,7 @@ type State struct {
 type Actor struct {
 	Code   *cid.Cid
 	Memory *cid.Cid
+	Nonce  uint64
 }
 
 func loadActor(ctx context.Context, st *hamt.Node, a Address) (*Actor, error) {
@@ -66,7 +67,72 @@ func (s *State) SetActor(ctx context.Context, a Address, act *Actor) error {
 	return nil
 }
 
-func (s *State) ActorExec(ctx context.Context, addr Address, op func(*ContractState, Contract) error) error {
+func (s *State) ActorExec(ctx context.Context, tx *Transaction) error {
+	act, err := s.GetActor(ctx, tx.To)
+	if err != nil {
+		return fmt.Errorf("get actor: %s", err)
+	}
+
+	var from *Actor
+	if tx.To != tx.From {
+		a, err := s.GetActor(ctx, tx.From)
+		if err != nil {
+			return fmt.Errorf("get actor: %s", err)
+		}
+		from = a
+	} else {
+		from = act
+	}
+
+	if from.Nonce != tx.Nonce {
+		return fmt.Errorf("invalid nonce")
+	}
+	from.Nonce++
+
+	contract, err := s.GetContract(ctx, act.Code)
+	if err != nil {
+		return fmt.Errorf("get contract: %s %s", act.Code, err)
+	}
+
+	st, err := s.LoadContractState(ctx, act.Memory)
+	if err != nil {
+		return fmt.Errorf("state load: %s", err)
+	}
+
+	cctx := &CallContext{State: s, From: tx.From, Ctx: ctx, ContractState: st, Address: tx.To}
+	if _, err := contract.Call(cctx, tx.Method, tx.Params); err != nil {
+		return err
+	}
+
+	nmemory, err := st.Flush(ctx)
+	if err != nil {
+		return err
+	}
+
+	act.Memory = nmemory
+	if err := s.SetActor(ctx, tx.To, act); err != nil {
+		return fmt.Errorf("set actor: %s", err)
+	}
+
+	if tx.To != tx.From {
+		if err := s.SetActor(ctx, tx.From, from); err != nil {
+			return fmt.Errorf("set actor: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *State) NonceForActor(ctx context.Context, addr Address) (uint64, error) {
+	act, err := s.GetActor(ctx, addr)
+	if err != nil {
+		return 0, err
+	}
+
+	return act.Nonce, nil
+}
+
+func (s *State) ActorCall(ctx context.Context, addr Address, op func(*ContractState, uint64, Contract) error) error {
 	act, err := s.GetActor(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("get actor: %s", err)
@@ -82,7 +148,7 @@ func (s *State) ActorExec(ctx context.Context, addr Address, op func(*ContractSt
 		return fmt.Errorf("state load: %s", err)
 	}
 
-	if err := op(st, contract); err != nil {
+	if err := op(st, act.Nonce, contract); err != nil {
 		return err
 	}
 
@@ -102,13 +168,7 @@ func (s *State) ActorExec(ctx context.Context, addr Address, op func(*ContractSt
 
 func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
 	for _, tx := range txs {
-		err := s.ActorExec(ctx, tx.To, func(st *ContractState, contract Contract) error {
-
-			callCtx := &CallContext{State: s, From: tx.From, Ctx: ctx, ContractState: st}
-			_, err := contract.Call(callCtx, tx.Method, tx.Params)
-			return err
-		})
-		if err != nil {
+		if err := s.ActorExec(ctx, tx); err != nil {
 			// TODO: if the contract execution above fails, return special
 			// error such that the state isnt updated, but we continue here
 			return err
@@ -160,8 +220,9 @@ func (s *State) GetContract(ctx context.Context, codeHash *cid.Cid) (Contract, e
 }
 
 type ContractState struct {
-	n    *hamt.Node
-	cstr *hamt.CborIpldStore
+	n     *hamt.Node
+	cstr  *hamt.CborIpldStore
+	nonce uint64
 }
 
 func (cs *ContractState) Flush(ctx context.Context) (*cid.Cid, error) {

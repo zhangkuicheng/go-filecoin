@@ -35,6 +35,7 @@ type Miner struct {
 // predictFuture reads an oracle that tells us how long we must wait to mine
 // the next block
 func predictFuture() time.Duration {
+	return time.Millisecond * 2000
 	v := time.Hour
 	for v > time.Second*10 || v < 0 {
 		v = time.Duration((rr.NormFloat64()*3000)+4000) * time.Millisecond
@@ -78,14 +79,18 @@ func (m *Miner) Run(ctx context.Context) {
 }
 
 func (m *Miner) getNextBlock(ctx context.Context) (*Block, error) {
+	nonce, err := m.fcn.StateMgr.GetStateRoot().NonceForActor(ctx, FilecoinContractAddr)
+	if err != nil {
+		return nil, err
+	}
+
 	reward := &Transaction{
 		From:   FilecoinContractAddr,
 		To:     FilecoinContractAddr,
+		Nonce:  nonce,
 		Method: "transfer",
 		Params: []interface{}{m.address, MiningReward},
 	}
-
-	fmt.Println("mining to: ", m.address)
 
 	txs := m.txPool.GetBestTxs()
 	txs = append([]*Transaction{reward}, txs...)

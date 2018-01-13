@@ -353,35 +353,13 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 	ask.MinerID = ctx.From
 
 	// validate the ask with the miners contract
-	err = ctx.State.ActorExec(ctx.Ctx, miner, func(st *ContractState, c Contract) error {
-		mn, ok := c.(*MinerContract)
-		if !ok {
-			return fmt.Errorf("wasnt a miner contract")
-		}
-
-		if err := mn.LoadState(st); err != nil {
-			return fmt.Errorf("load state: %s", err)
-		}
-
-		if mn.Owner != ctx.From {
-			return fmt.Errorf("not authorized to access that miner (%s != %s)", mn.Owner, ctx.From)
-		}
-
-		s := big.NewInt(int64(ask.Size))
-		total := big.NewInt(0).Set(mn.Pledge)
-		total.Sub(total, mn.LockedStorage)
-
-		if total.Cmp(s) < 0 {
-			return fmt.Errorf("not enough available pledge")
-		}
-
-		mn.LockedStorage = mn.LockedStorage.Add(mn.LockedStorage, s)
-
-		if err := mn.Flush(ctx.Ctx); err != nil {
-			return err
-		}
-
-		return nil
+	err = ctx.State.ActorExec(ctx.Ctx, &Transaction{
+		To:     miner,
+		From:   ctx.Address,
+		Method: "addAsk",
+		Params: []interface{}{
+			ask,
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -396,7 +374,6 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 		return nil, err
 	}
 
-	fmt.Println("Add ask: ", id)
 	if err := sc.putOrder(ctx, fmt.Sprintf("a%d", id), ask); err != nil {
 		return nil, err
 	}
@@ -406,6 +383,31 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 	}
 
 	return id, nil
+}
+func (mn *MinerContract) AddAsk(ctx *CallContext, ask *Ask) error {
+	if err := mn.LoadState(ctx.ContractState); err != nil {
+		return fmt.Errorf("load state: %s", err)
+	}
+
+	if mn.Owner != ctx.From {
+		return fmt.Errorf("not authorized to access that miner (%s != %s)", mn.Owner, ctx.From)
+	}
+
+	s := big.NewInt(int64(ask.Size))
+	total := big.NewInt(0).Set(mn.Pledge)
+	total.Sub(total, mn.LockedStorage)
+
+	if total.Cmp(s) < 0 {
+		return fmt.Errorf("not enough available pledge")
+	}
+
+	mn.LockedStorage = mn.LockedStorage.Add(mn.LockedStorage, s)
+
+	if err := mn.Flush(ctx.Ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (sc *StorageContract) putOrder(ctx *CallContext, k string, o interface{}) error {
@@ -480,7 +482,6 @@ func (sc *StorageContract) makeDeal(ctx *CallContext, d *Deal) (uint64, error) {
 		return 0, err
 	}
 
-	fmt.Println("Add deal: ", id)
 	if err := ctx.ContractState.Set(ctx.Ctx, fmt.Sprintf("d%d", id), data); err != nil {
 		return 0, err
 	}

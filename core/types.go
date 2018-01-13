@@ -149,7 +149,6 @@ var transactionCborEntry = atlas.BuildEntry(Transaction{}).Transform().
 			if len(x) != 7 {
 				return Transaction{}, fmt.Errorf("expected six fields in a transaction")
 			}
-			fmt.Printf("%#v\n", x[0])
 
 			var tickcost, ticks *big.Int
 			if b, ok := x[3].([]byte); ok {
@@ -171,11 +170,11 @@ var transactionCborEntry = atlas.BuildEntry(Transaction{}).Transform().
 		})).
 	Complete()
 
-func (tx *Transaction) FromWire(b []byte) error {
+func (tx *Transaction) Unmarshal(b []byte) error {
 	return cbor.DecodeInto(b, tx)
 }
 
-func (tx *Transaction) ToWire() ([]byte, error) {
+func (tx *Transaction) Marshal() ([]byte, error) {
 	return cbor.DumpObject(tx)
 }
 

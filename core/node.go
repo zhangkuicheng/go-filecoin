@@ -71,6 +71,12 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 	fmt.Println("genesis block cid is: ", c)
 	s.knownGoodBlocks.Add(c)
 
+	st, err := LoadState(context.Background(), fcn.cs, genesis.StateRoot)
+	if err != nil {
+		return nil, err
+	}
+	s.stateRoot = st
+
 	// TODO: better miner construction and delay start until synced
 	m := &Miner{
 		newBlocks:     make(chan *Block),
