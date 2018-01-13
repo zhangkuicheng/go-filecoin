@@ -1,4 +1,4 @@
-package core
+package contract
 
 import (
 	"crypto/sha256"
@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"math/big"
 
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 	hamt "github.com/ipfs/go-hamt-ipld"
 	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 )
 
 var StorageContractCodeCid = identCid("storageContract")
-var StorageContractAddress = Address("storageContract")
+var StorageContractAddress = types.Address("storageContract")
 
 const asksArrKey = "activeAsks"
 const bidsArrKey = "activeBids"
@@ -33,7 +34,7 @@ type Bid struct {
 
 	Collateral *big.Int
 
-	Owner Address
+	Owner types.Address
 
 	//Coding      ErasureCoding
 }
@@ -45,7 +46,7 @@ type Ask struct {
 
 	Size uint64
 
-	MinerID Address
+	MinerID types.Address
 }
 
 type StorageContract struct{}
@@ -353,7 +354,7 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 	ask.MinerID = ctx.From
 
 	// validate the ask with the miners contract
-	err = ctx.State.ActorExec(ctx.Ctx, &Transaction{
+	err = ctx.State.ActorExec(ctx.Ctx, &types.Transaction{
 		To:     miner,
 		From:   ctx.Address,
 		Method: "addAsk",
@@ -430,7 +431,7 @@ func (sc *StorageContract) addActiveDeal(ctx *CallContext, id uint64) error {
 }
 
 type Deal struct {
-	MinerSig Address // using an address as the signature for now because i don't feel like adding crypto stuff yet
+	MinerSig types.Address // using an address as the signature for now because i don't feel like adding crypto stuff yet
 	Expiry   uint64
 	DataRef  *cid.Cid
 
@@ -531,12 +532,12 @@ func (sc *StorageContract) createMiner(ctx *CallContext, args []interface{}) (in
 	return ca, nil
 }
 
-func compMinerContractAddress(mc *MinerContract) Address {
+func compMinerContractAddress(mc *MinerContract) types.Address {
 	b, err := json.Marshal(mc)
 	if err != nil {
 		panic(err)
 	}
 
 	h := sha256.Sum256(b)
-	return Address(h[:20])
+	return types.Address(h[:20])
 }

@@ -1,4 +1,4 @@
-package core
+package state
 
 import (
 	"context"
@@ -10,66 +10,85 @@ import (
 
 	hamt "github.com/ipfs/go-hamt-ipld"
 	dag "github.com/ipfs/go-ipfs/merkledag"
+	logging "github.com/ipfs/go-log"
+
+	contract "github.com/filecoin-project/playground/go-filecoin/contract"
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 )
+
+var log = logging.Logger("state")
 
 // StateManager manages the current state of the chain and handles validating
 // and applying updates.
 type StateManager struct {
-	bestBlock *Block
-	headCid   *cid.Cid
+	BestBlock *types.Block
+	HeadCid   *cid.Cid
 
-	stateRoot *State
+	StateRoot *contract.State
 
-	txPool *TransactionPool
+	TxPool *types.TransactionPool
 
-	knownGoodBlocks *cid.Set
+	KnownGoodBlocks *cid.Set
 
 	cs  *hamt.CborIpldStore
 	dag dag.DAGService
 
-	miner *Miner
+	Miner *Miner
+}
+
+func NewStateManager(cs *hamt.CborIpldStore, dag dag.DAGService) *StateManager {
+	return &StateManager{
+		KnownGoodBlocks: cid.NewSet(),
+		TxPool:          types.NewTransactionPool(),
+		cs:              cs,
+		dag:             dag,
+	}
+}
+
+func (s *StateManager) SetBestBlock(b *types.Block) {
+	s.BestBlock = b
 }
 
 // Inform informs the state manager that we received a new block from the given
 // peer
-func (s *StateManager) Inform(p peer.ID, blk *Block) {
-	if err := s.processNewBlock(context.Background(), blk); err != nil {
+func (s *StateManager) Inform(p peer.ID, blk *types.Block) {
+	if err := s.ProcessNewBlock(context.Background(), blk); err != nil {
 		log.Error(err)
 		return
 	}
-	s.miner.newBlocks <- blk
+	s.Miner.newBlocks <- blk
 }
 
-func (s *StateManager) GetStateRoot() *State {
+func (s *StateManager) GetStateRoot() *contract.State {
 	// TODO: maybe return immutable copy or something? Don't necessarily want
 	// the caller to be able to mutate this without them intending to
-	return s.stateRoot
+	return s.StateRoot
 }
 
-func (s *StateManager) processNewBlock(ctx context.Context, blk *Block) error {
+func (s *StateManager) ProcessNewBlock(ctx context.Context, blk *types.Block) error {
 	if err := s.validateBlock(ctx, blk); err != nil {
 		return fmt.Errorf("validate block failed: %s", err)
 	}
 
-	if blk.Score() > s.bestBlock.Score() {
+	if blk.Score() > s.BestBlock.Score() {
 		return s.acceptNewBlock(blk)
 	}
 
 	return fmt.Errorf("new block not better than current block (%d <= %d)",
-		blk.Score(), s.bestBlock.Score())
+		blk.Score(), s.BestBlock.Score())
 }
 
 // acceptNewBlock sets the given block as our current 'best chain' block
-func (s *StateManager) acceptNewBlock(blk *Block) error {
+func (s *StateManager) acceptNewBlock(blk *types.Block) error {
 	_, err := s.dag.Add(blk.ToNode())
 	if err != nil {
 		return fmt.Errorf("failed to put block to disk: %s", err)
 	}
 
 	// update our accounting of the 'best block'
-	s.knownGoodBlocks.Add(blk.Cid())
-	s.bestBlock = blk
-	s.headCid = blk.Cid()
+	s.KnownGoodBlocks.Add(blk.Cid())
+	s.BestBlock = blk
+	s.HeadCid = blk.Cid()
 
 	// Remove any transactions that were mined in the new block from the mempool
 	// TODO: actually go through transactions for each block back to the last
@@ -81,24 +100,24 @@ func (s *StateManager) acceptNewBlock(blk *Block) error {
 			return err
 		}
 
-		s.txPool.ClearTx(c)
+		s.TxPool.ClearTx(c)
 	}
 
-	st, err := LoadState(context.Background(), s.cs, blk.StateRoot)
+	st, err := contract.LoadState(context.Background(), s.cs, blk.StateRoot)
 	if err != nil {
 		return fmt.Errorf("failed to get newly approved state: %s", err)
 	}
-	s.stateRoot = st
+	s.StateRoot = st
 
 	fmt.Printf("accepted new block, [s=%d, h=%s, st=%s]\n\n", blk.Score(), blk.Cid(), blk.StateRoot)
 	return nil
 }
 
-func (s *StateManager) fetchBlock(ctx context.Context, c *cid.Cid) (*Block, error) {
+func (s *StateManager) fetchBlock(ctx context.Context, c *cid.Cid) (*types.Block, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
-	var blk Block
+	var blk types.Block
 	if err := s.cs.Get(ctx, c, &blk); err != nil {
 		return nil, err
 	}
@@ -111,11 +130,11 @@ func (s *StateManager) fetchBlock(ctx context.Context, c *cid.Cid) (*Block, erro
 // properly filled out and its signature is correct. Checking the validity of
 // state changes must be done separately and only once the state of the
 // previous block has been validated.
-func (s *StateManager) checkBlockValid(ctx context.Context, b *Block) error {
+func (s *StateManager) checkBlockValid(ctx context.Context, b *types.Block) error {
 	return nil
 }
 
-func (s *StateManager) checkBlockStateChangeValid(ctx context.Context, st *State, b *Block) error {
+func (s *StateManager) checkBlockStateChangeValid(ctx context.Context, st *contract.State, b *types.Block) error {
 	if err := st.ApplyTransactions(ctx, b.Txs); err != nil {
 		return err
 	}
@@ -134,20 +153,20 @@ func (s *StateManager) checkBlockStateChangeValid(ctx context.Context, st *State
 
 // TODO: this method really needs to be thought through carefully. Probably one
 // of the most complicated bits of the system
-func (s *StateManager) validateBlock(ctx context.Context, b *Block) error {
+func (s *StateManager) validateBlock(ctx context.Context, b *types.Block) error {
 	if err := s.checkBlockValid(ctx, b); err != nil {
 		return fmt.Errorf("check block valid failed: %s", err)
 	}
 
-	if b.Score() <= s.bestBlock.Score() {
+	if b.Score() <= s.BestBlock.Score() {
 		// TODO: likely should still validate this chain and keep it around.
 		// Someone else could mine on top of it
 		return fmt.Errorf("new block is not better than our current block")
 	}
 
-	var validating []*Block
+	var validating []*types.Block
 	baseBlk := b
-	for !s.knownGoodBlocks.Has(baseBlk.Cid()) { // probably should be some sort of limit here
+	for !s.KnownGoodBlocks.Has(baseBlk.Cid()) { // probably should be some sort of limit here
 		validating = append(validating, baseBlk)
 
 		next, err := s.fetchBlock(ctx, baseBlk.Parent)
@@ -162,7 +181,7 @@ func (s *StateManager) validateBlock(ctx context.Context, b *Block) error {
 		baseBlk = next
 	}
 
-	st, err := LoadState(ctx, s.cs, baseBlk.StateRoot)
+	st, err := contract.LoadState(ctx, s.cs, baseBlk.StateRoot)
 	if err != nil {
 		return fmt.Errorf("load state failed: %s", err)
 	}
@@ -171,7 +190,7 @@ func (s *StateManager) validateBlock(ctx context.Context, b *Block) error {
 		if err := s.checkBlockStateChangeValid(ctx, st, validating[i]); err != nil {
 			return err
 		}
-		s.knownGoodBlocks.Add(validating[i].Cid())
+		s.KnownGoodBlocks.Add(validating[i].Cid())
 	}
 
 	return nil

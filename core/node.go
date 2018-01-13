@@ -10,7 +10,10 @@ import (
 	"gx/ipfs/QmP46LGWhzVZTMmt5akNNLfoV8qL4h5wTwmzQxLyDafggd/go-libp2p-host"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
-	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+
+	contract "github.com/filecoin-project/playground/go-filecoin/contract"
+	state "github.com/filecoin-project/playground/go-filecoin/state"
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 
 	hamt "github.com/ipfs/go-hamt-ipld"
 	bserv "github.com/ipfs/go-ipfs/blockservice"
@@ -25,7 +28,7 @@ var ProtocolID = protocol.ID("/fil/0.0.0")
 type FilecoinNode struct {
 	h host.Host
 
-	Addresses []Address
+	Addresses []types.Address
 
 	bsub, txsub *floodsub.Subscription
 	pubsub      *floodsub.PubSub
@@ -34,7 +37,7 @@ type FilecoinNode struct {
 	Bitswap *bitswap.Bitswap
 	cs      *hamt.CborIpldStore
 
-	StateMgr *StateManager
+	StateMgr *state.StateManager
 }
 
 func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bserv.BlockService, bswap *bitswap.Bitswap) (*FilecoinNode, error) {
@@ -45,51 +48,39 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 		cs:      &hamt.CborIpldStore{bs},
 	}
 
-	s := &StateManager{
-		knownGoodBlocks: cid.NewSet(),
-		txPool:          NewTransactionPool(),
-		cs:              fcn.cs,
-		dag:             fcn.DAG,
-	}
+	s := state.NewStateManager(fcn.cs, fcn.DAG)
 
 	fcn.StateMgr = s
 
 	baseAddr := CreateNewAddress()
-	fcn.Addresses = []Address{baseAddr}
+	fcn.Addresses = []types.Address{baseAddr}
 	fmt.Println("my mining address is ", baseAddr)
 
 	genesis, err := CreateGenesisBlock(fcn.cs)
 	if err != nil {
 		return nil, err
 	}
-	s.bestBlock = genesis
+	s.SetBestBlock(genesis)
 
 	c, err := fcn.DAG.Add(genesis.ToNode())
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println("genesis block cid is: ", c)
-	s.knownGoodBlocks.Add(c)
+	s.KnownGoodBlocks.Add(c)
 
-	st, err := LoadState(context.Background(), fcn.cs, genesis.StateRoot)
+	st, err := contract.LoadState(context.Background(), fcn.cs, genesis.StateRoot)
 	if err != nil {
 		return nil, err
 	}
-	s.stateRoot = st
+	s.StateRoot = st
 
 	// TODO: better miner construction and delay start until synced
-	m := &Miner{
-		newBlocks:     make(chan *Block),
-		blockCallback: fcn.SendNewBlock,
-		currentBlock:  s.bestBlock,
-		address:       baseAddr,
-		fcn:           fcn,
-		txPool:        s.txPool,
-	}
-	s.miner = m
+	s.Miner = state.NewMiner(fcn.SendNewBlock, s.TxPool, genesis, baseAddr, fcn.cs)
+	s.Miner.StateMgr = s
 
 	// Run miner
-	go m.Run(context.Background())
+	go s.Miner.Run(context.Background())
 
 	txsub, err := fs.Subscribe(TxsTopic)
 	if err != nil {
@@ -122,21 +113,21 @@ func (fcn *FilecoinNode) processNewTransactions(txsub *floodsub.Subscription) {
 			panic(err)
 		}
 
-		var txmsg Transaction
+		var txmsg types.Transaction
 		if err := json.Unmarshal(msg.GetData(), &txmsg); err != nil {
 			panic(err)
 		}
 
-		if err := fcn.StateMgr.txPool.Add(&txmsg); err != nil {
+		if err := fcn.StateMgr.TxPool.Add(&txmsg); err != nil {
 			panic(err)
 		}
 	}
 }
 
-func CreateNewAddress() Address {
+func CreateNewAddress() types.Address {
 	buf := make([]byte, 20)
 	rand.Read(buf)
-	return Address(buf)
+	return types.Address(buf)
 }
 
 func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
@@ -150,7 +141,7 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 			continue
 		}
 
-		blk, err := DecodeBlock(msg.GetData())
+		blk, err := types.DecodeBlock(msg.GetData())
 		if err != nil {
 			panic(err)
 		}
@@ -159,21 +150,21 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 	}
 }
 
-func (fcn *FilecoinNode) SendNewBlock(b *Block) error {
+func (fcn *FilecoinNode) SendNewBlock(b *types.Block) error {
 	nd := b.ToNode()
 	_, err := fcn.DAG.Add(nd)
 	if err != nil {
 		return err
 	}
 
-	if err := fcn.StateMgr.processNewBlock(context.Background(), b); err != nil {
+	if err := fcn.StateMgr.ProcessNewBlock(context.Background(), b); err != nil {
 		return err
 	}
 
 	return fcn.pubsub.Publish(BlocksTopic, nd.RawData())
 }
 
-func (fcn *FilecoinNode) SendNewTransaction(tx *Transaction) error {
+func (fcn *FilecoinNode) SendNewTransaction(tx *types.Transaction) error {
 	data, err := json.Marshal(tx)
 	if err != nil {
 		return err

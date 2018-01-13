@@ -1,10 +1,12 @@
-package core
+package contract
 
 import (
 	"context"
 	"fmt"
 	"math/big"
 	"reflect"
+
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 
 	// TODO: no usage of this package directly
 	hamt "github.com/ipfs/go-hamt-ipld"
@@ -14,7 +16,7 @@ import (
 )
 
 var FilecoinContractCid = identCid("filecoin")
-var FilecoinContractAddr = Address("filecoin")
+var FilecoinContractAddr = types.Address("filecoin")
 
 func identCid(s string) *cid.Cid {
 	h, err := mh.Sum([]byte(s), mh.ID, len(s))
@@ -27,10 +29,10 @@ func identCid(s string) *cid.Cid {
 // CallContext is information accessible to the contract during a given invocation
 type CallContext struct {
 	Ctx           context.Context
-	From          Address
+	From          types.Address
 	State         *State
 	ContractState *ContractState
-	Address       Address
+	Address       types.Address
 }
 
 type Contract interface {
@@ -52,7 +54,7 @@ func (ftc *FilecoinTokenContract) Call(ctx *CallContext, method string, args []i
 	}
 }
 
-func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, addr Address) (interface{}, error) {
+func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, addr types.Address) (interface{}, error) {
 	accData, err := ctx.ContractState.Get(ctx.Ctx, string(addr))
 	if err != nil {
 		return nil, err
@@ -61,15 +63,15 @@ func (ftc *FilecoinTokenContract) getBalance(ctx *CallContext, addr Address) (in
 	return big.NewInt(0).SetBytes(accData), nil
 }
 
-func addressCast(i interface{}) (Address, error) {
+func addressCast(i interface{}) (types.Address, error) {
 	switch i := i.(type) {
-	case Address:
+	case types.Address:
 		return i, nil
 	case string:
 		if i[:2] == "0x" {
-			return ParseAddress(i)
+			return types.ParseAddress(i)
 		}
-		return Address(i), nil
+		return types.Address(i), nil
 	default:
 		return "", fmt.Errorf("first argument must be an Address")
 	}
@@ -159,7 +161,7 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 }
 
 var (
-	addrType = reflect.TypeOf(Address(""))
+	addrType = reflect.TypeOf(types.Address(""))
 	askType  = reflect.TypeOf(&Ask{})
 )
 

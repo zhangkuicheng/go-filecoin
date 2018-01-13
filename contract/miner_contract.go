@@ -1,15 +1,17 @@
-package core
+package contract
 
 import (
 	"context"
 	"fmt"
 	"math/big"
+
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 )
 
 var MinerContractCodeHash = identCid("fcminer")
 
 type MinerContract struct {
-	Owner         Address
+	Owner         types.Address
 	Pledge        *big.Int
 	Power         *big.Int
 	LockedStorage *big.Int
@@ -24,7 +26,7 @@ func (mc *MinerContract) LoadState(s *ContractState) error {
 	if err != nil {
 		return err
 	}
-	mc.Owner = Address(ownb)
+	mc.Owner = types.Address(ownb)
 
 	plb, err := s.Get(context.TODO(), "pledge")
 	if err != nil {

@@ -1,4 +1,4 @@
-package core
+package types
 
 import (
 	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"

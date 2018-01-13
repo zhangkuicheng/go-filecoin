@@ -15,8 +15,10 @@ import (
 	ipfsaddr "gx/ipfs/QmdMeXVB1V1SAZcFzoCuM3zR9K8PeuzCYg4zXNHcHh6dHU/go-ipfs-addr"
 	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 
+	contract "github.com/filecoin-project/playground/go-filecoin/contract"
 	core "github.com/filecoin-project/playground/go-filecoin/core"
 	libp2p "github.com/filecoin-project/playground/go-filecoin/libp2p"
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 
 	"gx/ipfs/QmP1T1SGU6276R2MHKP2owbck37Fnzd6ZkpyNJvnG2LoTG/go-libp2p-floodsub"
 
@@ -167,10 +169,10 @@ var AddrsNewCmd = &cmds.Command{
 		fcn.Addresses = append(fcn.Addresses, naddr)
 		re.Emit(naddr)
 	},
-	Type: core.Address(""),
+	Type: types.Address(""),
 	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
-			a, ok := v.(*core.Address)
+			a, ok := v.(*types.Address)
 			if !ok {
 				return fmt.Errorf("unexpected type: %T", v)
 			}
@@ -186,10 +188,10 @@ var AddrsListCmd = &cmds.Command{
 		fcn := GetNode(env)
 		re.Emit(fcn.Addresses)
 	},
-	Type: []core.Address{},
+	Type: []types.Address{},
 	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
-			addrs, ok := v.(*[]core.Address)
+			addrs, ok := v.(*[]types.Address)
 			if !ok {
 				return fmt.Errorf("unexpected type: %T", v)
 			}
@@ -282,7 +284,7 @@ var WalletGetBalanceCmd = &cmds.Command{
 
 		addr := fcn.Addresses[0]
 		if len(req.Arguments) > 0 {
-			a, err := core.ParseAddress(req.Arguments[0])
+			a, err := types.ParseAddress(req.Arguments[0])
 			if err != nil {
 				re.SetError(err, cmdkit.ErrNormal)
 				return
@@ -291,7 +293,7 @@ var WalletGetBalanceCmd = &cmds.Command{
 		}
 
 		stroot := fcn.StateMgr.GetStateRoot()
-		act, err := stroot.GetActor(req.Context, core.FilecoinContractAddr)
+		act, err := stroot.GetActor(req.Context, contract.FilecoinContractAddr)
 		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
 			return
@@ -309,7 +311,7 @@ var WalletGetBalanceCmd = &cmds.Command{
 			return
 		}
 
-		cctx := &core.CallContext{Ctx: req.Context, ContractState: cst}
+		cctx := &contract.CallContext{Ctx: req.Context, ContractState: cst}
 		val, err := ct.Call(cctx, "getBalance", []interface{}{addr})
 		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
@@ -347,7 +349,7 @@ var WalletSendCmd = &cmds.Command{
 			re.SetError("failed to parse amount", cmdkit.ErrNormal)
 			return
 		}
-		toaddr, err := core.ParseAddress(req.Arguments[1])
+		toaddr, err := types.ParseAddress(req.Arguments[1])
 		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
 			return
@@ -361,9 +363,9 @@ var WalletSendCmd = &cmds.Command{
 			return
 		}
 
-		tx := &core.Transaction{
+		tx := &types.Transaction{
 			From:   from,
-			To:     core.FilecoinContractAddr,
+			To:     contract.FilecoinContractAddr,
 			Nonce:  nonce,
 			Method: "transfer",
 			Params: []interface{}{toaddr, amount},
@@ -392,9 +394,9 @@ var MinerNewCmd = &cmds.Command{
 			return
 		}
 
-		tx := &core.Transaction{
+		tx := &types.Transaction{
 			From:   fcn.Addresses[0],
-			To:     core.StorageContractAddress,
+			To:     contract.StorageContractAddress,
 			Method: "createMiner",
 			Params: []interface{}{pledge},
 		}
@@ -440,14 +442,14 @@ var OrderBidAddCmd = &cmds.Command{
 			return
 		}
 
-		b := &core.Bid{
+		b := &contract.Bid{
 			Size:  uint64(size),
 			Price: big.NewInt(int64(price)),
 		}
 
-		tx := &core.Transaction{
+		tx := &types.Transaction{
 			From:   fcn.Addresses[0],
-			To:     core.StorageContractAddress,
+			To:     contract.StorageContractAddress,
 			Method: "addBid",
 			Params: []interface{}{b},
 		}
@@ -469,10 +471,10 @@ var OrderBidListCmd = &cmds.Command{
 		}
 		re.Emit(bids)
 	},
-	Type: []*core.Bid{},
+	Type: []*contract.Bid{},
 	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
-			bids, ok := v.(*[]*core.Bid)
+			bids, ok := v.(*[]*contract.Bid)
 			if !ok {
 				return fmt.Errorf("unexpected type: %T", v)
 			}
@@ -499,7 +501,7 @@ var OrderAskAddCmd = &cmds.Command{
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 		fcn := GetNode(env)
-		miner, err := core.ParseAddress(req.Arguments[0])
+		miner, err := types.ParseAddress(req.Arguments[0])
 		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
 			return
@@ -517,14 +519,14 @@ var OrderAskAddCmd = &cmds.Command{
 			return
 		}
 
-		a := &core.Ask{
+		a := &contract.Ask{
 			Size:  uint64(size),
 			Price: big.NewInt(int64(price)),
 		}
 
-		tx := &core.Transaction{
+		tx := &types.Transaction{
 			From:   fcn.Addresses[0],
-			To:     core.StorageContractAddress,
+			To:     contract.StorageContractAddress,
 			Method: "addAsk",
 			Params: []interface{}{miner, a},
 		}
@@ -546,10 +548,10 @@ var OrderAskListCmd = &cmds.Command{
 		}
 		re.Emit(asks)
 	},
-	Type: []*core.Ask{},
+	Type: []*contract.Ask{},
 	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
-			asks, ok := v.(*[]*core.Ask)
+			asks, ok := v.(*[]*contract.Ask)
 			if !ok {
 				return fmt.Errorf("unexpected type: %T", v)
 			}
@@ -562,9 +564,9 @@ var OrderAskListCmd = &cmds.Command{
 	},
 }
 
-func listAsks(ctx context.Context, fcn *core.FilecoinNode) ([]*core.Ask, error) {
+func listAsks(ctx context.Context, fcn *core.FilecoinNode) ([]*contract.Ask, error) {
 	stroot := fcn.StateMgr.GetStateRoot()
-	sact, err := stroot.GetActor(ctx, core.StorageContractAddress)
+	sact, err := stroot.GetActor(ctx, contract.StorageContractAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -579,19 +581,19 @@ func listAsks(ctx context.Context, fcn *core.FilecoinNode) ([]*core.Ask, error) 
 		return nil, err
 	}
 
-	sc, ok := c.(*core.StorageContract)
+	sc, ok := c.(*contract.StorageContract)
 	if !ok {
 		return nil, fmt.Errorf("was not actually a storage contract somehow")
 	}
 
-	cctx := &core.CallContext{ContractState: cst, Ctx: ctx}
+	cctx := &contract.CallContext{ContractState: cst, Ctx: ctx}
 
 	return sc.ListAsks(cctx)
 }
 
-func listBids(ctx context.Context, fcn *core.FilecoinNode) ([]*core.Bid, error) {
+func listBids(ctx context.Context, fcn *core.FilecoinNode) ([]*contract.Bid, error) {
 	stroot := fcn.StateMgr.GetStateRoot()
-	sact, err := stroot.GetActor(ctx, core.StorageContractAddress)
+	sact, err := stroot.GetActor(ctx, contract.StorageContractAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -606,12 +608,12 @@ func listBids(ctx context.Context, fcn *core.FilecoinNode) ([]*core.Bid, error) 
 		return nil, err
 	}
 
-	sc, ok := c.(*core.StorageContract)
+	sc, ok := c.(*contract.StorageContract)
 	if !ok {
 		return nil, fmt.Errorf("was not actually a storage contract somehow")
 	}
 
-	cctx := &core.CallContext{ContractState: cst, Ctx: ctx}
+	cctx := &contract.CallContext{ContractState: cst, Ctx: ctx}
 	return sc.ListBids(cctx)
 }
 
@@ -630,7 +632,7 @@ var OrderDealMakeCmd = &cmds.Command{
 		ctx := req.Context
 		fcn := GetNode(env)
 		stroot := fcn.StateMgr.GetStateRoot()
-		sact, err := stroot.GetActor(ctx, core.StorageContractAddress)
+		sact, err := stroot.GetActor(ctx, contract.StorageContractAddress)
 		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
 			return
@@ -649,7 +651,7 @@ var OrderDealMakeCmd = &cmds.Command{
 		}
 
 		_ = cst
-		sc, ok := c.(*core.StorageContract)
+		sc, ok := c.(*contract.StorageContract)
 		if !ok {
 			re.SetError(fmt.Errorf("was not actually a storage contract somehow"), cmdkit.ErrNormal)
 			return
@@ -657,7 +659,7 @@ var OrderDealMakeCmd = &cmds.Command{
 
 		_ = sc
 	},
-	Type: []*core.Ask{},
+	Type: []*contract.Ask{},
 	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
 			return nil

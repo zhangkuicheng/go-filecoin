@@ -1,4 +1,4 @@
-package core
+package state
 
 import (
 	"context"
@@ -6,6 +6,11 @@ import (
 	"math/big"
 	"math/rand"
 	"time"
+
+	contract "github.com/filecoin-project/playground/go-filecoin/contract"
+	types "github.com/filecoin-project/playground/go-filecoin/types"
+
+	hamt "github.com/ipfs/go-hamt-ipld"
 )
 
 var rr = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -13,23 +18,35 @@ var rr = rand.New(rand.NewSource(time.Now().UnixNano()))
 type Miner struct {
 	// newBlocks is a channel that listens for new blocks from other peers in
 	// the network
-	newBlocks chan *Block
+	newBlocks chan *types.Block
 
 	// blockCallback is a function for the miner to call when it has mined a
 	// new block
-	blockCallback func(*Block) error
+	blockCallback func(*types.Block) error
 
 	// currentBlock is the block that the miner will be mining on top of
-	currentBlock *Block
+	currentBlock *types.Block
 
 	// address is the address that the miner will mine rewards to
-	address Address
+	address types.Address
 
 	// transaction pool to pull transactions for the next block from
-	txPool *TransactionPool
+	txPool *types.TransactionPool
 
-	// cheating.
-	fcn *FilecoinNode
+	StateMgr *StateManager
+
+	cs *hamt.CborIpldStore
+}
+
+func NewMiner(bcb func(*types.Block) error, txp *types.TransactionPool, bestBlock *types.Block, coinbase types.Address, cs *hamt.CborIpldStore) *Miner {
+	return &Miner{
+		newBlocks:     make(chan *types.Block),
+		blockCallback: bcb,
+		currentBlock:  bestBlock,
+		address:       coinbase,
+		txPool:        txp,
+		cs:            cs,
+	}
 }
 
 // predictFuture reads an oracle that tells us how long we must wait to mine
@@ -78,29 +95,29 @@ func (m *Miner) Run(ctx context.Context) {
 	}
 }
 
-func (m *Miner) getNextBlock(ctx context.Context) (*Block, error) {
-	nonce, err := m.fcn.StateMgr.GetStateRoot().NonceForActor(ctx, FilecoinContractAddr)
+func (m *Miner) getNextBlock(ctx context.Context) (*types.Block, error) {
+	nonce, err := m.StateMgr.GetStateRoot().NonceForActor(ctx, contract.FilecoinContractAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	reward := &Transaction{
-		From:   FilecoinContractAddr,
-		To:     FilecoinContractAddr,
+	reward := &types.Transaction{
+		From:   contract.FilecoinContractAddr,
+		To:     contract.FilecoinContractAddr,
 		Nonce:  nonce,
 		Method: "transfer",
 		Params: []interface{}{m.address, MiningReward},
 	}
 
 	txs := m.txPool.GetBestTxs()
-	txs = append([]*Transaction{reward}, txs...)
-	nb := &Block{
+	txs = append([]*types.Transaction{reward}, txs...)
+	nb := &types.Block{
 		Height: m.currentBlock.Height + 1,
 		Parent: m.currentBlock.Cid(),
 		Txs:    txs,
 	}
 
-	s, err := LoadState(ctx, m.fcn.cs, m.currentBlock.StateRoot)
+	s, err := contract.LoadState(ctx, m.cs, m.currentBlock.StateRoot)
 	if err != nil {
 		return nil, err
 	}

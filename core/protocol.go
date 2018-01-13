@@ -8,6 +8,8 @@ import (
 	ma "gx/ipfs/QmW8s4zTsUoX1Q6CeYxVKPyqSKbF7H1YDUyTostBtZ8DaG/go-multiaddr"
 	"gx/ipfs/QmWNY7dV54ZDYmTA1ykVdwNCqC11mpU4zSUp6XDpLTH9eG/go-libp2p-peer"
 	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 )
 
 var TxsTopic = "/fil/tx"
@@ -33,8 +35,8 @@ func (fcn *FilecoinNode) HelloPeer(p peer.ID) {
 	defer s.Close()
 
 	hello := &HelloMessage{
-		Head:        fcn.StateMgr.headCid,
-		BlockHeight: fcn.StateMgr.bestBlock.Score(),
+		Head:        fcn.StateMgr.HeadCid,
+		BlockHeight: fcn.StateMgr.BestBlock.Score(),
 	}
 
 	if err := json.NewEncoder(s).Encode(hello); err != nil {
@@ -54,11 +56,11 @@ func (fcn *FilecoinNode) handleHelloStream(s net.Stream) {
 		return
 	}
 
-	if hello.BlockHeight <= fcn.StateMgr.bestBlock.Score() {
+	if hello.BlockHeight <= fcn.StateMgr.BestBlock.Score() {
 		return
 	}
 
-	var blk Block
+	var blk types.Block
 	if err := fcn.cs.Get(context.Background(), hello.Head, &blk); err != nil {
 		log.Error("getting block from hello message: ", err)
 		return

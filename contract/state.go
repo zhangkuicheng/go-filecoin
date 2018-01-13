@@ -1,10 +1,11 @@
-package core
+package contract
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 
+	types "github.com/filecoin-project/playground/go-filecoin/types"
 	hamt "github.com/ipfs/go-hamt-ipld"
 	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 )
@@ -23,13 +24,17 @@ type State struct {
 	store *hamt.CborIpldStore
 }
 
+func NewState(s *hamt.CborIpldStore, r *hamt.Node) *State {
+	return &State{root: r, store: s}
+}
+
 type Actor struct {
 	Code   *cid.Cid
 	Memory *cid.Cid
 	Nonce  uint64
 }
 
-func loadActor(ctx context.Context, st *hamt.Node, a Address) (*Actor, error) {
+func loadActor(ctx context.Context, st *hamt.Node, a types.Address) (*Actor, error) {
 	actData, err := st.Find(ctx, string(a))
 	if err != nil {
 		return nil, err
@@ -50,12 +55,12 @@ func (s *State) Copy() *State {
 	}
 }
 
-func (s *State) GetActor(ctx context.Context, a Address) (*Actor, error) {
+func (s *State) GetActor(ctx context.Context, a types.Address) (*Actor, error) {
 	return loadActor(ctx, s.root, a)
 
 }
 
-func (s *State) SetActor(ctx context.Context, a Address, act *Actor) error {
+func (s *State) SetActor(ctx context.Context, a types.Address, act *Actor) error {
 	data, err := json.Marshal(act)
 	if err != nil {
 		return err
@@ -67,7 +72,7 @@ func (s *State) SetActor(ctx context.Context, a Address, act *Actor) error {
 	return nil
 }
 
-func (s *State) ActorExec(ctx context.Context, tx *Transaction) error {
+func (s *State) ActorExec(ctx context.Context, tx *types.Transaction) error {
 	act, err := s.GetActor(ctx, tx.To)
 	if err != nil {
 		return fmt.Errorf("get actor: %s", err)
@@ -123,7 +128,7 @@ func (s *State) ActorExec(ctx context.Context, tx *Transaction) error {
 	return nil
 }
 
-func (s *State) NonceForActor(ctx context.Context, addr Address) (uint64, error) {
+func (s *State) NonceForActor(ctx context.Context, addr types.Address) (uint64, error) {
 	act, err := s.GetActor(ctx, addr)
 	if err != nil {
 		return 0, err
@@ -132,7 +137,7 @@ func (s *State) NonceForActor(ctx context.Context, addr Address) (uint64, error)
 	return act.Nonce, nil
 }
 
-func (s *State) ActorCall(ctx context.Context, addr Address, op func(*ContractState, uint64, Contract) error) error {
+func (s *State) ActorCall(ctx context.Context, addr types.Address, op func(*ContractState, uint64, Contract) error) error {
 	act, err := s.GetActor(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("get actor: %s", err)
@@ -166,7 +171,7 @@ func (s *State) ActorCall(ctx context.Context, addr Address, op func(*ContractSt
 	return nil
 }
 
-func (s *State) ApplyTransactions(ctx context.Context, txs []*Transaction) error {
+func (s *State) ApplyTransactions(ctx context.Context, txs []*types.Transaction) error {
 	for _, tx := range txs {
 		if err := s.ActorExec(ctx, tx); err != nil {
 			// TODO: if the contract execution above fails, return special
@@ -191,6 +196,10 @@ func (s *State) NewContractState() *ContractState {
 		n:    hamt.NewNode(s.store),
 		cstr: s.store,
 	}
+}
+
+func (cs *ContractState) Node() *hamt.Node {
+	return cs.n
 }
 
 func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractState, error) {
