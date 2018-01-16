@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 
 	"gx/ipfs/QmP1T1SGU6276R2MHKP2owbck37Fnzd6ZkpyNJvnG2LoTG/go-libp2p-floodsub"
@@ -114,13 +113,11 @@ func (fcn *FilecoinNode) processNewTransactions(txsub *floodsub.Subscription) {
 		}
 
 		var txmsg types.Transaction
-		if err := json.Unmarshal(msg.GetData(), &txmsg); err != nil {
+		if err := txmsg.Unmarshal(msg.GetData()); err != nil {
 			panic(err)
 		}
 
-		if err := fcn.StateMgr.TxPool.Add(&txmsg); err != nil {
-			panic(err)
-		}
+		fcn.StateMgr.InformTx(&txmsg)
 	}
 }
 
@@ -165,10 +162,63 @@ func (fcn *FilecoinNode) SendNewBlock(b *types.Block) error {
 }
 
 func (fcn *FilecoinNode) SendNewTransaction(tx *types.Transaction) error {
-	data, err := json.Marshal(tx)
+	//TODO: do some validation here.
+	// If the user sends an invalid transaction (bad nonce, etc) it will simply
+	// get dropped by the network, with no indication of what happened. This is
+	// generally considered to be bad UX
+	data, err := tx.Marshal()
 	if err != nil {
 		return err
 	}
 
 	return fcn.pubsub.Publish(TxsTopic, data)
+}
+
+type TxResult struct {
+	Block   *types.Block
+	Receipt *types.Receipt
+}
+
+func (fcn *FilecoinNode) SendNewTransactionAndWait(ctx context.Context, tx *types.Transaction) (*TxResult, error) {
+	notifs := fcn.StateMgr.BlockNotifications(ctx)
+
+	data, err := tx.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := fcn.pubsub.Publish(TxsTopic, data); err != nil {
+		return nil, err
+	}
+
+	c, err := tx.Cid()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		select {
+		case blk, ok := <-notifs:
+			if !ok {
+				continue
+			}
+			fmt.Printf("processing block... searching for tx... (%d txs)\n", len(blk.Txs))
+			for i, tx := range blk.Txs {
+				oc, err := tx.Cid()
+				if err != nil {
+					return nil, err
+				}
+				fmt.Println("checking equality... ", c, oc)
+
+				if c.Equals(oc) {
+					return &TxResult{
+						Block:   blk,
+						Receipt: blk.Receipts[i],
+					}, nil
+				}
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 }

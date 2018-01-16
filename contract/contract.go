@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	types "github.com/filecoin-project/playground/go-filecoin/types"
+	"github.com/pkg/errors"
 
 	// TODO: no usage of this package directly
 	hamt "github.com/ipfs/go-hamt-ipld"
@@ -17,6 +18,20 @@ import (
 
 var FilecoinContractCid = identCid("filecoin")
 var FilecoinContractAddr = types.Address("filecoin")
+
+type revertError struct {
+	err error
+}
+
+func (re *revertError) Error() string {
+	return re.err.Error()
+}
+
+func (re *revertError) Revert() bool {
+	return true
+}
+
+var _ reverter = (*revertError)(nil)
 
 func identCid(s string) *cid.Cid {
 	h, err := mh.Sum([]byte(s), mh.ID, len(s))
@@ -30,6 +45,7 @@ func identCid(s string) *cid.Cid {
 type CallContext struct {
 	Ctx           context.Context
 	From          types.Address
+	FromNonce     uint64
 	State         *State
 	ContractState *ContractState
 	Address       types.Address
@@ -48,7 +64,7 @@ func (ftc *FilecoinTokenContract) Call(ctx *CallContext, method string, args []i
 	case "transfer":
 		return ftc.transfer(ctx, args)
 	case "getBalance":
-		return typedCall(ctx, args, ftc.getBalance)
+		return mustTypedCallClosure(ftc.getBalance)(ctx, args)
 	default:
 		return nil, ErrMethodNotFound
 	}
@@ -100,7 +116,7 @@ func numberCast(i interface{}) (*big.Int, error) {
 
 func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{}) (interface{}, error) {
 	if len(args) != 2 {
-		return nil, fmt.Errorf("transfer takes exactly 2 arguments")
+		return nil, &revertError{fmt.Errorf("transfer takes exactly 2 arguments")}
 	}
 
 	toAddr, err := addressCast(args[0])
@@ -136,25 +152,25 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 	fromBalance := big.NewInt(0).SetBytes(fromData)
 
 	if fromBalance.Cmp(amount) < 0 {
-		return nil, fmt.Errorf("not enough funds")
+		return nil, &revertError{fmt.Errorf("not enough funds")}
 	}
 
 	fromBalance = fromBalance.Sub(fromBalance, amount)
 
 	toData, err := cs.Get(ctx.Ctx, string(toAddr))
 	if err != nil && err != hamt.ErrNotFound {
-		return nil, err
+		return nil, errors.Wrap(err, "could not read target balance")
 	}
 
 	toBalance := big.NewInt(0).SetBytes(toData)
 	toBalance = toBalance.Add(toBalance, amount)
 
 	if err := cs.Set(ctx.Ctx, string(ctx.From), fromBalance.Bytes()); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not write fromBalance")
 	}
 
 	if err := cs.Set(ctx.Ctx, string(toAddr), toBalance.Bytes()); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not write toBalance")
 	}
 
 	return nil, nil
@@ -165,6 +181,63 @@ var (
 	askType  = reflect.TypeOf(&Ask{})
 )
 
+func mustTypedCallClosure(f interface{}) func(*CallContext, []interface{}) (interface{}, error) {
+	out, err := makeTypedCallClosure(f)
+	if err != nil {
+		panic(err)
+	}
+	return out
+}
+
+func makeTypedCallClosure(f interface{}) (func(*CallContext, []interface{}) (interface{}, error), error) {
+	fval := reflect.ValueOf(f)
+	if fval.Kind() != reflect.Func {
+		return nil, fmt.Errorf("must pass a function")
+	}
+
+	ftype := fval.Type()
+	if ftype.In(0) != reflect.TypeOf(&CallContext{}) {
+		return nil, fmt.Errorf("first parameter must be call context")
+	}
+
+	if ftype.NumOut() != 2 || !ftype.Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+		return nil, fmt.Errorf("function must return (interface{}, error)")
+	}
+
+	return func(cctx *CallContext, args []interface{}) (interface{}, error) {
+		if ftype.NumIn()-1 != len(args) {
+			return nil, fmt.Errorf("expected %d args", ftype.NumIn()-1)
+		}
+
+		callargs := []reflect.Value{reflect.ValueOf(cctx)}
+		for i := 1; i < ftype.NumIn(); i++ {
+			switch ftype.In(i) {
+			case addrType:
+				v, err := castToAddress(reflect.ValueOf(args[i-1]))
+				if err != nil {
+					return nil, err
+				}
+				callargs = append(callargs, v)
+			case askType:
+				callargs = append(callargs, reflect.ValueOf(args[i-1]))
+			default:
+				return nil, fmt.Errorf("unsupported type: %s", ftype.In(i))
+			}
+		}
+
+		out := fval.Call(callargs)
+		outv := out[0].Interface()
+
+		var outErr error
+		if e, ok := out[1].Interface().(error); ok {
+			outErr = e
+		}
+
+		return outv, outErr
+	}, nil
+}
+
+// TODO: delete me
 func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{}, error) {
 	fval := reflect.ValueOf(f)
 	if fval.Kind() != reflect.Func {
@@ -178,6 +251,10 @@ func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{
 
 	if ftype.NumIn()-1 != len(args) {
 		return nil, fmt.Errorf("expected %d args", ftype.NumIn()-1)
+	}
+
+	if ftype.NumOut() != 2 || ftype.Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+		return nil, fmt.Errorf("function must return (interface{}, error)")
 	}
 
 	callargs := []reflect.Value{reflect.ValueOf(cctx)}

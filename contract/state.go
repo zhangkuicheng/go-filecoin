@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	types "github.com/filecoin-project/playground/go-filecoin/types"
 	hamt "github.com/ipfs/go-hamt-ipld"
 	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
@@ -72,17 +74,28 @@ func (s *State) SetActor(ctx context.Context, a types.Address, act *Actor) error
 	return nil
 }
 
-func (s *State) ActorExec(ctx context.Context, tx *types.Transaction) error {
+type reverter interface {
+	Revert() bool
+}
+
+func errIsFatal(e error) bool {
+	// TODO: maybe the safer way of doing this is to assume all errors mean
+	// 'revert' and special 'Fatal' errors mean to halt execution?
+	re, ok := e.(reverter)
+	return !(ok && re.Revert())
+}
+
+func (s *State) ActorExec(ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
 	act, err := s.GetActor(ctx, tx.To)
 	if err != nil {
-		return fmt.Errorf("get actor: %s", err)
+		return nil, fmt.Errorf("get actor: %s", err)
 	}
 
 	var from *Actor
 	if tx.To != tx.From {
 		a, err := s.GetActor(ctx, tx.From)
 		if err != nil {
-			return fmt.Errorf("get actor: %s", err)
+			return nil, fmt.Errorf("get actor: %s", err)
 		}
 		from = a
 	} else {
@@ -90,42 +103,59 @@ func (s *State) ActorExec(ctx context.Context, tx *types.Transaction) error {
 	}
 
 	if from.Nonce != tx.Nonce {
-		return fmt.Errorf("invalid nonce")
+		return nil, fmt.Errorf("invalid nonce")
 	}
 	from.Nonce++
 
 	contract, err := s.GetContract(ctx, act.Code)
 	if err != nil {
-		return fmt.Errorf("get contract: %s %s", act.Code, err)
+		return nil, fmt.Errorf("get contract: %s %s", act.Code, err)
 	}
 
 	st, err := s.LoadContractState(ctx, act.Memory)
 	if err != nil {
-		return fmt.Errorf("state load: %s", err)
+		return nil, fmt.Errorf("state load: %s", err)
 	}
 
-	cctx := &CallContext{State: s, From: tx.From, Ctx: ctx, ContractState: st, Address: tx.To}
-	if _, err := contract.Call(cctx, tx.Method, tx.Params); err != nil {
-		return err
+	cctx := &CallContext{
+		State:         s,
+		From:          tx.From,
+		FromNonce:     tx.Nonce, // TODO: maybe just include the whole transaction?
+		Ctx:           ctx,
+		ContractState: st,
+		Address:       tx.To,
+	}
+	val, err := contract.Call(cctx, tx.Method, tx.Params)
+	if err != nil {
+		if errIsFatal(err) {
+			return nil, err
+		} else {
+			// TODO: is this all we have to do to 'revert'?
+			// need to check if 'state' was mutated
+			// also need to mark success/failure in the receipt
+			return &types.Receipt{
+				Success: false,
+			}, nil
+		}
 	}
 
 	nmemory, err := st.Flush(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	act.Memory = nmemory
 	if err := s.SetActor(ctx, tx.To, act); err != nil {
-		return fmt.Errorf("set actor: %s", err)
+		return nil, errors.Wrap(err, "set actor failed")
 	}
 
 	if tx.To != tx.From {
 		if err := s.SetActor(ctx, tx.From, from); err != nil {
-			return fmt.Errorf("set actor: %s", err)
+			return nil, errors.Wrap(err, "set actor failed")
 		}
 	}
 
-	return nil
+	return &types.Receipt{Success: true, Result: val}, nil
 }
 
 func (s *State) NonceForActor(ctx context.Context, addr types.Address) (uint64, error) {
@@ -173,7 +203,7 @@ func (s *State) ActorCall(ctx context.Context, addr types.Address, op func(*Cont
 
 func (s *State) ApplyTransactions(ctx context.Context, txs []*types.Transaction) error {
 	for _, tx := range txs {
-		if err := s.ActorExec(ctx, tx); err != nil {
+		if _, err := s.ActorExec(ctx, tx); err != nil {
 			// TODO: if the contract execution above fails, return special
 			// error such that the state isnt updated, but we continue here
 			return err

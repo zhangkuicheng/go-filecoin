@@ -54,7 +54,7 @@ func (mc *MinerContract) LoadState(s *ContractState) error {
 func (mc *MinerContract) Call(ctx *CallContext, method string, args []interface{}) (interface{}, error) {
 	switch method {
 	case "addAsk":
-		return typedCall(ctx, args, mc.AddAsk)
+		return mustTypedCallClosure(mc.AddAsk)(ctx, args)
 	default:
 		return nil, fmt.Errorf("unrecognized method")
 	}

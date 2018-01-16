@@ -8,6 +8,7 @@ import (
 	"gx/ipfs/QmWNY7dV54ZDYmTA1ykVdwNCqC11mpU4zSUp6XDpLTH9eG/go-libp2p-peer"
 	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 
+	pubsub "github.com/briantigerchow/pubsub"
 	hamt "github.com/ipfs/go-hamt-ipld"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	logging "github.com/ipfs/go-log"
@@ -34,6 +35,8 @@ type StateManager struct {
 	dag dag.DAGService
 
 	Miner *Miner
+
+	blkNotif *pubsub.PubSub
 }
 
 func NewStateManager(cs *hamt.CborIpldStore, dag dag.DAGService) *StateManager {
@@ -42,6 +45,7 @@ func NewStateManager(cs *hamt.CborIpldStore, dag dag.DAGService) *StateManager {
 		TxPool:          types.NewTransactionPool(),
 		cs:              cs,
 		dag:             dag,
+		blkNotif:        pubsub.New(128),
 	}
 }
 
@@ -108,6 +112,8 @@ func (s *StateManager) acceptNewBlock(blk *types.Block) error {
 		return fmt.Errorf("failed to get newly approved state: %s", err)
 	}
 	s.StateRoot = st
+
+	s.blkNotif.Pub(blk, "blocks")
 
 	fmt.Printf("accepted new block, [s=%d, h=%s, st=%s]\n\n", blk.Score(), blk.Cid(), blk.StateRoot)
 	return nil
@@ -194,4 +200,48 @@ func (s *StateManager) validateBlock(ctx context.Context, b *types.Block) error 
 	}
 
 	return nil
+}
+
+func (st *StateManager) InformTx(tx *types.Transaction) {
+	// TODO: validate tx itself
+	act, err := st.StateRoot.GetActor(context.TODO(), tx.From)
+	if err != nil {
+		log.Warningf("failed to get actor for transaction: %s %s", tx.From, err)
+		return
+	}
+
+	if act.Nonce != tx.Nonce {
+		log.Warningf("dropping tx with invalid nonce")
+		return
+	}
+
+	if err := st.TxPool.Add(tx); err != nil {
+		log.Error("failed to add transaction to txpool", err)
+		return
+	}
+}
+
+func (st *StateManager) BlockNotifications(ctx context.Context) <-chan *types.Block {
+	blks := make(chan interface{})
+	out := make(chan *types.Block, 16)
+	go func() {
+		defer func() {
+			st.blkNotif.Unsub(blks, "blocks")
+			close(out)
+		}()
+		for {
+			select {
+			case obj := <-blks:
+				fmt.Println("GOT A BLOICK!")
+				select {
+				case out <- obj.(*types.Block):
+				case <-ctx.Done():
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	st.blkNotif.AddSub(blks, "blocks")
+	return out
 }

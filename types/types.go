@@ -17,6 +17,7 @@ func init() {
 	cbor.RegisterCborType(Block{})
 	cbor.RegisterCborType(Signature{})
 	cbor.RegisterCborType(transactionCborEntry)
+	cbor.RegisterCborType(Receipt{})
 }
 
 type Block struct {
@@ -30,6 +31,9 @@ type Block struct {
 	// A simple array can fit over 5000 cids in a single 256k block.
 	//Txs *cid.Cid
 	Txs []*Transaction
+
+	// structure should probably mirror the transactions
+	Receipts []*Receipt
 
 	// Height is the chain height of this block
 	Height uint64
@@ -187,4 +191,10 @@ func (tx *Transaction) Cid() (*cid.Cid, error) {
 	}
 
 	return obj.Cid(), nil
+}
+
+type Receipt struct {
+	Success bool
+	Result  interface{}
+	// TODO: the whole receipt thing needs to be worked out still.
 }

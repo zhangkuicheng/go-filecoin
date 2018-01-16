@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
+
+	"github.com/pkg/errors"
 
 	types "github.com/filecoin-project/playground/go-filecoin/types"
 	hamt "github.com/ipfs/go-hamt-ipld"
@@ -88,6 +91,8 @@ func (sc *StorageContract) Call(ctx *CallContext, method string, args []interfac
 		return sc.loadArray(ctx, asksArrKey)
 	case "getBids":
 		return sc.loadArray(ctx, bidsArrKey)
+	case "makeDeal":
+		return sc.makeDealCall(ctx, args)
 	default:
 		return nil, ErrMethodNotFound
 	}
@@ -353,15 +358,17 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 
 	ask.MinerID = ctx.From
 
-	// validate the ask with the miners contract
-	err = ctx.State.ActorExec(ctx.Ctx, &types.Transaction{
+	tx := &types.Transaction{
 		To:     miner,
 		From:   ctx.Address,
 		Method: "addAsk",
 		Params: []interface{}{
 			ask,
 		},
-	})
+	}
+
+	// validate the ask with the miners contract
+	_, err = ctx.State.ActorExec(ctx.Ctx, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -385,13 +392,13 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 
 	return id, nil
 }
-func (mn *MinerContract) AddAsk(ctx *CallContext, ask *Ask) error {
+func (mn *MinerContract) AddAsk(ctx *CallContext, ask *Ask) (interface{}, error) {
 	if err := mn.LoadState(ctx.ContractState); err != nil {
-		return fmt.Errorf("load state: %s", err)
+		return nil, fmt.Errorf("load state: %s", err)
 	}
 
 	if mn.Owner != ctx.From {
-		return fmt.Errorf("not authorized to access that miner (%s != %s)", mn.Owner, ctx.From)
+		return nil, &revertError{fmt.Errorf("not authorized to access that miner (%s != %s)", mn.Owner, ctx.From)}
 	}
 
 	s := big.NewInt(int64(ask.Size))
@@ -399,16 +406,16 @@ func (mn *MinerContract) AddAsk(ctx *CallContext, ask *Ask) error {
 	total.Sub(total, mn.LockedStorage)
 
 	if total.Cmp(s) < 0 {
-		return fmt.Errorf("not enough available pledge")
+		return nil, &revertError{fmt.Errorf("not enough available pledge")}
 	}
 
 	mn.LockedStorage = mn.LockedStorage.Add(mn.LockedStorage, s)
 
 	if err := mn.Flush(ctx.Ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (sc *StorageContract) putOrder(ctx *CallContext, k string, o interface{}) error {
@@ -439,37 +446,56 @@ type Deal struct {
 	Bid uint64
 }
 
+func (sc *StorageContract) makeDealCall(ctx *CallContext, args []interface{}) (interface{}, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("must pass three arguments to makeDeal")
+	}
+
+	ask, err := strconv.ParseUint(args[0].(string), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	bid, err := strconv.ParseUint(args[1].(string), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	sig := types.Address(args[2].(string))
+	return sc.makeDeal(ctx, &Deal{Ask: ask, Bid: bid, MinerSig: types.Address(sig)})
+}
+
 func (sc *StorageContract) makeDeal(ctx *CallContext, d *Deal) (uint64, error) {
 	ask, err := sc.getAsk(ctx, d.Ask)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "get ask")
 	}
 
 	bid, err := sc.getBid(ctx, d.Bid)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "get bid")
 	}
 
 	if ask.Size < bid.Size {
-		return 0, fmt.Errorf("not enough space in ask for bid")
+		return 0, &revertError{fmt.Errorf("not enough space in ask for bid")}
 	}
 
 	// Miner should take care not to sign a deal until they have the data
 	if ask.MinerID != d.MinerSig { // make sure signature in deal matches miner ID of the ask
-		return 0, fmt.Errorf("signature in deal does not match minerID of ask")
+		return 0, &revertError{fmt.Errorf("signature in deal does not match minerID of ask")}
 	}
 
 	if ctx.From != bid.Owner {
-		return 0, fmt.Errorf("cannot create a deal for someone elses bid")
+		return 0, &revertError{fmt.Errorf("cannot create a deal for someone elses bid")}
 	}
 
 	id, err := sc.getDeals(ctx)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "get deals")
 	}
 
 	if err := sc.storeUint64(ctx, "deals", id+1); err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "store updated deal count")
 	}
 
 	data, err := json.Marshal(d)
@@ -517,9 +543,8 @@ func (sc *StorageContract) createMiner(ctx *CallContext, args []interface{}) (in
 		return nil, err
 	}
 
-	ca := compMinerContractAddress(nminer)
+	ca := newContractAddress(ctx)
 
-	fmt.Println("MINER ADDRESS: ", ca)
 	act := &Actor{
 		Code:   MinerContractCodeHash,
 		Memory: mem,
@@ -532,8 +557,8 @@ func (sc *StorageContract) createMiner(ctx *CallContext, args []interface{}) (in
 	return ca, nil
 }
 
-func compMinerContractAddress(mc *MinerContract) types.Address {
-	b, err := json.Marshal(mc)
+func newContractAddress(cctx *CallContext) types.Address {
+	b, err := json.Marshal([]interface{}{cctx.From, cctx.FromNonce, cctx.Address})
 	if err != nil {
 		panic(err)
 	}

@@ -122,9 +122,15 @@ func (m *Miner) getNextBlock(ctx context.Context) (*types.Block, error) {
 		return nil, err
 	}
 
-	if err := s.ApplyTransactions(ctx, nb.Txs); err != nil {
-		return nil, fmt.Errorf("applying state from newly mined block: %s", err)
+	for _, tx := range nb.Txs {
+		receipt, err := s.ActorExec(ctx, tx)
+		if err != nil {
+			return nil, fmt.Errorf("applying state from newly mined block: %s", err)
+		}
+
+		nb.Receipts = append(nb.Receipts, receipt)
 	}
+
 	stateCid, err := s.Flush(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("flushing state changes: %s", err)

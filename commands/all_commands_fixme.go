@@ -385,6 +385,7 @@ var MinerNewCmd = &cmds.Command{
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("pledge-size", true, false, "size of pledge to create miner with"),
 	},
+	Type: types.Address(""),
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 		fcn := GetNode(env)
 
@@ -394,25 +395,48 @@ var MinerNewCmd = &cmds.Command{
 			return
 		}
 
+		from := fcn.Addresses[0]
+
+		nonce, err := fcn.StateMgr.StateRoot.NonceForActor(req.Context, from)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
 		tx := &types.Transaction{
 			From:   fcn.Addresses[0],
 			To:     contract.StorageContractAddress,
+			Nonce:  nonce,
 			Method: "createMiner",
 			Params: []interface{}{pledge},
 		}
 
-		if err := fcn.SendNewTransaction(tx); err != nil {
+		res, err := fcn.SendNewTransactionAndWait(req.Context, tx)
+		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
-		// TODO: wait for tx to be mined, read receipts for address
+
+		if !res.Receipt.Success {
+			re.SetError("miner creation failed", cmdkit.ErrNormal)
+			return
+		}
+
+		resStr, ok := res.Receipt.Result.(types.Address)
+		if !ok {
+			re.SetError("createMiner call didn't return an address", cmdkit.ErrNormal)
+			return
+		}
+
+		re.Emit(resStr)
 	},
 }
 
 var OrderCmd = &cmds.Command{
 	Subcommands: map[string]*cmds.Command{
-		"bid": OrderBidCmd,
-		"ask": OrderAskCmd,
+		"bid":  OrderBidCmd,
+		"ask":  OrderAskCmd,
+		"deal": OrderDealCmd,
 	},
 }
 
@@ -524,9 +548,18 @@ var OrderAskAddCmd = &cmds.Command{
 			Price: big.NewInt(int64(price)),
 		}
 
+		from := fcn.Addresses[0]
+
+		nonce, err := fcn.StateMgr.StateRoot.NonceForActor(req.Context, from)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
 		tx := &types.Transaction{
 			From:   fcn.Addresses[0],
 			To:     contract.StorageContractAddress,
+			Nonce:  nonce,
 			Method: "addAsk",
 			Params: []interface{}{miner, a},
 		}
@@ -625,39 +658,44 @@ var OrderDealCmd = &cmds.Command{
 
 var OrderDealMakeCmd = &cmds.Command{
 	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("miner", true, false, "id of miner to make deal on"),
 		cmdkit.StringArg("ask", true, false, "id of ask for deal"),
 		cmdkit.StringArg("bid", true, false, "id of bid for deal"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
-		ctx := req.Context
+		// TODO: right now, the flow is that this command gets called by the miner.
+		// we still need to work out the process here...
 		fcn := GetNode(env)
-		stroot := fcn.StateMgr.GetStateRoot()
-		sact, err := stroot.GetActor(ctx, contract.StorageContractAddress)
+
+		from := fcn.Addresses[0]
+
+		nonce, err := fcn.StateMgr.GetStateRoot().NonceForActor(req.Context, from)
 		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
-		c, err := stroot.GetContract(ctx, sact.Code)
-		if err != nil {
-			re.SetError(err, cmdkit.ErrNormal)
-			return
+		miner := req.Arguments[0]
+		ask := req.Arguments[1]
+		bid := req.Arguments[2]
+
+		makesignature := func(who string) string {
+			// TODO: crypto...
+			return who
 		}
 
-		cst, err := stroot.LoadContractState(ctx, sact.Memory)
-		if err != nil {
-			re.SetError(err, cmdkit.ErrNormal)
-			return
+		sig := makesignature(miner)
+
+		tx := &types.Transaction{
+			From:   from,
+			To:     contract.StorageContractAddress,
+			Nonce:  nonce,
+			Method: "makeDeal",
+			Params: []interface{}{ask, bid, sig},
 		}
 
-		_ = cst
-		sc, ok := c.(*contract.StorageContract)
-		if !ok {
-			re.SetError(fmt.Errorf("was not actually a storage contract somehow"), cmdkit.ErrNormal)
-			return
-		}
+		fcn.SendNewTransaction(tx)
 
-		_ = sc
 	},
 	Type: []*contract.Ask{},
 	Encoders: cmds.EncoderMap{
