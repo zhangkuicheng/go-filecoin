@@ -82,9 +82,9 @@ func (sc *StorageContract) storeUint64(cctx *CallContext, k string, v uint64) er
 func (sc *StorageContract) Call(ctx *CallContext, method string, args []interface{}) (interface{}, error) {
 	switch method {
 	case "addAsk":
-		return sc.addAsk(ctx, args)
+		return mustTypedCallClosure(sc.addAsk)(ctx, args)
 	case "addBid":
-		return sc.addBid(ctx, args[0])
+		return mustTypedCallClosure(sc.addBid)(ctx, args)
 	case "createMiner":
 		return sc.createMiner(ctx, args)
 	case "getAsks":
@@ -202,12 +202,12 @@ func castAsk(i interface{}) (*Ask, error) {
 	}
 }
 
-func (sc *StorageContract) addBid(ctx *CallContext, arg interface{}) (interface{}, error) {
-	b, err := castBid(arg)
-	if err != nil {
-		return nil, err
+func (sc *StorageContract) addBid(ctx *CallContext, price, size uint64) (interface{}, error) {
+	b := &Bid{
+		Owner: ctx.From,
+		Price: big.NewInt(0).SetUint64(price),
+		Size:  size,
 	}
-
 	if err := sc.validateBid(b); err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (sc *StorageContract) addBid(ctx *CallContext, arg interface{}) (interface{
 		return nil, err
 	}
 
-	data, err := json.Marshal(arg)
+	data, err := json.Marshal(b)
 	if err != nil {
 		return nil, err
 	}
@@ -345,30 +345,27 @@ func (sc *StorageContract) getBid(ctx *CallContext, id uint64) (*Bid, error) {
 	return &b, nil
 }
 
-func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interface{}, error) {
-	miner, err := addressCast(args[0])
-	if err != nil {
-		return nil, err
-	}
-
-	ask, err := castAsk(args[1])
-	if err != nil {
-		return nil, err
-	}
-
-	ask.MinerID = ctx.From
+func (sc *StorageContract) addAsk(ctx *CallContext, miner types.Address, price, size uint64) (interface{}, error) {
 
 	tx := &types.Transaction{
 		To:     miner,
 		From:   ctx.Address,
 		Method: "addAsk",
 		Params: []interface{}{
-			ask,
+			ctx.From,
+			price,
+			size,
 		},
 	}
 
+	ask := &Ask{
+		MinerID: ctx.From,
+		Price:   big.NewInt(0).SetUint64(price),
+		Size:    size,
+	}
+
 	// validate the ask with the miners contract
-	_, err = ctx.State.ActorExec(ctx.Ctx, tx)
+	_, err := ctx.State.ActorExec(ctx.Ctx, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +389,7 @@ func (sc *StorageContract) addAsk(ctx *CallContext, args []interface{}) (interfa
 
 	return id, nil
 }
-func (mn *MinerContract) AddAsk(ctx *CallContext, ask *Ask) (interface{}, error) {
+func (mn *MinerContract) AddAsk(ctx *CallContext, from types.Address, price int64, size uint64) (interface{}, error) {
 	if err := mn.LoadState(ctx.ContractState); err != nil {
 		return nil, fmt.Errorf("load state: %s", err)
 	}
@@ -401,7 +398,7 @@ func (mn *MinerContract) AddAsk(ctx *CallContext, ask *Ask) (interface{}, error)
 		return nil, &revertError{fmt.Errorf("not authorized to access that miner (%s != %s)", mn.Owner, ctx.From)}
 	}
 
-	s := big.NewInt(int64(ask.Size))
+	s := big.NewInt(int64(size))
 	total := big.NewInt(0).Set(mn.Pledge)
 	total.Sub(total, mn.LockedStorage)
 

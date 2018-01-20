@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ func getPath() string {
 
 func writeDaemonLock() error {
 	p := getPath()
+	fmt.Println("WRITING LOCK FILE: ", p)
 	return ioutil.WriteFile(p, []byte("its locked, don't worry"), 0440)
 }
 

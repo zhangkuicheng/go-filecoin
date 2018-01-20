@@ -177,8 +177,10 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 }
 
 var (
-	addrType = reflect.TypeOf(types.Address(""))
-	askType  = reflect.TypeOf(&Ask{})
+	addrType   = reflect.TypeOf(types.Address(""))
+	askType    = reflect.TypeOf(&Ask{})
+	uint64Type = reflect.TypeOf(uint64(0))
+	int64Type  = reflect.TypeOf(int64(0))
 )
 
 func mustTypedCallClosure(f interface{}) func(*CallContext, []interface{}) (interface{}, error) {
@@ -211,15 +213,25 @@ func makeTypedCallClosure(f interface{}) (func(*CallContext, []interface{}) (int
 
 		callargs := []reflect.Value{reflect.ValueOf(cctx)}
 		for i := 1; i < ftype.NumIn(); i++ {
-			switch ftype.In(i) {
+			switch t := ftype.In(i); t {
 			case addrType:
 				v, err := castToAddress(reflect.ValueOf(args[i-1]))
 				if err != nil {
 					return nil, err
 				}
 				callargs = append(callargs, v)
-			case askType:
-				callargs = append(callargs, reflect.ValueOf(args[i-1]))
+			case uint64Type:
+				v, ok := args[i-1].(uint64)
+				if !ok {
+					return nil, fmt.Errorf("position %d, expected %s", i-1, t)
+				}
+				callargs = append(callargs, reflect.ValueOf(v))
+			case int64Type:
+				v, ok := args[i-1].(int64)
+				if !ok {
+					return nil, fmt.Errorf("position %d, expected %s", i-1, t)
+				}
+				callargs = append(callargs, reflect.ValueOf(v))
 			default:
 				return nil, fmt.Errorf("unsupported type: %s", ftype.In(i))
 			}
@@ -237,53 +249,14 @@ func makeTypedCallClosure(f interface{}) (func(*CallContext, []interface{}) (int
 	}, nil
 }
 
-// TODO: delete me
-func typedCall(cctx *CallContext, args []interface{}, f interface{}) (interface{}, error) {
-	fval := reflect.ValueOf(f)
-	if fval.Kind() != reflect.Func {
-		return nil, fmt.Errorf("must pass a function")
-	}
-
-	ftype := fval.Type()
-	if ftype.In(0) != reflect.TypeOf(&CallContext{}) {
-		return nil, fmt.Errorf("first parameter must be call context")
-	}
-
-	if ftype.NumIn()-1 != len(args) {
-		return nil, fmt.Errorf("expected %d args", ftype.NumIn()-1)
-	}
-
-	if ftype.NumOut() != 2 || ftype.Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
-		return nil, fmt.Errorf("function must return (interface{}, error)")
-	}
-
-	callargs := []reflect.Value{reflect.ValueOf(cctx)}
-	for i := 1; i < ftype.NumIn(); i++ {
-		switch ftype.In(i) {
-		case addrType:
-			v, err := castToAddress(reflect.ValueOf(args[i-1]))
-			if err != nil {
-				return nil, err
-			}
-			callargs = append(callargs, v)
-		case askType:
-			callargs = append(callargs, reflect.ValueOf(args[i-1]))
-		default:
-			return nil, fmt.Errorf("unsupported type: %s", ftype.In(i))
-		}
-	}
-
-	out := fval.Call(callargs)
-	outv := out[0].Interface()
-
-	var outErr error
-	if e, ok := out[1].Interface().(error); ok {
-		outErr = e
-	}
-
-	return outv, outErr
-}
-
 func castToAddress(v reflect.Value) (reflect.Value, error) {
-	return v, nil
+	// TODO: assert 'v' is of type string first
+	switch t := v.Interface().(type) {
+	case types.Address:
+		return reflect.ValueOf(t), nil
+	case string:
+		return reflect.ValueOf(types.Address(t)), nil
+	default:
+		return reflect.Value{}, fmt.Errorf("attempted to cast non-string to to Address (%T)", v.Interface())
+	}
 }

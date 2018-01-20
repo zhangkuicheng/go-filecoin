@@ -466,16 +466,16 @@ var OrderBidAddCmd = &cmds.Command{
 			return
 		}
 
-		b := &contract.Bid{
-			Size:  uint64(size),
-			Price: big.NewInt(int64(price)),
-		}
+		from := fcn.Addresses[0]
+
+		nonce, err := fcn.StateMgr.StateRoot.NonceForActor(req.Context, from)
 
 		tx := &types.Transaction{
 			From:   fcn.Addresses[0],
 			To:     contract.StorageContractAddress,
+			Nonce:  nonce,
 			Method: "addBid",
-			Params: []interface{}{b},
+			Params: []interface{}{uint64(price), uint64(size)},
 		}
 
 		if err := fcn.SendNewTransaction(tx); err != nil {
@@ -543,11 +543,6 @@ var OrderAskAddCmd = &cmds.Command{
 			return
 		}
 
-		a := &contract.Ask{
-			Size:  uint64(size),
-			Price: big.NewInt(int64(price)),
-		}
-
 		from := fcn.Addresses[0]
 
 		nonce, err := fcn.StateMgr.StateRoot.NonceForActor(req.Context, from)
@@ -561,7 +556,7 @@ var OrderAskAddCmd = &cmds.Command{
 			To:     contract.StorageContractAddress,
 			Nonce:  nonce,
 			Method: "addAsk",
-			Params: []interface{}{miner, a},
+			Params: []interface{}{miner, int64(price), uint64(size)},
 		}
 
 		if err := fcn.SendNewTransaction(tx); err != nil {

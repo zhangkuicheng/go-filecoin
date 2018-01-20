@@ -18,6 +18,8 @@ import (
 	bserv "github.com/ipfs/go-ipfs/blockservice"
 	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap"
 	dag "github.com/ipfs/go-ipfs/merkledag"
+
+	"github.com/pkg/errors"
 )
 
 var log = logging.Logger("core")
@@ -168,7 +170,7 @@ func (fcn *FilecoinNode) SendNewTransaction(tx *types.Transaction) error {
 	// generally considered to be bad UX
 	data, err := tx.Marshal()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "marshaling transaction failed")
 	}
 
 	return fcn.pubsub.Publish(TxsTopic, data)
