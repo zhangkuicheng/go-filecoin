@@ -27,7 +27,7 @@ type HelloMessage struct {
 
 func (fcn *FilecoinNode) HelloPeer(p peer.ID) {
 	ctx := context.Background() // TODO: add appropriate timeout
-	s, err := fcn.h.NewStream(ctx, p, HelloProtocol)
+	s, err := fcn.Host.NewStream(ctx, p, HelloProtocol)
 	if err != nil {
 		log.Error("failed to open stream to new peer for hello: ", err)
 		return

@@ -52,7 +52,7 @@ func NewMiner(bcb func(*types.Block) error, txp *types.TransactionPool, bestBloc
 // predictFuture reads an oracle that tells us how long we must wait to mine
 // the next block
 func predictFuture() time.Duration {
-	return time.Millisecond * 2000
+	return time.Millisecond * time.Duration(2000+rand.Intn(100))
 	v := time.Hour
 	for v > time.Second*10 || v < 0 {
 		v = time.Duration((rr.NormFloat64()*3000)+4000) * time.Millisecond

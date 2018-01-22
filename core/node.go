@@ -11,6 +11,7 @@ import (
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
 
 	contract "github.com/filecoin-project/playground/go-filecoin/contract"
+	lookup "github.com/filecoin-project/playground/go-filecoin/lookup"
 	state "github.com/filecoin-project/playground/go-filecoin/state"
 	types "github.com/filecoin-project/playground/go-filecoin/types"
 
@@ -27,12 +28,14 @@ var log = logging.Logger("core")
 var ProtocolID = protocol.ID("/fil/0.0.0")
 
 type FilecoinNode struct {
-	h host.Host
+	Host host.Host
 
 	Addresses []types.Address
 
 	bsub, txsub *floodsub.Subscription
 	pubsub      *floodsub.PubSub
+
+	Lookup *lookup.LookupEngine
 
 	DAG     dag.DAGService
 	Bitswap *bitswap.Bitswap
@@ -42,11 +45,17 @@ type FilecoinNode struct {
 }
 
 func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bserv.BlockService, bswap *bitswap.Bitswap) (*FilecoinNode, error) {
+	le, err := lookup.NewLookupEngine(fs, h.ID())
+	if err != nil {
+		return nil, err
+	}
+
 	fcn := &FilecoinNode{
-		h:       h,
+		Host:    h,
 		DAG:     dag,
 		Bitswap: bswap,
 		cs:      &hamt.CborIpldStore{bs},
+		Lookup:  le,
 	}
 
 	s := state.NewStateManager(fcn.cs, fcn.DAG)
@@ -54,6 +63,7 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 	fcn.StateMgr = s
 
 	baseAddr := CreateNewAddress()
+	fcn.Lookup.AddAddress(baseAddr)
 	fcn.Addresses = []types.Address{baseAddr}
 	fmt.Println("my mining address is ", baseAddr)
 
@@ -97,6 +107,7 @@ func NewFilecoinNode(h host.Host, fs *floodsub.PubSub, dag dag.DAGService, bs bs
 	go fcn.processNewTransactions(txsub)
 
 	h.SetStreamHandler(HelloProtocol, fcn.handleHelloStream)
+	h.SetStreamHandler(MakeDealProtocol, fcn.HandleMakeDeal)
 	h.Network().Notify((*fcnNotifiee)(fcn))
 
 	fcn.txsub = txsub
@@ -136,7 +147,7 @@ func (fcn *FilecoinNode) processNewBlocks(blksub *floodsub.Subscription) {
 		if err != nil {
 			panic(err)
 		}
-		if msg.GetFrom() == fcn.h.ID() {
+		if msg.GetFrom() == fcn.Host.ID() {
 			continue
 		}
 
@@ -172,6 +183,11 @@ func (fcn *FilecoinNode) SendNewTransaction(tx *types.Transaction) error {
 	if err != nil {
 		return errors.Wrap(err, "marshaling transaction failed")
 	}
+
+	var b types.Block
+
+	var newblock types.Block
+	newblock.Parent = b.Cid()
 
 	return fcn.pubsub.Publish(TxsTopic, data)
 }
@@ -223,4 +239,38 @@ func (fcn *FilecoinNode) SendNewTransactionAndWait(ctx context.Context, tx *type
 			return nil, ctx.Err()
 		}
 	}
+}
+
+func (fcn *FilecoinNode) LoadStorageContract(ctx context.Context) (*contract.StorageContract, *contract.ContractState, error) {
+	sroot := fcn.StateMgr.GetStateRoot()
+	act, err := sroot.GetActor(ctx, contract.StorageContractAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cst, err := sroot.LoadContractState(ctx, act.Memory)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ct, err := sroot.GetContract(ctx, act.Code)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	storage, ok := ct.(*contract.StorageContract)
+	if !ok {
+		return nil, nil, fmt.Errorf("expected type StorageContract")
+	}
+
+	return storage, cst, nil
+}
+
+func (fcn *FilecoinNode) IsOurAddress(chk types.Address) bool {
+	for _, a := range fcn.Addresses {
+		if a == chk {
+			return true
+		}
+	}
+	return false
 }

@@ -3,15 +3,19 @@ package commands
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"math/big"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 
 	ma "gx/ipfs/QmW8s4zTsUoX1Q6CeYxVKPyqSKbF7H1YDUyTostBtZ8DaG/go-multiaddr"
+	//peer "gx/ipfs/QmWNY7dV54ZDYmTA1ykVdwNCqC11mpU4zSUp6XDpLTH9eG/go-libp2p-peer"
 	pstore "gx/ipfs/QmYijbtjCxFEjSXaudaQAUz3LN5VKLssm8WCUsRoqzXmQR/go-libp2p-peerstore"
+	crypto "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
 	ipfsaddr "gx/ipfs/QmdMeXVB1V1SAZcFzoCuM3zR9K8PeuzCYg4zXNHcHh6dHU/go-ipfs-addr"
 	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
 
@@ -73,8 +77,23 @@ var DaemonCmd = &cmds.Command{
 }
 
 func daemonRun(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+	api := req.Options["api"].(string)
+
+	hsh := fnv.New64()
+	hsh.Write([]byte(api))
+	seed := hsh.Sum64()
+
+	r := rand.New(rand.NewSource(int64(seed)))
+	priv, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	if err != nil {
+		panic(err)
+	}
+
+	p2pcfg := libp2p.DefaultConfig()
+	p2pcfg.PeerKey = priv
+
 	// set up networking
-	h, err := libp2p.Construct(context.Background(), nil)
+	h, err := libp2p.Construct(context.Background(), p2pcfg)
 	if err != nil {
 		panic(err)
 	}
@@ -131,8 +150,6 @@ func daemonRun(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment)
 	ch := make(chan os.Signal)
 	signal.Notify(ch, os.Interrupt)
 
-	api := req.Options["api"].(string)
-
 	go func() {
 		panic(http.ListenAndServe(api, handler))
 	}()
@@ -157,8 +174,9 @@ func GetNode(env cmds.Environment) *core.FilecoinNode {
 
 var AddrsCmd = &cmds.Command{
 	Subcommands: map[string]*cmds.Command{
-		"new":  AddrsNewCmd,
-		"list": AddrsListCmd,
+		"new":    AddrsNewCmd,
+		"list":   AddrsListCmd,
+		"lookup": AddrsLookupCmd,
 	},
 }
 
@@ -201,6 +219,43 @@ var AddrsListCmd = &cmds.Command{
 				if err != nil {
 					return err
 				}
+			}
+			return nil
+		}),
+	},
+}
+
+var AddrsLookupCmd = &cmds.Command{
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("address", true, false, "address to find peerID for"),
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+		fcn := GetNode(env)
+
+		address, err := types.ParseAddress(req.Arguments[0])
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		v, err := fcn.Lookup.Lookup(address)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+		re.Emit(v.Pretty())
+	},
+	Type: string(""),
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
+			pid, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("unexpected type: %T", v)
+			}
+
+			_, err := fmt.Fprintln(w, pid)
+			if err != nil {
+				return err
 			}
 			return nil
 		}),
@@ -652,10 +707,13 @@ var OrderDealCmd = &cmds.Command{
 }
 
 var OrderDealMakeCmd = &cmds.Command{
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("mode", "mode to make deal in, client or miner"),
+	},
 	Arguments: []cmdkit.Argument{
-		cmdkit.StringArg("miner", true, false, "id of miner to make deal on"),
 		cmdkit.StringArg("ask", true, false, "id of ask for deal"),
 		cmdkit.StringArg("bid", true, false, "id of bid for deal"),
+		cmdkit.StringArg("miner", false, false, "id of miner to make deal with"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 		// TODO: right now, the flow is that this command gets called by the miner.
@@ -664,15 +722,13 @@ var OrderDealMakeCmd = &cmds.Command{
 
 		from := fcn.Addresses[0]
 
-		nonce, err := fcn.StateMgr.GetStateRoot().NonceForActor(req.Context, from)
-		if err != nil {
-			re.SetError(err, cmdkit.ErrNormal)
-			return
-		}
+		ask := req.Arguments[0]
+		bid := req.Arguments[1]
 
-		miner := req.Arguments[0]
-		ask := req.Arguments[1]
-		bid := req.Arguments[2]
+		var miner string
+		if len(req.Arguments) > 2 {
+			miner = req.Arguments[2]
+		}
 
 		makesignature := func(who string) string {
 			// TODO: crypto...
@@ -681,6 +737,11 @@ var OrderDealMakeCmd = &cmds.Command{
 
 		sig := makesignature(miner)
 
+		nonce, err := fcn.StateMgr.GetStateRoot().NonceForActor(req.Context, from)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
 		tx := &types.Transaction{
 			From:   from,
 			To:     contract.StorageContractAddress,
@@ -690,7 +751,6 @@ var OrderDealMakeCmd = &cmds.Command{
 		}
 
 		fcn.SendNewTransaction(tx)
-
 	},
 	Type: []*contract.Ask{},
 	Encoders: cmds.EncoderMap{
