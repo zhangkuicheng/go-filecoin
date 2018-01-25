@@ -5,22 +5,22 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"gx/ipfs/QmP1T1SGU6276R2MHKP2owbck37Fnzd6ZkpyNJvnG2LoTG/go-libp2p-floodsub"
-	"gx/ipfs/QmP46LGWhzVZTMmt5akNNLfoV8qL4h5wTwmzQxLyDafggd/go-libp2p-host"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
+	"gx/ipfs/Qma2TkMxcFLVGkYECTo4hrQohBYPx7uhpYL9EejEi8y3Nm/go-libp2p-floodsub"
+	"gx/ipfs/QmfCtHMCd9xFvehvHeVxtKVXJTMVTuHhyPRVHEXetn87vL/go-libp2p-host"
 
 	contract "github.com/filecoin-project/playground/go-filecoin/contract"
 	lookup "github.com/filecoin-project/playground/go-filecoin/lookup"
 	state "github.com/filecoin-project/playground/go-filecoin/state"
 	types "github.com/filecoin-project/playground/go-filecoin/types"
 
-	hamt "github.com/ipfs/go-hamt-ipld"
 	bserv "github.com/ipfs/go-ipfs/blockservice"
 	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap"
 	dag "github.com/ipfs/go-ipfs/merkledag"
+	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
 
-	"github.com/pkg/errors"
+	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 )
 
 var log = logging.Logger("core")

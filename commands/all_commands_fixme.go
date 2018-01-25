@@ -12,19 +12,19 @@ import (
 	"os/signal"
 	"strconv"
 
-	ma "gx/ipfs/QmW8s4zTsUoX1Q6CeYxVKPyqSKbF7H1YDUyTostBtZ8DaG/go-multiaddr"
+	ma "gx/ipfs/QmWWQ2Txc2c6tqjsBpzg5Ar652cHPGNsQQp2SejkNmkUMb/go-multiaddr"
 	//peer "gx/ipfs/QmWNY7dV54ZDYmTA1ykVdwNCqC11mpU4zSUp6XDpLTH9eG/go-libp2p-peer"
-	pstore "gx/ipfs/QmYijbtjCxFEjSXaudaQAUz3LN5VKLssm8WCUsRoqzXmQR/go-libp2p-peerstore"
+	ipfsaddr "gx/ipfs/QmWto9a6kfznUoW9owbLoBiLUMgRvgsVHRKFzs8zzzKYwp/go-ipfs-addr"
 	crypto "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
-	ipfsaddr "gx/ipfs/QmdMeXVB1V1SAZcFzoCuM3zR9K8PeuzCYg4zXNHcHh6dHU/go-ipfs-addr"
-	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
+	pstore "gx/ipfs/QmeZVQzUrXqaszo24DAoHfGzcmCptN9JyngLkGAiEfk2x7/go-libp2p-peerstore"
 
 	contract "github.com/filecoin-project/playground/go-filecoin/contract"
 	core "github.com/filecoin-project/playground/go-filecoin/core"
 	libp2p "github.com/filecoin-project/playground/go-filecoin/libp2p"
 	types "github.com/filecoin-project/playground/go-filecoin/types"
 
-	"gx/ipfs/QmP1T1SGU6276R2MHKP2owbck37Fnzd6ZkpyNJvnG2LoTG/go-libp2p-floodsub"
+	"gx/ipfs/Qma2TkMxcFLVGkYECTo4hrQohBYPx7uhpYL9EejEi8y3Nm/go-libp2p-floodsub"
 
 	ds "gx/ipfs/QmdHG8MAuARdGHxx4rPQASLcvhz24fzjSQq7AJRAQEorq5/go-datastore"
 	dssync "gx/ipfs/QmdHG8MAuARdGHxx4rPQASLcvhz24fzjSQq7AJRAQEorq5/go-datastore/sync"
@@ -37,9 +37,9 @@ import (
 	path "github.com/ipfs/go-ipfs/path"
 	none "github.com/ipfs/go-ipfs/routing/none"
 
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
-	cmds "github.com/ipfs/go-ipfs-cmds"
-	cmdhttp "github.com/ipfs/go-ipfs-cmds/http"
+	cmds "gx/ipfs/Qmc5paX4ECBARnAKkcAmUYHBGor228Tkfxeya3Nu2KRL46/go-ipfs-cmds"
+	cmdhttp "gx/ipfs/Qmc5paX4ECBARnAKkcAmUYHBGor228Tkfxeya3Nu2KRL46/go-ipfs-cmds/http"
+	cmdkit "gx/ipfs/QmceUdzxkimdYsgtX733uNgzf1DLHyBKN6ehGSp85ayppM/go-ipfs-cmdkit"
 )
 
 var RootCmd = &cmds.Command{
@@ -91,6 +91,12 @@ func daemonRun(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment)
 
 	p2pcfg := libp2p.DefaultConfig()
 	p2pcfg.PeerKey = priv
+	laddr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", 1000+(seed%20000)))
+	if err != nil {
+		panic(err)
+	}
+
+	p2pcfg.ListenAddrs = []ma.Multiaddr{laddr}
 
 	// set up networking
 	h, err := libp2p.Construct(context.Background(), p2pcfg)
@@ -707,55 +713,41 @@ var OrderDealCmd = &cmds.Command{
 }
 
 var OrderDealMakeCmd = &cmds.Command{
-	Options: []cmdkit.Option{
-		cmdkit.StringOption("mode", "mode to make deal in, client or miner"),
-	},
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("ask", true, false, "id of ask for deal"),
 		cmdkit.StringArg("bid", true, false, "id of bid for deal"),
-		cmdkit.StringArg("miner", false, false, "id of miner to make deal with"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 		// TODO: right now, the flow is that this command gets called by the miner.
 		// we still need to work out the process here...
 		fcn := GetNode(env)
 
-		from := fcn.Addresses[0]
-
-		ask := req.Arguments[0]
-		bid := req.Arguments[1]
-
-		var miner string
-		if len(req.Arguments) > 2 {
-			miner = req.Arguments[2]
-		}
-
-		makesignature := func(who string) string {
-			// TODO: crypto...
-			return who
-		}
-
-		sig := makesignature(miner)
-
-		nonce, err := fcn.StateMgr.GetStateRoot().NonceForActor(req.Context, from)
+		ask, err := strconv.ParseUint(req.Arguments[0], 10, 64)
 		if err != nil {
 			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
-		tx := &types.Transaction{
-			From:   from,
-			To:     contract.StorageContractAddress,
-			Nonce:  nonce,
-			Method: "makeDeal",
-			Params: []interface{}{ask, bid, sig},
+
+		bid, err := strconv.ParseUint(req.Arguments[1], 10, 64)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
 		}
 
-		fcn.SendNewTransaction(tx)
-	},
-	Type: []*contract.Ask{},
-	Encoders: cmds.EncoderMap{
-		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
-			return nil
-		}),
+		buf := make([]byte, 128)
+		rand.Read(buf)
+		nd := dag.NewRawNode(buf)
+		if _, err := fcn.DAG.Add(nd); err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		txcid, err := core.ClientMakeDeal(req.Context, fcn, ask, bid, nd.Cid())
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		fmt.Println("TRANSACTION FOR DEAL: ", txcid)
 	},
 }

@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	inet "gx/ipfs/QmU4vCDZTPLDqSDKguWbHCiUe46mZUtmM2g2suBZ9NE8ko/go-libp2p-net"
+	inet "gx/ipfs/QmQm7WmgYCa4RSz76tKEYpRjApjnRw8ZTUVQC15b8JM4a2/go-libp2p-net"
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
-	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
 	contract "github.com/filecoin-project/playground/go-filecoin/contract"
+	types "github.com/filecoin-project/playground/go-filecoin/types"
+	dag "github.com/ipfs/go-ipfs/merkledag"
 
-	"github.com/pkg/errors"
+	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 )
 
 var MakeDealProtocol = protocol.ID("/fil/deal/1.0.0")
@@ -19,11 +21,24 @@ var MakeDealProtocol = protocol.ID("/fil/deal/1.0.0")
 type DealMessage struct {
 	AskId, BidId uint64
 	Data         *cid.Cid
+	ClientSig    string
+}
+
+type DealResponse struct {
+	OK bool
+}
+
+type DealResult struct {
+	TxHash *cid.Cid
+	Error  string
 }
 
 func (fcn *FilecoinNode) HandleMakeDeal(s inet.Stream) {
+	fmt.Println("====== HANDLING MAKE DEAL!")
+	ctx := context.TODO()
 	defer s.Close()
 	dec := json.NewDecoder(s)
+	enc := json.NewEncoder(s)
 
 	var m DealMessage
 	if err := dec.Decode(&m); err != nil {
@@ -31,7 +46,7 @@ func (fcn *FilecoinNode) HandleMakeDeal(s inet.Stream) {
 		return
 	}
 
-	storage, cst, err := fcn.LoadStorageContract(context.TODO())
+	storage, cst, err := fcn.LoadStorageContract(ctx)
 	if err != nil {
 		log.Error("failed to load storage contract: ", err)
 		return
@@ -39,6 +54,7 @@ func (fcn *FilecoinNode) HandleMakeDeal(s inet.Stream) {
 
 	cctx := &contract.CallContext{
 		ContractState: cst,
+		Ctx:           ctx,
 	}
 
 	ask, err := storage.GetAsk(cctx, m.AskId)
@@ -55,15 +71,71 @@ func (fcn *FilecoinNode) HandleMakeDeal(s inet.Stream) {
 		return
 	}
 
+	_ = bid
+
 	if !fcn.IsOurAddress(ask.MinerID) {
 		log.Error("ask in deal is not ours")
 		return
 	}
 
-	_ = bid
+	// TODO: validate bid/ask pair (is there enough space, price, balances, etc)
+
+	// TODO: don't always auto-accept. Need manual acceptance too
+	if err := enc.Encode(&DealResponse{OK: true}); err != nil {
+		log.Error("failed to write deal response: ", err)
+		return
+	}
+
+	fmt.Println("====== Fetching Data")
+
+	// Receive file...
+	// TODO: do the fancy thing that nico and juan were talking about
+	if err := dag.FetchGraph(ctx, m.Data, fcn.DAG); err != nil {
+		log.Error("fetching data failed: ", err)
+		return
+	}
+
+	fmt.Println("======= Data fetched!")
+
+	nonce, err := fcn.StateMgr.StateRoot.NonceForActor(ctx, ask.MinerID)
+	if err != nil {
+		log.Error(errors.Wrap(err, "getting nonce failed"))
+		return
+	}
+
+	tx := &types.Transaction{
+		From:   ask.MinerID,
+		To:     contract.StorageContractAddress,
+		Method: "makeDeal",
+		Nonce:  nonce,
+		// TODO: also need dataref, and other actual deal fields
+		Params: []interface{}{m.AskId, m.BidId, m.ClientSig},
+	}
+
+	txcid, err := tx.Cid()
+	if err != nil {
+		log.Error("getting cid from tx we created: ", err)
+		return
+	}
+
+	fmt.Println("====== SENDING DEAL TRANSACTION!")
+	if err := fcn.SendNewTransaction(tx); err != nil {
+		log.Error("sending transaction confirming deal:", err)
+		return
+	}
+
+	res := &DealResult{
+		TxHash: txcid,
+	}
+
+	if err := enc.Encode(res); err != nil {
+		log.Error(errors.Wrap(err, "failed to write back deal response"))
+		return
+	}
 }
 
-func clientMakeDeal(ctx context.Context, fcn *FilecoinNode, askId, bidId uint64, data *cid.Cid) (interface{}, error) {
+func ClientMakeDeal(ctx context.Context, fcn *FilecoinNode, askId, bidId uint64, data *cid.Cid) (*cid.Cid, error) {
+	fmt.Println("====== Lets make a deal!")
 	storage, cst, err := fcn.LoadStorageContract(ctx)
 	if err != nil {
 		return nil, err
@@ -90,16 +162,20 @@ func clientMakeDeal(ctx context.Context, fcn *FilecoinNode, askId, bidId uint64,
 
 	// TODO: validation...?
 	deal := &DealMessage{
-		AskId: askId,
-		BidId: bidId,
-		Data:  data,
+		AskId:     askId,
+		BidId:     bidId,
+		Data:      data,
+		ClientSig: "foobar", // TODO: crypto
 	}
 
+	fmt.Println("====== Finding that pesky miner")
 	minerPid, err := fcn.Lookup.Lookup(ask.MinerID)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("====== Found the miner!", minerPid)
 
+	fmt.Println("====== Opening new stream to miner!")
 	s, err := fcn.Host.NewStream(ctx, minerPid, MakeDealProtocol)
 	if err != nil {
 		return nil, err
@@ -110,6 +186,26 @@ func clientMakeDeal(ctx context.Context, fcn *FilecoinNode, askId, bidId uint64,
 		return nil, err
 	}
 
-	_ = bid
-	panic("NYI")
+	dec := json.NewDecoder(s)
+
+	var dealResp DealResponse
+	if err := dec.Decode(&dealResp); err != nil {
+		return nil, err
+	}
+	fmt.Println("====== Got a deal response", dealResp.OK)
+
+	if !dealResp.OK {
+		return nil, fmt.Errorf("miner rejected deal")
+	}
+
+	var res DealResult
+	if err := dec.Decode(&res); err != nil {
+		return nil, err
+	}
+	fmt.Println("====== Got a deal result!", res)
+	if res.Error != "" {
+		return nil, fmt.Errorf("deal result error: %s", res.Error)
+	}
+
+	return res.TxHash, nil
 }

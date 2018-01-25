@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 
-	"github.com/pkg/errors"
+	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
 	types "github.com/filecoin-project/playground/go-filecoin/types"
-	hamt "github.com/ipfs/go-hamt-ipld"
-	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
+	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
 )
 
 var StorageContractCodeCid = identCid("storageContract")
@@ -92,7 +91,7 @@ func (sc *StorageContract) Call(ctx *CallContext, method string, args []interfac
 	case "getBids":
 		return sc.loadArray(ctx, bidsArrKey)
 	case "makeDeal":
-		return sc.makeDealCall(ctx, args)
+		return mustTypedCallClosure(sc.makeDealCall)(ctx, args)
 	default:
 		return nil, ErrMethodNotFound
 	}
@@ -389,7 +388,8 @@ func (sc *StorageContract) addAsk(ctx *CallContext, miner types.Address, price, 
 
 	return id, nil
 }
-func (mn *MinerContract) AddAsk(ctx *CallContext, from types.Address, price int64, size uint64) (interface{}, error) {
+
+func (mn *MinerContract) AddAsk(ctx *CallContext, from types.Address, price, size uint64) (interface{}, error) {
 	if err := mn.LoadState(ctx.ContractState); err != nil {
 		return nil, fmt.Errorf("load state: %s", err)
 	}
@@ -443,23 +443,8 @@ type Deal struct {
 	Bid uint64
 }
 
-func (sc *StorageContract) makeDealCall(ctx *CallContext, args []interface{}) (interface{}, error) {
-	if len(args) != 3 {
-		return nil, fmt.Errorf("must pass three arguments to makeDeal")
-	}
-
-	ask, err := strconv.ParseUint(args[0].(string), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	bid, err := strconv.ParseUint(args[1].(string), 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	sig := types.Address(args[2].(string))
-	return sc.makeDeal(ctx, &Deal{Ask: ask, Bid: bid, MinerSig: types.Address(sig)})
+func (sc *StorageContract) makeDealCall(ctx *CallContext, ask, bid uint64, sig types.Address) (interface{}, error) {
+	return sc.makeDeal(ctx, &Deal{Ask: ask, Bid: bid, MinerSig: sig})
 }
 
 func (sc *StorageContract) makeDeal(ctx *CallContext, d *Deal) (uint64, error) {

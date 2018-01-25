@@ -7,13 +7,13 @@ import (
 	"reflect"
 
 	types "github.com/filecoin-project/playground/go-filecoin/types"
-	"github.com/pkg/errors"
+	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
 	// TODO: no usage of this package directly
-	hamt "github.com/ipfs/go-hamt-ipld"
+	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
 
-	mh "gx/ipfs/QmYeKnKpubCMRiq3PGZcTREErthbb5Q9cXsCoSkD9bjEBd/go-multihash"
-	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+	mh "gx/ipfs/QmZyZDi491cCNTLfAhwcaDii2Kg4pwKRkhqQzURGDvY6ua/go-multihash"
+	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 )
 
 var FilecoinContractCid = identCid("filecoin")
@@ -127,6 +127,10 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 	amount, err := numberCast(args[1])
 	if err != nil {
 		return nil, err
+	}
+
+	if ctx.State.store == nil {
+		panic("states store is nil")
 	}
 
 	// TODO: formalize the creation of new accounts

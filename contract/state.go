@@ -5,20 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/pkg/errors"
+	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
 	types "github.com/filecoin-project/playground/go-filecoin/types"
-	hamt "github.com/ipfs/go-hamt-ipld"
-	cid "gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
+	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
 )
 
 func LoadState(ctx context.Context, cs *hamt.CborIpldStore, c *cid.Cid) (*State, error) {
-	var n hamt.Node
-	if err := cs.Get(ctx, c, &n); err != nil {
+	n, err := hamt.LoadNode(ctx, cs, c)
+	if err != nil {
 		return nil, err
 	}
 
-	return &State{root: &n, store: cs}, nil
+	return &State{root: n, store: cs}, nil
 }
 
 type State struct {
@@ -67,6 +67,7 @@ func (s *State) SetActor(ctx context.Context, a types.Address, act *Actor) error
 	if err != nil {
 		return err
 	}
+
 	if err := s.root.Set(ctx, string(a), data); err != nil {
 		return err
 	}
@@ -233,13 +234,13 @@ func (cs *ContractState) Node() *hamt.Node {
 }
 
 func (s *State) LoadContractState(ctx context.Context, mem *cid.Cid) (*ContractState, error) {
-	var n hamt.Node
-	if err := s.store.Get(ctx, mem, &n); err != nil {
+	n, err := hamt.LoadNode(ctx, s.store, mem)
+	if err != nil {
 		return nil, fmt.Errorf("store get: %s", err)
 	}
 
 	return &ContractState{
-		n:    &n,
+		n:    n,
 		cstr: s.store,
 	}, nil
 }

@@ -8,10 +8,10 @@ import (
 	commands "github.com/filecoin-project/playground/go-filecoin/commands"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 
-	cmdkit "github.com/ipfs/go-ipfs-cmdkit"
-	cmds "github.com/ipfs/go-ipfs-cmds"
-	cmdcli "github.com/ipfs/go-ipfs-cmds/cli"
-	cmdhttp "github.com/ipfs/go-ipfs-cmds/http"
+	cmds "gx/ipfs/Qmc5paX4ECBARnAKkcAmUYHBGor228Tkfxeya3Nu2KRL46/go-ipfs-cmds"
+	cmdcli "gx/ipfs/Qmc5paX4ECBARnAKkcAmUYHBGor228Tkfxeya3Nu2KRL46/go-ipfs-cmds/cli"
+	cmdhttp "gx/ipfs/Qmc5paX4ECBARnAKkcAmUYHBGor228Tkfxeya3Nu2KRL46/go-ipfs-cmds/http"
+	cmdkit "gx/ipfs/QmceUdzxkimdYsgtX733uNgzf1DLHyBKN6ehGSp85ayppM/go-ipfs-cmdkit"
 )
 
 var log = logging.Logger("filecoin")
@@ -37,7 +37,8 @@ func main() {
 			fmt.Println("daemon already running...")
 			return
 		}
-		client := cmdhttp.NewClient(":3453", cmdhttp.ClientWithAPIPrefix("/api"))
+		api := req.Options["api"].(string)
+		client := cmdhttp.NewClient(api, cmdhttp.ClientWithAPIPrefix("/api"))
 
 		// send request to server
 		res, err := client.Send(req)

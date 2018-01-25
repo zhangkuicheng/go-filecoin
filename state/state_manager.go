@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"gx/ipfs/QmWNY7dV54ZDYmTA1ykVdwNCqC11mpU4zSUp6XDpLTH9eG/go-libp2p-peer"
-	"gx/ipfs/QmeSrf6pzut73u6zLQkRFQ3ygt3k6XFT2kjdYP8Tnkwwyg/go-cid"
+	"gx/ipfs/Qma7H6RW8wRrfZpNSXwxYGcd1E149s42FpWNpDNieSVrnU/go-libp2p-peer"
+	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
 	pubsub "github.com/briantigerchow/pubsub"
-	hamt "github.com/ipfs/go-hamt-ipld"
 	dag "github.com/ipfs/go-ipfs/merkledag"
-	logging "github.com/ipfs/go-log"
+	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
+	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
 
 	contract "github.com/filecoin-project/playground/go-filecoin/contract"
 	types "github.com/filecoin-project/playground/go-filecoin/types"

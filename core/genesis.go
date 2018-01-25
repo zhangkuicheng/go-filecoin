@@ -6,7 +6,7 @@ import (
 
 	contract "github.com/filecoin-project/playground/go-filecoin/contract"
 	types "github.com/filecoin-project/playground/go-filecoin/types"
-	hamt "github.com/ipfs/go-hamt-ipld"
+	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
 )
 
 var InitialNetworkTokens = big.NewInt(2000000000)

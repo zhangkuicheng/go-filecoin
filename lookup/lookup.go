@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	floodsub "gx/ipfs/QmP1T1SGU6276R2MHKP2owbck37Fnzd6ZkpyNJvnG2LoTG/go-libp2p-floodsub"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	peer "gx/ipfs/QmWNY7dV54ZDYmTA1ykVdwNCqC11mpU4zSUp6XDpLTH9eG/go-libp2p-peer"
+	floodsub "gx/ipfs/Qma2TkMxcFLVGkYECTo4hrQohBYPx7uhpYL9EejEi8y3Nm/go-libp2p-floodsub"
+	peer "gx/ipfs/Qma7H6RW8wRrfZpNSXwxYGcd1E149s42FpWNpDNieSVrnU/go-libp2p-peer"
 
 	pubsub "github.com/briantigerchow/pubsub"
 	types "github.com/filecoin-project/playground/go-filecoin/types"
