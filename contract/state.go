@@ -7,9 +7,9 @@ import (
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	types "github.com/filecoin-project/go-filecoin/types"
+	hamt "gx/ipfs/QmWmuCuU2YUbPiu9Zv6WpXFBwAd9mevCi8SYoq5xajdQQr/go-hamt-ipld"
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
-	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
 )
 
 func LoadState(ctx context.Context, cs *hamt.CborIpldStore, c *cid.Cid) (*State, error) {

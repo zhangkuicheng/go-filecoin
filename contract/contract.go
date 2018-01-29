@@ -6,11 +6,11 @@ import (
 	"math/big"
 	"reflect"
 
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	types "github.com/filecoin-project/go-filecoin/types"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
 	// TODO: no usage of this package directly
-	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
+	hamt "gx/ipfs/QmWmuCuU2YUbPiu9Zv6WpXFBwAd9mevCi8SYoq5xajdQQr/go-hamt-ipld"
 
 	mh "gx/ipfs/QmZyZDi491cCNTLfAhwcaDii2Kg4pwKRkhqQzURGDvY6ua/go-multihash"
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"

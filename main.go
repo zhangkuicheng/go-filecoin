@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	commands "github.com/filecoin-project/playground/go-filecoin/commands"
+	commands "github.com/filecoin-project/go-filecoin/commands"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 
 	cmds "gx/ipfs/Qmc5paX4ECBARnAKkcAmUYHBGor228Tkfxeya3Nu2KRL46/go-ipfs-cmds"

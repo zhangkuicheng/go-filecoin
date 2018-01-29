@@ -9,7 +9,7 @@ import (
 	"gx/ipfs/Qma7H6RW8wRrfZpNSXwxYGcd1E149s42FpWNpDNieSVrnU/go-libp2p-peer"
 	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	types "github.com/filecoin-project/go-filecoin/types"
 )
 
 var TxsTopic = "/fil/tx"

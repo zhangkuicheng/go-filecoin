@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	types "github.com/filecoin-project/go-filecoin/types"
 )
 
 var MinerContractCodeHash = identCid("fcminer")

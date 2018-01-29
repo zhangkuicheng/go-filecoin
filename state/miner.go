@@ -7,10 +7,10 @@ import (
 	"math/rand"
 	"time"
 
-	contract "github.com/filecoin-project/playground/go-filecoin/contract"
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	contract "github.com/filecoin-project/go-filecoin/contract"
+	types "github.com/filecoin-project/go-filecoin/types"
 
-	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
+	hamt "gx/ipfs/QmWmuCuU2YUbPiu9Zv6WpXFBwAd9mevCi8SYoq5xajdQQr/go-hamt-ipld"
 )
 
 var rr = rand.New(rand.NewSource(time.Now().UnixNano()))

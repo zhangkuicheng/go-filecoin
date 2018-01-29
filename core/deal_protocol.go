@@ -9,8 +9,8 @@ import (
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
 	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
-	contract "github.com/filecoin-project/playground/go-filecoin/contract"
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	contract "github.com/filecoin-project/go-filecoin/contract"
+	types "github.com/filecoin-project/go-filecoin/types"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"

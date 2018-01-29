@@ -11,10 +11,10 @@ import (
 	pubsub "github.com/briantigerchow/pubsub"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
+	hamt "gx/ipfs/QmWmuCuU2YUbPiu9Zv6WpXFBwAd9mevCi8SYoq5xajdQQr/go-hamt-ipld"
 
-	contract "github.com/filecoin-project/playground/go-filecoin/contract"
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	contract "github.com/filecoin-project/go-filecoin/contract"
+	types "github.com/filecoin-project/go-filecoin/types"
 )
 
 var log = logging.Logger("state")

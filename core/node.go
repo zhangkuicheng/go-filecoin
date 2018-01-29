@@ -10,15 +10,15 @@ import (
 	"gx/ipfs/Qma2TkMxcFLVGkYECTo4hrQohBYPx7uhpYL9EejEi8y3Nm/go-libp2p-floodsub"
 	"gx/ipfs/QmfCtHMCd9xFvehvHeVxtKVXJTMVTuHhyPRVHEXetn87vL/go-libp2p-host"
 
-	contract "github.com/filecoin-project/playground/go-filecoin/contract"
-	lookup "github.com/filecoin-project/playground/go-filecoin/lookup"
-	state "github.com/filecoin-project/playground/go-filecoin/state"
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	contract "github.com/filecoin-project/go-filecoin/contract"
+	lookup "github.com/filecoin-project/go-filecoin/lookup"
+	state "github.com/filecoin-project/go-filecoin/state"
+	types "github.com/filecoin-project/go-filecoin/types"
 
 	bserv "github.com/ipfs/go-ipfs/blockservice"
 	bitswap "github.com/ipfs/go-ipfs/exchange/bitswap"
 	dag "github.com/ipfs/go-ipfs/merkledag"
-	hamt "gx/ipfs/QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi/go-hamt-ipld"
+	hamt "gx/ipfs/QmWmuCuU2YUbPiu9Zv6WpXFBwAd9mevCi8SYoq5xajdQQr/go-hamt-ipld"
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 )

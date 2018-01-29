@@ -518,9 +518,9 @@
     },
     {
       "author": "why",
-      "hash": "QmeEgzPRAjisT3ndLSR8jrrZAZyWd3nx2mpZU4S7mCQzYi",
+      "hash": "QmWmuCuU2YUbPiu9Zv6WpXFBwAd9mevCi8SYoq5xajdQQr",
       "name": "go-hamt-ipld",
-      "version": "0.0.2"
+      "version": "0.0.3"
     }
   ],
   "gxVersion": "0.10.0",

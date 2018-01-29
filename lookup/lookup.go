@@ -12,7 +12,7 @@ import (
 	peer "gx/ipfs/Qma7H6RW8wRrfZpNSXwxYGcd1E149s42FpWNpDNieSVrnU/go-libp2p-peer"
 
 	pubsub "github.com/briantigerchow/pubsub"
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	types "github.com/filecoin-project/go-filecoin/types"
 )
 
 var FilLookupTopic = "/fil/lookup/1.0.0"

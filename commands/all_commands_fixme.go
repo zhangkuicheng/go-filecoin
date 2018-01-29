@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -21,10 +22,10 @@ import (
 	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 	pstore "gx/ipfs/QmeZVQzUrXqaszo24DAoHfGzcmCptN9JyngLkGAiEfk2x7/go-libp2p-peerstore"
 
-	contract "github.com/filecoin-project/playground/go-filecoin/contract"
-	core "github.com/filecoin-project/playground/go-filecoin/core"
-	libp2p "github.com/filecoin-project/playground/go-filecoin/libp2p"
-	types "github.com/filecoin-project/playground/go-filecoin/types"
+	contract "github.com/filecoin-project/go-filecoin/contract"
+	core "github.com/filecoin-project/go-filecoin/core"
+	libp2p "github.com/filecoin-project/go-filecoin/libp2p"
+	types "github.com/filecoin-project/go-filecoin/types"
 
 	"gx/ipfs/Qma2TkMxcFLVGkYECTo4hrQohBYPx7uhpYL9EejEi8y3Nm/go-libp2p-floodsub"
 
@@ -770,18 +771,13 @@ var IdCmd = &cmds.Command{
 		cmdkit.StringOption("format", "f", "specify an output format"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
-		format, ok := req.Options["format"].(string)
-		if !ok {
-			re.SetError("format option currently must be set", cmdkit.ErrNormal)
-			return
-		}
-
 		fcn := GetNode(env)
 
 		var out idOutput
 		for _, a := range fcn.Host.Addrs() {
 			out.Addresses = append(out.Addresses, a.String())
 		}
+		out.ID = fcn.Host.ID().Pretty()
 
 		re.Emit(&out)
 	},
@@ -793,10 +789,7 @@ var IdCmd = &cmds.Command{
 				return fmt.Errorf("unexpected type: %T", v)
 			}
 
-			format, found, err := res.Request().Option("format").String()
-			if err != nil {
-				return nil, err
-			}
+			format, found := req.Options["format"].(string)
 			if found {
 				output := format
 				output = strings.Replace(output, "<id>", val.ID, -1)
@@ -806,15 +799,18 @@ var IdCmd = &cmds.Command{
 				output = strings.Replace(output, "<addrs>", strings.Join(val.Addresses, "\n"), -1)
 				output = strings.Replace(output, "\\n", "\n", -1)
 				output = strings.Replace(output, "\\t", "\t", -1)
-				return strings.NewReader(output), nil
+				_, err := fmt.Fprint(w, output)
+				return err
 			} else {
 
 				marshaled, err := json.MarshalIndent(val, "", "\t")
 				if err != nil {
-					return nil, err
+					return err
 				}
 				marshaled = append(marshaled, byte('\n'))
-				return bytes.NewReader(marshaled), nil
+
+				_, err = w.Write(marshaled)
+				return err
 			}
 		}),
 	},
