@@ -14,6 +14,7 @@ import (
 
 	ma "gx/ipfs/QmWWQ2Txc2c6tqjsBpzg5Ar652cHPGNsQQp2SejkNmkUMb/go-multiaddr"
 	//peer "gx/ipfs/QmWNY7dV54ZDYmTA1ykVdwNCqC11mpU4zSUp6XDpLTH9eG/go-libp2p-peer"
+	swarm "gx/ipfs/QmSD9fajyipwNQw3Hza2k2ifcBfbhGoC1ZHHgQBy4yqU8d/go-libp2p-swarm"
 	ipfsaddr "gx/ipfs/QmWto9a6kfznUoW9owbLoBiLUMgRvgsVHRKFzs8zzzKYwp/go-ipfs-addr"
 	crypto "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
 	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
@@ -58,6 +59,8 @@ var rootSubcommands = map[string]*cmds.Command{
 	"wallet":  WalletCmd,
 	"order":   OrderCmd,
 	"miner":   MinerCmd,
+	"swarm":   SwarmCmd,
+	"id":      IdCmd,
 }
 
 func init() {
@@ -749,5 +752,189 @@ var OrderDealMakeCmd = &cmds.Command{
 		}
 
 		fmt.Println("TRANSACTION FOR DEAL: ", txcid)
+	},
+}
+
+type idOutput struct {
+	Addresses       []string
+	ID              string
+	AgentVersion    string
+	ProtocolVersion string
+	PublicKey       string
+}
+
+var IdCmd = &cmds.Command{
+	Options: []cmdkit.Option{
+		// TODO: ideally copy this from the `ipfs id` command
+		cmdkit.StringOption("format", "f", "specify an output format"),
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+		format, ok := req.Options["format"].(string)
+		if !ok {
+			re.SetError("format option currently must be set", cmdkit.ErrNormal)
+			return
+		}
+
+		fcn := GetNode(env)
+
+		var out idOutput
+		for _, a := range fcn.Host.Addrs() {
+			out.Addresses = append(out.Addresses, a.String())
+		}
+
+		re.Emit(&out)
+	},
+	Type: idOutput{},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
+			val, ok := v.(*idOutput)
+			if !ok {
+				return fmt.Errorf("unexpected type: %T", v)
+			}
+
+			format, found, err := res.Request().Option("format").String()
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				output := format
+				output = strings.Replace(output, "<id>", val.ID, -1)
+				output = strings.Replace(output, "<aver>", val.AgentVersion, -1)
+				output = strings.Replace(output, "<pver>", val.ProtocolVersion, -1)
+				output = strings.Replace(output, "<pubkey>", val.PublicKey, -1)
+				output = strings.Replace(output, "<addrs>", strings.Join(val.Addresses, "\n"), -1)
+				output = strings.Replace(output, "\\n", "\n", -1)
+				output = strings.Replace(output, "\\t", "\t", -1)
+				return strings.NewReader(output), nil
+			} else {
+
+				marshaled, err := json.MarshalIndent(val, "", "\t")
+				if err != nil {
+					return nil, err
+				}
+				marshaled = append(marshaled, byte('\n'))
+				return bytes.NewReader(marshaled), nil
+			}
+		}),
+	},
+}
+
+var SwarmCmd = &cmds.Command{
+	Helptext: cmdkit.HelpText{
+		Tagline: "Interact with the swarm.",
+		ShortDescription: `
+'go-filecoin swarm' is a tool to manipulate the libp2p swarm. The swarm is the
+component that opens, listens for, and maintains connections to other
+libp2p peers on the internet.
+`,
+	},
+	Subcommands: map[string]*cmds.Command{
+		//"addrs":      swarmAddrsCmd,
+		"connect": swarmConnectCmd,
+		//"disconnect": swarmDisconnectCmd,
+		//"filters":    swarmFiltersCmd,
+		//"peers":      swarmPeersCmd,
+	},
+}
+
+// COPIED FROM go-ipfs core/commands/swarm.go
+
+// parseAddresses is a function that takes in a slice of string peer addresses
+// (multiaddr + peerid) and returns slices of multiaddrs and peerids.
+func parseAddresses(addrs []string) (iaddrs []ipfsaddr.IPFSAddr, err error) {
+	iaddrs = make([]ipfsaddr.IPFSAddr, len(addrs))
+	for i, saddr := range addrs {
+		iaddrs[i], err = ipfsaddr.ParseString(saddr)
+		if err != nil {
+			return nil, cmds.ClientError("invalid peer address: " + err.Error())
+		}
+	}
+	return
+}
+
+// peersWithAddresses is a function that takes in a slice of string peer addresses
+// (multiaddr + peerid) and returns a slice of properly constructed peers
+func peersWithAddresses(addrs []string) (pis []pstore.PeerInfo, err error) {
+	iaddrs, err := parseAddresses(addrs)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, iaddr := range iaddrs {
+		pis = append(pis, pstore.PeerInfo{
+			ID:    iaddr.ID(),
+			Addrs: []ma.Multiaddr{iaddr.Transport()},
+		})
+	}
+	return pis, nil
+}
+
+type connectResult struct {
+	Peer    string
+	Success bool
+}
+
+var swarmConnectCmd = &cmds.Command{
+	Helptext: cmdkit.HelpText{
+		Tagline: "Open connection to a given address.",
+		ShortDescription: `
+'go-filecoin swarm connect' opens a new direct connection to a peer address.
+
+The address format is a multiaddr:
+
+go-filecoin swarm connect /ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ
+`,
+	},
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("address", true, true, "Address of peer to connect to.").EnableStdin(),
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+		ctx := req.Context
+
+		n := GetNode(env)
+
+		addrs := req.Arguments
+
+		snet, ok := n.Host.Network().(*swarm.Network)
+		if !ok {
+			re.SetError("peerhost network was not swarm", cmdkit.ErrNormal)
+			return
+		}
+
+		swrm := snet.Swarm()
+
+		pis, err := peersWithAddresses(addrs)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		output := make([]connectResult, len(pis))
+		for i, pi := range pis {
+			swrm.Backoff().Clear(pi.ID)
+
+			output[i].Peer = pi.ID.Pretty()
+
+			err := n.Host.Connect(ctx, pi)
+			if err != nil {
+				re.SetError(fmt.Errorf("%s failure: %s", output[i], err), cmdkit.ErrNormal)
+				return
+			}
+		}
+
+		re.Emit(output)
+	},
+	Type: []connectResult{},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
+			res, ok := v.(*[]connectResult)
+			if !ok {
+				return fmt.Errorf("unexpected type: %T", v)
+			}
+			for _, a := range *res {
+				fmt.Fprintf(w, "connect %s success\n", a.Peer)
+			}
+			return nil
+		}),
 	},
 }

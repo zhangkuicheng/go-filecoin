@@ -21,6 +21,10 @@ func fail(v ...interface{}) {
 	os.Exit(1)
 }
 
+func apiEnv() string {
+	return os.Getenv("FIL_API")
+}
+
 func main() {
 	daemonRunning, err := commands.DaemonIsRunning()
 	if err != nil {
@@ -38,6 +42,9 @@ func main() {
 			return
 		}
 		api := req.Options["api"].(string)
+		if ae := apiEnv(); ae != "" {
+			api = ae
+		}
 		client := cmdhttp.NewClient(api, cmdhttp.ClientWithAPIPrefix("/api"))
 
 		// send request to server

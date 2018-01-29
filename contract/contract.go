@@ -129,10 +129,6 @@ func (ftc *FilecoinTokenContract) transfer(ctx *CallContext, args []interface{})
 		return nil, err
 	}
 
-	if ctx.State.store == nil {
-		panic("states store is nil")
-	}
-
 	// TODO: formalize the creation of new accounts
 	_, err = ctx.State.GetActor(ctx.Ctx, toAddr)
 	switch err {

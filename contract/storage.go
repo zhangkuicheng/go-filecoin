@@ -157,50 +157,6 @@ func (sc *StorageContract) ListBids(cctx *CallContext) ([]*Bid, error) {
 	return bids, nil
 }
 
-func castBid(i interface{}) (*Bid, error) {
-	switch i := i.(type) {
-	case *Bid:
-		return i, nil
-	case map[string]interface{}:
-		d, err := json.Marshal(i)
-		if err != nil {
-			return nil, err
-		}
-
-		var b Bid
-		if err := json.Unmarshal(d, &b); err != nil {
-			return nil, err
-		}
-
-		return &b, nil
-	default:
-		fmt.Printf("bid: %#v\n", i)
-		panic("halten sie!")
-	}
-}
-
-func castAsk(i interface{}) (*Ask, error) {
-	switch i := i.(type) {
-	case *Ask:
-		return i, nil
-	case map[string]interface{}:
-		d, err := json.Marshal(i)
-		if err != nil {
-			return nil, err
-		}
-
-		var a Ask
-		if err := json.Unmarshal(d, &a); err != nil {
-			return nil, err
-		}
-
-		return &a, nil
-	default:
-		fmt.Printf("ask: %#v\n", i)
-		panic("halten sie!")
-	}
-}
-
 func (sc *StorageContract) addBid(ctx *CallContext, price, size uint64) (interface{}, error) {
 	b := &Bid{
 		Owner: ctx.From,
