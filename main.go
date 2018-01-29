@@ -81,6 +81,11 @@ func main() {
 		<-wait
 		os.Exit(ret)
 	} else {
+		if req.Command != commands.DaemonCmd {
+			fmt.Println("please start daemon...")
+			os.Exit(1)
+		}
+
 		req.Options[cmds.EncLong] = cmds.Text
 
 		// create an emitter

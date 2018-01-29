@@ -29,6 +29,7 @@ func DaemonIsRunning() (bool, error) {
 	p := getPath()
 	if _, err := os.Stat(p); err != nil {
 		if os.IsNotExist(err) {
+			fmt.Println("daemon not running, file not found: ", p)
 			return false, nil
 		}
 		return false, err

@@ -775,7 +775,7 @@ var IdCmd = &cmds.Command{
 
 		var out idOutput
 		for _, a := range fcn.Host.Addrs() {
-			out.Addresses = append(out.Addresses, a.String())
+			out.Addresses = append(out.Addresses, fmt.Sprintf("%s/ipfs/%s", a, fcn.Host.ID().Pretty()))
 		}
 		out.ID = fcn.Host.ID().Pretty()
 
