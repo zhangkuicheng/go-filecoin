@@ -16,6 +16,35 @@ import (
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 )
 
+/*
+The deal protocol
+
+To make a deal, the storage client first selects a bid of their own making, and
+an ask from a miner they wish to make a deal with.
+
+The client then sends a 'DealMessage' to the miner, containing:
+  - The bid
+  - The ask
+  - A reference to the data
+  - The size of the data (TODO: should we require that len(data) == bid.size ?)
+  - A signature over that data
+
+The miner receives this, and decides whether or not to accept it.
+If it does not accept, it sends a 'DealResponse' indicating that it does not
+accept the deal, and terminates the protocol.
+
+If the miner does accept the deal, it sends back a 'DealResponse' indicating
+the deal has been accepted.  The miner then starts fetching the data from the
+client out of band (TODO: figure this out better) Once the miner has
+successfully retrieved the data, it creates a 'MakeDeal' transaction which it
+signs and posts on chain.
+
+Once the miner has successfully fetched the data and posted the deal to the
+chain, they send a 'DealResult' message back to the client indicating the txid
+(its hash).  If the transfer or the posting of the deal fails, the miner sends
+back a 'DealResult' message indicating the error.
+*/
+
 var MakeDealProtocol = protocol.ID("/fil/deal/1.0.0")
 
 type DealMessage struct {
