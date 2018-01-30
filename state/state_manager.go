@@ -29,6 +29,8 @@ type StateManager struct {
 
 	TxPool *types.TransactionPool
 
+	// TODO: need some sync stuff here. Some of these fields get access in a
+	// racy way right now
 	KnownGoodBlocks *cid.Set
 
 	cs  *hamt.CborIpldStore

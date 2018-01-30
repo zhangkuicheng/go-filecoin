@@ -22,7 +22,7 @@ The deal protocol
 To make a deal, the storage client first selects a bid of their own making, and
 an ask from a miner they wish to make a deal with.
 
-The client then sends a 'DealMessage' to the miner, containing:
+The client then sends a 'DealPropose' to the miner, containing:
   - The bid
   - The ask
   - A reference to the data
@@ -47,7 +47,7 @@ back a 'DealResult' message indicating the error.
 
 var MakeDealProtocol = protocol.ID("/fil/deal/1.0.0")
 
-type DealMessage struct {
+type DealPropose struct {
 	AskId, BidId uint64
 	Data         *cid.Cid
 	ClientSig    string
@@ -69,7 +69,7 @@ func (fcn *FilecoinNode) HandleMakeDeal(s inet.Stream) {
 	dec := json.NewDecoder(s)
 	enc := json.NewEncoder(s)
 
-	var m DealMessage
+	var m DealPropose
 	if err := dec.Decode(&m); err != nil {
 		log.Error("failed to decode incoming deal message: ", err)
 		return
@@ -190,7 +190,7 @@ func ClientMakeDeal(ctx context.Context, fcn *FilecoinNode, askId, bidId uint64,
 	}
 
 	// TODO: validation...?
-	deal := &DealMessage{
+	deal := &DealPropose{
 		AskId:     askId,
 		BidId:     bidId,
 		Data:      data,

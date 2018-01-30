@@ -490,6 +490,7 @@ var MinerNewCmd = &cmds.Command{
 
 		resStr, ok := res.Receipt.Result.(types.Address)
 		if !ok {
+			// TODO: this returns a string instead of an address if the transaction was mined by someone else. Yay types...
 			re.SetError("createMiner call didn't return an address", cmdkit.ErrNormal)
 			return
 		}
@@ -686,25 +687,9 @@ func listAsks(ctx context.Context, fcn *core.FilecoinNode) ([]*contract.Ask, err
 }
 
 func listBids(ctx context.Context, fcn *core.FilecoinNode) ([]*contract.Bid, error) {
-	stroot := fcn.StateMgr.GetStateRoot()
-	sact, err := stroot.GetActor(ctx, contract.StorageContractAddress)
+	sc, cst, err := fcn.LoadStorageContract(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	c, err := stroot.GetContract(ctx, sact.Code)
-	if err != nil {
-		return nil, err
-	}
-
-	cst, err := stroot.LoadContractState(ctx, sact.Memory)
-	if err != nil {
-		return nil, err
-	}
-
-	sc, ok := c.(*contract.StorageContract)
-	if !ok {
-		return nil, fmt.Errorf("was not actually a storage contract somehow")
 	}
 
 	cctx := &contract.CallContext{ContractState: cst, Ctx: ctx}
@@ -714,6 +699,7 @@ func listBids(ctx context.Context, fcn *core.FilecoinNode) ([]*contract.Bid, err
 var OrderDealCmd = &cmds.Command{
 	Subcommands: map[string]*cmds.Command{
 		"make": OrderDealMakeCmd,
+		"list": OrderDealListCmd,
 	},
 }
 
@@ -723,8 +709,6 @@ var OrderDealMakeCmd = &cmds.Command{
 		cmdkit.StringArg("bid", true, false, "id of bid for deal"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
-		// TODO: right now, the flow is that this command gets called by the miner.
-		// we still need to work out the process here...
 		fcn := GetNode(env)
 
 		ask, err := strconv.ParseUint(req.Arguments[0], 10, 64)
@@ -739,6 +723,8 @@ var OrderDealMakeCmd = &cmds.Command{
 			return
 		}
 
+		// TODO:
+		// making random data hunk here. Need to let the user specify their data at some point
 		buf := make([]byte, 128)
 		rand.Read(buf)
 		nd := dag.NewRawNode(buf)
@@ -754,6 +740,53 @@ var OrderDealMakeCmd = &cmds.Command{
 		}
 
 		fmt.Println("TRANSACTION FOR DEAL: ", txcid)
+	},
+	Type: cid.Cid{},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
+			txh, ok := v.(*cid.Cid)
+			if !ok {
+				return fmt.Errorf("unexpected type: %T", v)
+			}
+
+			fmt.Fprintln(w, txh.String())
+			return nil
+		}),
+	},
+}
+
+var OrderDealListCmd = &cmds.Command{
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+		fcn := GetNode(env)
+		sc, st, err := fcn.LoadStorageContract(req.Context)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		cctx := &contract.CallContext{Ctx: req.Context, ContractState: st}
+		deals, err := sc.ListDeals(cctx)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		re.Emit(deals)
+	},
+	Type: []*contract.Deal{},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeEncoder(func(req *cmds.Request, w io.Writer, v interface{}) error {
+			deals, ok := v.([]*contract.Deal)
+			if !ok {
+				return fmt.Errorf("unexpected type: %T", v)
+			}
+
+			for _, d := range deals {
+				fmt.Fprintf(w, "%d %d %s", d.Ask, d.Bid, d.DataRef)
+			}
+
+			return nil
+		}),
 	},
 }
 
@@ -830,7 +863,7 @@ libp2p peers on the internet.
 		"connect": swarmConnectCmd,
 		//"disconnect": swarmDisconnectCmd,
 		//"filters":    swarmFiltersCmd,
-		//"peers":      swarmPeersCmd,
+		//"peers": swarmPeersCmd,
 	},
 }
 

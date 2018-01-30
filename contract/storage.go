@@ -141,6 +141,20 @@ func (sc *StorageContract) GetBid(cctx *CallContext, id uint64) (*Bid, error) {
 	return &b, nil
 }
 
+func (sc *StorageContract) GetDeal(cctx *CallContext, id uint64) (*Deal, error) {
+	data, err := cctx.ContractState.Get(cctx.Ctx, "d"+fmt.Sprint(id))
+	if err != nil {
+		return nil, err
+	}
+
+	var d Deal
+	if err := json.Unmarshal(data, &d); err != nil {
+		return nil, err
+	}
+
+	return &d, nil
+}
+
 func (sc *StorageContract) ListBids(cctx *CallContext) ([]*Bid, error) {
 	ids, err := sc.loadArray(cctx, bidsArrKey)
 	if err != nil {
@@ -155,6 +169,22 @@ func (sc *StorageContract) ListBids(cctx *CallContext) ([]*Bid, error) {
 		bids = append(bids, b)
 	}
 	return bids, nil
+}
+
+func (sc *StorageContract) ListDeals(cctx *CallContext) ([]*Deal, error) {
+	ids, err := sc.loadArray(cctx, dealsArrKey)
+	if err != nil {
+		return nil, err
+	}
+	var deals []*Deal
+	for _, id := range ids {
+		d, err := sc.GetDeal(cctx, id)
+		if err != nil {
+			return nil, err
+		}
+		deals = append(deals, d)
+	}
+	return deals, nil
 }
 
 func (sc *StorageContract) addBid(ctx *CallContext, price, size uint64) (interface{}, error) {
