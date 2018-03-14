@@ -197,7 +197,8 @@ func (sma *StorageMarketActor) AddBid(ctx *VMContext, price, size *big.Int) (*bi
 }
 
 // AddDeal creates a deal from the given ask and bid
-func (sma *StorageMarketActor) AddDeal(ctx *VMContext, askID, bidID *big.Int, clientSig []byte) (*big.Int, uint8, error) {
+// It must always called by the owner of the miner in the ask
+func (sma *StorageMarketActor) AddDeal(ctx *VMContext, askID, bidID *big.Int, bidOwnerSig []byte) (*big.Int, uint8, error) {
 	var storage StorageMarketStorage
 	ret, err := WithStorage(ctx, &storage, func() (interface{}, error) {
 		// TODO: askset is a map from uint64, our input is a big int.
@@ -228,11 +229,11 @@ func (sma *StorageMarketActor) AddDeal(ctx *VMContext, askID, bidID *big.Int, cl
 		}
 
 		// TODO: real signature check and stuff
-		if bid.Owner != types.Address(clientSig) {
+		if bid.Owner != types.Address(bidOwnerSig) {
 			return nil, fmt.Errorf("signature failed to validate")
 		}
 
-		// mark bid as used
+		// mark bid as used (note: bid is a pointer)
 		bid.Used = true
 
 		// subtract used space from add
