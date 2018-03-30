@@ -26,6 +26,7 @@ var daemonCmd = &cmds.Command{
 	},
 	Options: []cmdkit.Option{
 		cmdkit.StringOption("swarmlisten"),
+		cmdkit.StringOption("bootstrap"),
 	},
 	Run: daemonRun,
 	Encoders: cmds.EncoderMap{
@@ -45,6 +46,10 @@ func daemonRun(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment)
 
 	if swarmAddress, ok := req.Options["swarmlisten"].(string); ok {
 		rep.Config().Swarm.Address = swarmAddress
+	}
+
+	if bootpeer, ok := req.Options["bootstrap"].(string); ok {
+		rep.Config().Bootstrap.Addresses = []string{bootpeer}
 	}
 
 	opts, err := node.OptionsFromRepo(rep)
