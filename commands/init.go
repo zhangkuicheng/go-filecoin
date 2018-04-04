@@ -9,6 +9,7 @@ import (
 	cmdkit "gx/ipfs/QmceUdzxkimdYsgtX733uNgzf1DLHyBKN6ehGSp85ayppM/go-ipfs-cmdkit"
 
 	"github.com/filecoin-project/go-filecoin/config"
+	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/repo"
 )
 
@@ -27,7 +28,23 @@ func initRun(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) e
 
 	re.Emit(fmt.Sprintf("initializing filecoin node at %s\n", repoDir)) // nolint: errcheck
 
-	return repo.InitFSRepo(repoDir, config.NewDefaultConfig())
+	err := repo.InitFSRepo(repoDir, config.NewDefaultConfig())
+	if err != nil {
+		return err
+	}
+
+	r, err := repo.OpenFSRepo(repoDir)
+	if err != nil {
+		return err
+	}
+
+	defer r.Close()
+
+	if err := node.Init(req.Context, r); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func initTextEncoder(req *cmds.Request, w io.Writer, val interface{}) error {
