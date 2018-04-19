@@ -45,25 +45,36 @@ var clientAddBidCmd = &cmds.Command{
 	Options: []cmdkit.Option{
 		cmdkit.StringOption("from", "address to send the bid from"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "clientAddBidCmd")
+		defer func() {
+			log.SetTag(req.Context, "args", req.Arguments)
+			log.SetTag(req.Context, "path", req.Path)
+			log.FinishWithErr(req.Context, err)
+		}()
+
 		n := GetNode(env)
 
 		fromAddr, err := addressWithDefault(req.Options["from"], n)
 		if err != nil {
 			return errors.Wrap(err, "invalid from address")
 		}
+		log.SetTag(req.Context, "from-address", fromAddr.String())
 
 		size, ok := types.NewBytesAmountFromString(req.Arguments[0], 10)
 		if !ok {
 			return ErrInvalidSize
 		}
+		log.SetTag(req.Context, "size", size.String())
 
 		price, ok := types.NewTokenAmountFromString(req.Arguments[1], 10)
 		if !ok {
 			return ErrInvalidPrice
 		}
+		log.SetTag(req.Context, "price", price.String())
 
 		funds := price.CalculatePrice(size)
+		log.SetTag(req.Context, "funds", funds.String())
 
 		params, err := abi.ToEncodedValues(price, size)
 		if err != nil {
