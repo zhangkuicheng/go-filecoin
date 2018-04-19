@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	logging "gx/ipfs/QmRb5jh8z2E8hMGN2tkvs1yHynUanqnZ3UeKwgN1i9P1F8/go-log"
 	errors "gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	"gx/ipfs/QmXRKBQA4wXP7xWbFiZsR1GP4HV6wMDQ1aWFxZZ4uBcPX9/go-datastore"
 	peer "gx/ipfs/QmZoWKhxUmZ2seW4BzX6fJkNR8hh9PsGModr7q171yq2SS/go-libp2p-peer"
@@ -15,6 +14,9 @@ import (
 	hamt "gx/ipfs/QmdtiofXbibTe6Day9ii5zjBZpSRm8vhfoerrNuY3sAQ7e/go-hamt-ipld"
 
 	"github.com/filecoin-project/go-filecoin/types"
+
+	// TODO This gx package isn't published yet
+	logging "gx/ipfs/Qmaf59ke1Gu4rz9tP8MzCp6PyGv9ZU9cNJvPwrwNavSL9r/go-log"
 )
 
 var log = logging.Logger("chain")
@@ -105,7 +107,12 @@ func NewChainManager(ds datastore.Datastore, cs *hamt.CborIpldStore) *ChainManag
 }
 
 // Genesis creates a new genesis block and sets it as the the best known block.
-func (s *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) error {
+func (s *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err error) {
+	ctx = log.Start(ctx, "Genesis")
+	defer func() {
+		log.FinishWithErr(ctx, err)
+	}()
+
 	genesis, err := gen(s.cstore)
 	if err != nil {
 		return err
@@ -115,6 +122,8 @@ func (s *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) error {
 
 	s.bestBlock.Lock()
 	defer s.bestBlock.Unlock()
+
+	log.SetTag(ctx, "genesis", genesis.Cid().String())
 	return s.setBestBlock(ctx, genesis)
 }
 
@@ -230,7 +239,12 @@ type NewBlockProcessor func(context.Context, *types.Block) (BlockProcessResult, 
 // ProcessNewBlock sends a new block to the chain manager. If the block is
 // better than our current best, it is accepted as our new best block.
 // Otherwise an error is returned explaining why it was not accepted
-func (s *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (BlockProcessResult, error) {
+func (s *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (bpr BlockProcessResult, err error) {
+	ctx = log.Start(ctx, "ProcessNewBlock")
+	defer func() {
+		log.SetTag(ctx, "block", blk.Cid().String())
+		log.FinishWithErr(ctx, err)
+	}()
 	log.Infof("processing block [s=%d, h=%s]", blk.Score(), blk.Cid())
 
 	switch err := s.validateBlock(ctx, blk); err {
