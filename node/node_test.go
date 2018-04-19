@@ -27,7 +27,7 @@ func TestNodeConstruct(t *testing.T) {
 	nd := NewInMemoryNode(t, ctx)
 	assert.NotNil(nd.Host)
 
-	nd.Stop()
+	nd.Stop(ctx)
 }
 
 func TestNodeNetworking(t *testing.T) {
@@ -45,8 +45,8 @@ func TestNodeNetworking(t *testing.T) {
 	err := nd1.Host.Connect(ctx, pinfo)
 	assert.NoError(err)
 
-	nd1.Stop()
-	nd2.Stop()
+	nd1.Stop(ctx)
+	nd2.Stop(ctx)
 }
 
 func TestNodeInit(t *testing.T) {
@@ -55,10 +55,10 @@ func TestNodeInit(t *testing.T) {
 
 	nd := NewInMemoryNode(t, ctx)
 
-	assert.NoError(nd.Start())
+	assert.NoError(nd.Start(ctx))
 
 	assert.NotNil(nd.ChainMgr.GetBestBlock())
-	nd.Stop()
+	nd.Stop(ctx)
 }
 func TestStartMiningEmptyWallet(t *testing.T) {
 	assert := assert.New(t)
@@ -69,8 +69,8 @@ func TestStartMiningEmptyWallet(t *testing.T) {
 	// The node temporarily contains the testaccount address by
 	// default, so replace it.
 	node.Wallet = &wallet.Wallet{}
-	assert.NoError(node.Start())
-	err := node.StartMining()
+	assert.NoError(node.Start(ctx))
+	err := node.StartMining(ctx)
 	assert.Error(err)
 	assert.Contains(err.Error(), "No addresses")
 }
@@ -96,8 +96,8 @@ func TestNodeMining(t *testing.T) {
 	var chainMgrForTest *core.ChainManagerForTest // nolint: gosimple, megacheck
 	chainMgrForTest = node.ChainMgr
 	chainMgrForTest.SetBestBlockForTest(ctx, b1)
-	assert.NoError(node.Start())
-	assert.NoError(node.StartMining())
+	assert.NoError(node.Start(ctx))
+	assert.NoError(node.StartMining(ctx))
 	gotInput := <-inCh
 	assert.True(b1.Cid().Equals(gotInput.MineOn.Cid()))
 	assert.Equal(node.Wallet.GetAddresses()[0].String(), gotInput.RewardAddress.String())
@@ -110,7 +110,7 @@ func TestNodeMining(t *testing.T) {
 
 	// Ensure we don't mine when stopped.
 	assert.Equal(mining.ChannelEmpty, mining.ReceiveInCh(inCh))
-	node.StopMining()
+	node.StopMining(ctx)
 	node.ChainMgr.SetBestBlockForTest(ctx, b2)
 	time.Sleep(20 * time.Millisecond)
 	assert.Equal(mining.ChannelEmpty, mining.ReceiveInCh(inCh))
@@ -123,8 +123,8 @@ func TestNodeMining(t *testing.T) {
 
 	chainMgrForTest = node.ChainMgr
 	chainMgrForTest.SetBestBlockForTest(ctx, b1)
-	assert.NoError(node.Start())
-	assert.NoError(node.StartMining())
+	assert.NoError(node.Start(ctx))
+	assert.NoError(node.StartMining(ctx))
 	workerDone := false
 	node.miningDoneWg.Add(1)
 	go func() {
@@ -132,7 +132,7 @@ func TestNodeMining(t *testing.T) {
 		workerDone = true
 		node.miningDoneWg.Done()
 	}()
-	node.Stop()
+	node.Stop(ctx)
 	assert.True(workerDone)
 
 	// Ensure that the output is wired up correctly.
@@ -146,7 +146,7 @@ func TestNodeMining(t *testing.T) {
 	oCh = outCh
 	mockWorker.On("Start", mock.Anything).Return(iCh, oCh, doneWg)
 	node.MiningWorker = mockWorker
-	assert.NoError(node.Start())
+	assert.NoError(node.Start(ctx))
 
 	var gotBlock *types.Block
 	gotBlockCh := make(chan struct{})
@@ -154,7 +154,7 @@ func TestNodeMining(t *testing.T) {
 		gotBlock = b
 		go func() { gotBlockCh <- struct{}{} }()
 	}
-	assert.NoError(node.StartMining())
+	assert.NoError(node.StartMining(ctx))
 	go func() { outCh <- mining.NewOutput(b1, nil) }()
 	<-gotBlockCh
 	assert.True(b1.Cid().Equals(gotBlock.Cid()))
@@ -179,7 +179,7 @@ func TestUpdateMessagePool(t *testing.T) {
 	oldChain := core.NewChainWithMessages(node.CborStore, nil, msgs{m[2], m[3]})
 	newChain := core.NewChainWithMessages(node.CborStore, nil, msgs{m[1], m[2]})
 	chainMgrForTest.SetBestBlockForTest(ctx, oldChain[len(oldChain)-1])
-	assert.NoError(node.Start())
+	assert.NoError(node.Start(ctx))
 	updateMsgPoolDoneCh := make(chan struct{})
 	node.BestBlockHandled = func() { updateMsgPoolDoneCh <- struct{}{} }
 	// Triggers a notification, node should update the message pool as a result.
@@ -189,7 +189,7 @@ func TestUpdateMessagePool(t *testing.T) {
 	pending := node.MsgPool.Pending()
 	assert.True(types.MsgCidsEqual(m[0], pending[0]) || types.MsgCidsEqual(m[0], pending[1]))
 	assert.True(types.MsgCidsEqual(m[3], pending[0]) || types.MsgCidsEqual(m[3], pending[1]))
-	node.Stop()
+	node.Stop(ctx)
 }
 
 func testWaitHelp(wg *sync.WaitGroup, assert *assert.Assertions, cm *core.ChainManager, expectMsg *types.Message,
@@ -218,7 +218,7 @@ func TestWaitForMessage(t *testing.T) {
 
 	node := NewInMemoryNode(t, ctx)
 
-	err := node.Start()
+	err := node.Start(ctx)
 	assert.NoError(err)
 
 	stm := (*core.ChainManagerForTest)(node.ChainMgr)
@@ -234,7 +234,7 @@ func TestWaitForMessageError(t *testing.T) {
 
 	node := NewInMemoryNode(t, ctx)
 
-	assert.NoError(node.Start())
+	assert.NoError(node.Start(ctx))
 
 	stm := (*core.ChainManagerForTest)(node.ChainMgr)
 
@@ -291,8 +291,8 @@ func TestGetSignature(t *testing.T) {
 		assert := assert.New(t)
 
 		nd := NewInMemoryNode(t, ctx)
-		assert.NoError(nd.Start())
-		defer nd.Stop()
+		assert.NoError(nd.Start(ctx))
+		defer nd.Stop(ctx)
 
 		sig, err := nd.GetSignature(ctx, core.TestAddress, "")
 		assert.Equal(ErrNoMethod, err)
