@@ -6,7 +6,12 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-filecoin/types"
+
+	// TODO This gx package isn't published yet
+	logging "gx/ipfs/Qmaf59ke1Gu4rz9tP8MzCp6PyGv9ZU9cNJvPwrwNavSL9r/go-log"
 )
+
+var log = logging.Logger("mining/worker")
 
 // Input is the block the worker should mine on, the address
 // to accrue rewards to, and a context that the caller can use
@@ -76,6 +81,11 @@ func NewWorkerWithMineAndWork(blockGenerator BlockGenerator, mine mineFunc, doSo
 // MineOnce is a convenience function that presents a synchronous blocking
 // interface to the worker.
 func MineOnce(ctx context.Context, w Worker, baseBlock *types.Block, rewardAddress types.Address) Output {
+	ctx = log.Start(ctx, "MineOnce")
+	defer func() {
+		log.SetTag(ctx, "reward-address", rewardAddress.String())
+		log.Finish(ctx)
+	}()
 	subCtx, subCtxCancel := context.WithCancel(ctx)
 	defer subCtxCancel()
 
@@ -121,12 +131,14 @@ func MineEvery(ctx context.Context, w Worker, period time.Duration, getBlock Blo
 // the Input.Ctx to cancel an individual mining run or the mininCtx to
 // stop all mining and shut down the worker.
 func (w *AsyncWorker) Start(miningCtx context.Context) (chan<- Input, <-chan Output, *sync.WaitGroup) {
+	miningCtx = log.Start(miningCtx, "Start")
 	inCh := make(chan Input)
 	outCh := make(chan Output)
 	var doneWg sync.WaitGroup
 
 	doneWg.Add(1)
 	go func() {
+		defer log.Finish(miningCtx)
 		defer doneWg.Done()
 		var currentRunCtx context.Context
 		var currentRunCancel = func() {}
@@ -172,6 +184,8 @@ type mineFunc func(context.Context, Input, BlockGenerator, DoSomeWorkFunc, chan<
 
 // Mine does the actual work. It's the implementation of worker.mine.
 func Mine(ctx context.Context, input Input, blockGenerator BlockGenerator, doSomeWork DoSomeWorkFunc, outCh chan<- Output) {
+	ctx = log.Start(ctx, "Mine")
+	defer log.Finish(ctx)
 	next, err := blockGenerator.Generate(ctx, input.MineOn, input.RewardAddress)
 	if err == nil {
 		// TODO whatever happens here, respect the context.
