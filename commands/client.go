@@ -219,13 +219,20 @@ var clientQueryDealCmd = &cmds.Command{
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("id", true, false, "hex ID of deal to query"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "clientQueryDealCmd")
+		defer func() {
+			log.SetTag(req.Context, "args", req.Arguments)
+			log.SetTag(req.Context, "path", req.Path)
+			log.FinishWithErr(req.Context, err)
+		}()
 		nd := GetNode(env)
 
 		idslice, err := hex.DecodeString(req.Arguments[0])
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "deal-id", string(idslice))
 
 		if len(idslice) != 32 {
 			re.SetError("id must be 32 bytes long", cmdkit.ErrNormal)
@@ -238,6 +245,12 @@ var clientQueryDealCmd = &cmds.Command{
 		resp, err := nd.StorageClient.QueryDeal(req.Context, id)
 		if err != nil {
 			return err
+		}
+		log.SetTag(req.Context, "deal-status", resp.State.String())
+		log.SetTag(req.Context, "deal-id", resp.ID)
+		log.SetTag(req.Context, "deal-message", resp.Message)
+		if resp.MsgCid != nil {
+			log.SetTag(req.Context, "deal-cid", resp.MsgCid)
 		}
 
 		re.Emit(resp) // nolint: errcheck
