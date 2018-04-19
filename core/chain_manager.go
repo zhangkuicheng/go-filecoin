@@ -19,7 +19,7 @@ import (
 	logging "gx/ipfs/Qmaf59ke1Gu4rz9tP8MzCp6PyGv9ZU9cNJvPwrwNavSL9r/go-log"
 )
 
-var log = logging.Logger("chain")
+var log = logging.Logger("core")
 
 var (
 	// ErrStateRootMismatch is returned when the computed state root doesn't match the expected result.

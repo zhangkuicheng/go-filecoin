@@ -8,7 +8,22 @@ import (
 
 // Send executes a message pass inside the VM. If error is set it
 // will always satisfy either ShouldRevert() or IsFault().
-func Send(ctx context.Context, from, to *types.Actor, msg *types.Message, st types.StateTree) ([]byte, uint8, error) {
+func Send(ctx context.Context, from, to *types.Actor, msg *types.Message, st types.StateTree) (b []byte, i uint8, err error) {
+	ctx = log.Start(ctx, "Send")
+	defer func() {
+		log.SetTag(ctx, "message-method", msg.Method)
+		log.SetTag(ctx, "message-nonce", msg.Nonce)
+		log.SetTag(ctx, "message-from", msg.From.String())
+		log.SetTag(ctx, "message-to", msg.To.String())
+
+		fmstr, _ := from.Cid()
+		log.SetTag(ctx, "from", fmstr.String())
+
+		tostr, _ := to.Cid()
+		log.SetTag(ctx, "to", tostr.String())
+
+		log.FinishWithErr(ctx, err)
+	}()
 	vmCtx := NewVMContext(from, to, msg, st)
 
 	if msg.Value != nil {
