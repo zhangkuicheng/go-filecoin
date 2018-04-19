@@ -45,7 +45,12 @@ type Processor func(ctx context.Context, blk *types.Block, st types.StateTree) (
 // the message, then do something specific with the message in the
 // case of a temporary or permanent error; ProcessBlock doesn't make
 // that distinction. This'll be addressed in a follow up.
-func ProcessBlock(ctx context.Context, blk *types.Block, st types.StateTree) ([]*types.MessageReceipt, error) {
+func ProcessBlock(ctx context.Context, blk *types.Block, st types.StateTree) (mr []*types.MessageReceipt, err error) {
+	ctx = log.Start(ctx, "ProcessBlock")
+	defer func() {
+		log.SetTag(ctx, "block", blk.Cid())
+		log.FinishWithErr(ctx, err)
+	}()
 	var receipts []*types.MessageReceipt
 	emptyReceipts := []*types.MessageReceipt{}
 
@@ -140,7 +145,15 @@ func ProcessBlock(ctx context.Context, blk *types.Block, st types.StateTree) ([]
 //   - ApplyMessage and VMContext.Send() are the only things that should call
 //     Send() -- all the user-actor logic goes in ApplyMessage and all the
 //     actor-actor logic goes in VMContext.Send
-func ApplyMessage(ctx context.Context, st types.StateTree, msg *types.Message) (*types.MessageReceipt, error) {
+func ApplyMessage(ctx context.Context, st types.StateTree, msg *types.Message) (mr *types.MessageReceipt, err error) {
+	ctx = log.Start(ctx, "ApplyMessage")
+	defer func() {
+		log.SetTag(ctx, "message-method", msg.Method)
+		log.SetTag(ctx, "message-nonce", msg.Nonce)
+		log.SetTag(ctx, "message-from", msg.From.String())
+		log.SetTag(ctx, "message-to", msg.To.String())
+		log.FinishWithErr(ctx, err)
+	}()
 	ss := st.Snapshot()
 	r, err := attemptApplyMessage(ctx, st, msg)
 	if IsFault(err) {
