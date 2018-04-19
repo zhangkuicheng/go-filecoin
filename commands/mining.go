@@ -78,8 +78,15 @@ var miningOnceCmd = &cmds.Command{
 }
 
 var miningStartCmd = &cmds.Command{
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
-		if err := GetNode(env).StartMining(); err != nil {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "miningStartCmd")
+		defer func() {
+			log.SetTag(req.Context, "args", req.Arguments)
+			log.SetTag(req.Context, "path", req.Path)
+			log.FinishWithErr(req.Context, err)
+		}()
+
+		if err := GetNode(env).StartMining(req.Context); err != nil {
 			return err
 		}
 		re.Emit("Started mining\n") // nolint: errcheck
@@ -89,8 +96,15 @@ var miningStartCmd = &cmds.Command{
 }
 
 var miningStopCmd = &cmds.Command{
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
-		GetNode(env).StopMining()
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "miningStopCmd")
+		defer func() {
+			log.SetTag(req.Context, "args", req.Arguments)
+			log.SetTag(req.Context, "path", req.Path)
+			log.FinishWithErr(req.Context, err)
+		}()
+
+		GetNode(env).StopMining(req.Context)
 		re.Emit("Stopped mining\n") // nolint: errcheck
 
 		return nil
