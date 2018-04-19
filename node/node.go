@@ -9,9 +9,10 @@ import (
 	"gx/ipfs/QmNh1kGFFdsPu79KNSaL4NUKUPb4Eiz4KHdMtFY6664RDp/go-libp2p"
 	"gx/ipfs/QmNh1kGFFdsPu79KNSaL4NUKUPb4Eiz4KHdMtFY6664RDp/go-libp2p/p2p/protocol/ping"
 	"gx/ipfs/QmNmJZL7FQySMtE2BQuLMuZg2EB2CLEunJJUSVSc9YnnbV/go-libp2p-host"
-	logging "gx/ipfs/QmRb5jh8z2E8hMGN2tkvs1yHynUanqnZ3UeKwgN1i9P1F8/go-log"
 	"gx/ipfs/QmSFihvoND3eDaAYRCeLgLPt62yCPgMZs1NSZmKFEtJQQw/go-libp2p-floodsub"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
+	"gx/ipfs/QmdtiofXbibTe6Day9ii5zjBZpSRm8vhfoerrNuY3sAQ7e/go-hamt-ipld"
+
 	nonerouting "gx/ipfs/QmXtoXbu9ReyV6Q4kDQ5CF9wXQNDY1PdHc4HhfxRR5AHB3/go-ipfs-routing/none"
 	bstore "gx/ipfs/QmaG4DZ4JaqEfvPWt5nPPgoTzhc1tr1T3f4Nu9Jpdm8ymY/go-ipfs-blockstore"
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
@@ -28,6 +29,9 @@ import (
 	"github.com/filecoin-project/go-filecoin/repo"
 	types "github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/wallet"
+
+	// TODO This gx package isn't published yet
+	logging "gx/ipfs/Qmaf59ke1Gu4rz9tP8MzCp6PyGv9ZU9cNJvPwrwNavSL9r/go-log"
 )
 
 var log = logging.Logger("node") // nolint: deadcode
@@ -122,6 +126,8 @@ func Libp2pOptions(opts ...libp2p.Option) ConfigOpt {
 
 // New creates a new node.
 func New(ctx context.Context, opts ...ConfigOpt) (*Node, error) {
+	ctx = log.Start(ctx, "New")
+	defer log.Finish(ctx)
 	n := &Config{}
 	for _, o := range opts {
 		if err := o(n); err != nil {
@@ -134,6 +140,9 @@ func New(ctx context.Context, opts ...ConfigOpt) (*Node, error) {
 
 // Build instantiates a filecoin Node from the settings specified in the config.
 func (nc *Config) Build(ctx context.Context) (*Node, error) {
+	ctx = log.Start(ctx, "Build")
+	defer log.Finish(ctx)
+
 	host, err := libp2p.New(ctx, nc.Libp2pOpts...)
 	if err != nil {
 		return nil, err
@@ -205,7 +214,10 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 }
 
 // Start boots up the node.
-func (node *Node) Start() error {
+func (node *Node) Start(ctx context.Context) (err error) {
+	ctx = log.Start(ctx, "Start")
+	defer log.Finish(ctx)
+
 	if err := node.ChainMgr.Load(); err != nil {
 		return err
 	}
@@ -347,7 +359,9 @@ func (node *Node) cancelSubscriptions() {
 }
 
 // Stop initiates the shutdown of the node.
-func (node *Node) Stop() {
+func (node *Node) Stop(ctx context.Context) {
+	ctx = log.Start(ctx, "Stop")
+	defer log.Finish(ctx)
 	node.ChainMgr.BestBlockPubSub.Unsub(node.BestBlockCh)
 	if node.cancelMining != nil {
 		node.cancelMining()
@@ -387,7 +401,9 @@ func (node *Node) addNewlyMinedBlock(ctx context.Context, b *types.Block) {
 }
 
 // StartMining causes the node to start feeding blocks to the mining worker.
-func (node *Node) StartMining() error {
+func (node *Node) StartMining(ctx context.Context) error {
+	ctx = log.Start(ctx, "StartMining")
+
 	rewardAddress, err := node.getRewardAddress()
 	if err != nil {
 		return err
@@ -395,7 +411,10 @@ func (node *Node) StartMining() error {
 	node.setIsMining(true)
 	node.miningDoneWg.Add(1)
 	go func() {
-		defer func() { node.miningDoneWg.Done() }()
+		defer func() {
+			node.miningDoneWg.Done()
+			log.Finish(ctx)
+		}()
 		select {
 		case <-node.miningCtx.Done():
 			return
@@ -406,13 +425,18 @@ func (node *Node) StartMining() error {
 }
 
 // StopMining stops mining on new blocks.
-func (node *Node) StopMining() {
+func (node *Node) StopMining(ctx context.Context) {
+	ctx = log.Start(ctx, "StopMining")
+	defer log.Finish(ctx)
 	// TODO should probably also keep track of and cancel last mining.Input.Ctx.
 	node.setIsMining(false)
 }
 
 // GetSignature fetches the signature for the given method on the appropriate actor.
 func (node *Node) GetSignature(ctx context.Context, actorAddr types.Address, method string) (*core.FunctionSignature, error) {
+	ctx = log.Start(ctx, "GetSignature")
+	defer log.Finish(ctx)
+
 	st, err := types.LoadStateTree(ctx, node.CborStore, node.ChainMgr.GetBestBlock().StateRoot)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load state tree")
