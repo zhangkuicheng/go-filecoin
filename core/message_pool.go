@@ -26,16 +26,21 @@ type MessagePool struct {
 }
 
 // Add adds a message to the pool.
-func (pool *MessagePool) Add(msg *types.Message) (*cid.Cid, error) {
+func (pool *MessagePool) Add(ctx context.Context, msg *types.Message) (c *cid.Cid, err error) {
+	ctx = log.Start(ctx, "Add")
+	defer func() {
+		log.FinishWithErr(ctx, err)
+	}()
 	pool.lk.Lock()
 	defer pool.lk.Unlock()
 
-	c, err := msg.Cid()
+	c, err = msg.Cid()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create CID")
 	}
 
 	pool.pending[c.KeyString()] = msg
+	log.SetTag(ctx, "message", c.String())
 	return c, nil
 }
 
@@ -137,7 +142,7 @@ func UpdateMessagePool(ctx context.Context, pool *MessagePool, store *hamt.CborI
 
 	// Now actually update the pool.
 	for _, m := range addToPool {
-		_, err := pool.Add(m)
+		_, err := pool.Add(ctx, m)
 		if err != nil {
 			return err
 		}

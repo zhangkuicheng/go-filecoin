@@ -26,9 +26,9 @@ func MustPut(store *hamt.CborIpldStore, thingy interface{}) *cid.Cid {
 
 // MustAdd adds the given messages to the messagepool or panics if it
 // cannot.
-func MustAdd(p *MessagePool, msgs ...*types.Message) {
+func MustAdd(ctx context.Context, p *MessagePool, msgs ...*types.Message) {
 	for _, m := range msgs {
-		if _, err := p.Add(m); err != nil {
+		if _, err := p.Add(ctx, m); err != nil {
 			panic(err)
 		}
 	}

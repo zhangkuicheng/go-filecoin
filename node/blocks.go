@@ -72,7 +72,7 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 		return err
 	}
 
-	_, err := node.MsgPool.Add(unmarshaled)
+	_, err := node.MsgPool.Add(ctx, unmarshaled)
 	return err
 }
 
@@ -86,7 +86,7 @@ func (node *Node) AddNewMessage(ctx context.Context, msg *types.Message) (err er
 		log.SetTag(ctx, "to", msg.To)
 		log.FinishWithErr(ctx, err)
 	}()
-	if _, err := node.MsgPool.Add(msg); err != nil {
+	if _, err := node.MsgPool.Add(ctx, msg); err != nil {
 		return err
 	}
 
