@@ -151,23 +151,32 @@ var clientProposeDealCmd = &cmds.Command{
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("data", true, false, "bid to propose a deal with"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "clientProposeDealCmd")
+		defer func() {
+			log.SetTag(req.Context, "args", req.Arguments)
+			log.SetTag(req.Context, "path", req.Path)
+			log.FinishWithErr(req.Context, err)
+		}()
 		nd := GetNode(env)
 
 		askID, ok := req.Options["ask"].(int)
 		if !ok {
 			return fmt.Errorf("must specify an ask")
 		}
+		log.SetTag(req.Context, "ask-id", askID)
 
 		bidID, ok := req.Options["bid"].(int)
 		if !ok {
 			return fmt.Errorf("must specify a bid")
 		}
+		log.SetTag(req.Context, "bid-id", bidID)
 
 		data, err := cid.Decode(req.Arguments[0])
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "data", data.String())
 
 		defaddr, err := nd.Wallet.GetDefaultAddress()
 		if err != nil {
@@ -187,6 +196,8 @@ var clientProposeDealCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "deal-status", resp.State.String())
+		log.SetTag(req.Context, "deal-id", resp.ID)
 
 		re.Emit(resp) // nolint: errcheck
 		return nil
