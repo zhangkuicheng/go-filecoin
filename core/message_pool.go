@@ -29,6 +29,7 @@ type MessagePool struct {
 func (pool *MessagePool) Add(ctx context.Context, msg *types.Message) (c *cid.Cid, err error) {
 	ctx = log.Start(ctx, "Add")
 	defer func() {
+		log.SetTag(ctx, "message", msg)
 		log.FinishWithErr(ctx, err)
 	}()
 	pool.lk.Lock()
@@ -40,7 +41,6 @@ func (pool *MessagePool) Add(ctx context.Context, msg *types.Message) (c *cid.Ci
 	}
 
 	pool.pending[c.KeyString()] = msg
-	log.SetTag(ctx, "message", c.String())
 	return c, nil
 }
 
