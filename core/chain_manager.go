@@ -117,13 +117,13 @@ func (s *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err er
 	if err != nil {
 		return err
 	}
+	log.SetTag(ctx, "block", genesis)
 
 	s.genesisCid = genesis.Cid()
 
 	s.bestBlock.Lock()
 	defer s.bestBlock.Unlock()
 
-	log.SetTag(ctx, "genesis", genesis)
 	return s.setBestBlock(ctx, genesis)
 }
 

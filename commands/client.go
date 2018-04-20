@@ -192,8 +192,7 @@ var clientProposeDealCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "deal-status", resp.State.String())
-		log.SetTag(req.Context, "deal-id", resp.ID)
+		log.SetTag(req.Context, "deal-response", resp)
 
 		re.Emit(resp) // nolint: errcheck
 		return nil
