@@ -186,13 +186,11 @@ var clientProposeDealCmd = &cmds.Command{
 				DataRef: data,
 			},
 		}
-		log.SetTag(req.Context, "deal-proposal", propose)
 
 		resp, err := nd.StorageClient.ProposeDeal(req.Context, propose)
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "deal-response", resp)
 
 		re.Emit(resp) // nolint: errcheck
 		return nil
@@ -227,7 +225,6 @@ var clientQueryDealCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "deal-id", string(idslice))
 
 		if len(idslice) != 32 {
 			re.SetError("id must be 32 bytes long", cmdkit.ErrNormal)
@@ -241,7 +238,6 @@ var clientQueryDealCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "deal-response", resp)
 
 		re.Emit(resp) // nolint: errcheck
 		return nil
