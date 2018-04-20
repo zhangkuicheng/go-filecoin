@@ -19,8 +19,7 @@ const MessageTopic = "/fil/msgs"
 func (node *Node) AddNewBlock(ctx context.Context, b *types.Block) (err error) {
 	ctx = log.Start(ctx, "AddNewBlock")
 	defer func() {
-		// TODO would be cool if we could just pass the block and have it printed
-		log.SetTag(ctx, "block", b.Cid().String())
+		log.SetTag(ctx, "block", b)
 		log.FinishWithErr(ctx, err)
 	}()
 	if _, err := node.ChainMgr.ProcessNewBlock(ctx, b); err != nil {
@@ -80,10 +79,7 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 func (node *Node) AddNewMessage(ctx context.Context, msg *types.Message) (err error) {
 	ctx = log.Start(ctx, "AddNewMessage")
 	defer func() {
-		log.SetTag(ctx, "method", msg.Method)
-		log.SetTag(ctx, "nonce", msg.Nonce)
-		log.SetTag(ctx, "from", msg.From)
-		log.SetTag(ctx, "to", msg.To)
+		log.SetTag(ctx, "message", msg)
 		log.FinishWithErr(ctx, err)
 	}()
 	if _, err := node.MsgPool.Add(ctx, msg); err != nil {

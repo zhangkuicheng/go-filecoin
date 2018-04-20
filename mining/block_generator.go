@@ -38,9 +38,9 @@ type blockGenerator struct {
 func (b blockGenerator) Generate(ctx context.Context, baseBlock *types.Block, rewardAddress types.Address) (blk *types.Block, err error) {
 	ctx = log.Start(ctx, "Generate")
 	defer func() {
-		log.SetTag(ctx, "base-block", baseBlock.Cid().String())
+		log.SetTag(ctx, "base-block", baseBlock)
 		log.SetTag(ctx, "reward-address", rewardAddress.String())
-		log.SetTag(ctx, "new-block", blk.Cid().String())
+		log.SetTag(ctx, "new-block", blk)
 		log.FinishWithErr(ctx, err)
 	}()
 	stateTree, err := b.getStateTree(ctx, baseBlock.StateRoot)

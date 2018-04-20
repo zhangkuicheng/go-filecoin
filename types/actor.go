@@ -29,10 +29,10 @@ var (
 //
 // Not safe for concurrent access.
 type Actor struct {
-	Code    *cid.Cid
-	Memory  []byte
-	Nonce   uint64
-	Balance *TokenAmount
+	Code    *cid.Cid     `json:"code"`
+	Memory  []byte       `json:"memory"`
+	Nonce   uint64       `json:"nonce"`
+	Balance *TokenAmount `json:"balance"`
 }
 
 // IncNonce increments the nonce of this actor by 1.

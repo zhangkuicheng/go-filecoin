@@ -48,7 +48,7 @@ type Processor func(ctx context.Context, blk *types.Block, st types.StateTree) (
 func ProcessBlock(ctx context.Context, blk *types.Block, st types.StateTree) (mr []*types.MessageReceipt, err error) {
 	ctx = log.Start(ctx, "ProcessBlock")
 	defer func() {
-		log.SetTag(ctx, "block", blk.Cid())
+		log.SetTag(ctx, "block", blk)
 		log.FinishWithErr(ctx, err)
 	}()
 	var receipts []*types.MessageReceipt
@@ -148,10 +148,8 @@ func ProcessBlock(ctx context.Context, blk *types.Block, st types.StateTree) (mr
 func ApplyMessage(ctx context.Context, st types.StateTree, msg *types.Message) (mr *types.MessageReceipt, err error) {
 	ctx = log.Start(ctx, "ApplyMessage")
 	defer func() {
-		log.SetTag(ctx, "message-method", msg.Method)
-		log.SetTag(ctx, "message-nonce", msg.Nonce)
-		log.SetTag(ctx, "message-from", msg.From.String())
-		log.SetTag(ctx, "message-to", msg.To.String())
+		log.SetTag(ctx, "message", msg)
+		log.SetTag(ctx, "message-receipt", mr)
 		log.FinishWithErr(ctx, err)
 	}()
 	ss := st.Snapshot()

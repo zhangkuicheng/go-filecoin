@@ -13,10 +13,7 @@ import (
 func Send(ctx context.Context, from, to *types.Actor, msg *types.Message, st types.StateTree) (b []byte, i uint8, err error) {
 	ctx = log.Start(ctx, "Send")
 	defer func() {
-		log.SetTag(ctx, "message-method", msg.Method)
-		log.SetTag(ctx, "message-nonce", msg.Nonce)
-		log.SetTag(ctx, "message-from", msg.From.String())
-		log.SetTag(ctx, "message-to", msg.To.String())
+		log.SetTag(ctx, "message", msg)
 
 		fmstr, _ := from.Cid()
 		log.SetTag(ctx, "from", fmstr.String())

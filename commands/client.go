@@ -59,23 +59,21 @@ var clientAddBidCmd = &cmds.Command{
 		if err != nil {
 			return errors.Wrap(err, "invalid from address")
 		}
-		log.SetTag(req.Context, "from-address", fromAddr.String())
 
 		size, ok := types.NewBytesAmountFromString(req.Arguments[0], 10)
 		if !ok {
 			return ErrInvalidSize
 		}
-		log.SetTag(req.Context, "size", size.String())
 
 		price, ok := types.NewTokenAmountFromString(req.Arguments[1], 10)
 		if !ok {
 			return ErrInvalidPrice
 		}
-		log.SetTag(req.Context, "price", price.String())
 
 		funds := price.CalculatePrice(size)
-		log.SetTag(req.Context, "funds", funds.String())
 
+		log.SetTag(req.Context, "funds", funds.String())
+		log.SetTag(req.Context, "price", price.String())
 		params, err := abi.ToEncodedValues(price, size)
 		if err != nil {
 			return err
@@ -164,19 +162,16 @@ var clientProposeDealCmd = &cmds.Command{
 		if !ok {
 			return fmt.Errorf("must specify an ask")
 		}
-		log.SetTag(req.Context, "ask-id", askID)
 
 		bidID, ok := req.Options["bid"].(int)
 		if !ok {
 			return fmt.Errorf("must specify a bid")
 		}
-		log.SetTag(req.Context, "bid-id", bidID)
 
 		data, err := cid.Decode(req.Arguments[0])
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "data", data.String())
 
 		defaddr, err := nd.Wallet.GetDefaultAddress()
 		if err != nil {
@@ -191,6 +186,7 @@ var clientProposeDealCmd = &cmds.Command{
 				DataRef: data,
 			},
 		}
+		log.SetTag(req.Context, "deal-proposal", propose)
 
 		resp, err := nd.StorageClient.ProposeDeal(req.Context, propose)
 		if err != nil {
@@ -246,12 +242,7 @@ var clientQueryDealCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "deal-status", resp.State.String())
-		log.SetTag(req.Context, "deal-id", resp.ID)
-		log.SetTag(req.Context, "deal-message", resp.Message)
-		if resp.MsgCid != nil {
-			log.SetTag(req.Context, "deal-cid", resp.MsgCid)
-		}
+		log.SetTag(req.Context, "deal-response", resp)
 
 		re.Emit(resp) // nolint: errcheck
 		return nil

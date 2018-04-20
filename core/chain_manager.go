@@ -123,7 +123,7 @@ func (s *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err er
 	s.bestBlock.Lock()
 	defer s.bestBlock.Unlock()
 
-	log.SetTag(ctx, "genesis", genesis.Cid().String())
+	log.SetTag(ctx, "genesis", genesis)
 	return s.setBestBlock(ctx, genesis)
 }
 
@@ -242,7 +242,7 @@ type NewBlockProcessor func(context.Context, *types.Block) (BlockProcessResult, 
 func (s *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (bpr BlockProcessResult, err error) {
 	ctx = log.Start(ctx, "ProcessNewBlock")
 	defer func() {
-		log.SetTag(ctx, "block", blk.Cid().String())
+		log.SetTag(ctx, "block", blk)
 		log.FinishWithErr(ctx, err)
 	}()
 	log.Infof("processing block [s=%d, h=%s]", blk.Score(), blk.Cid())

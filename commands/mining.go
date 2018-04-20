@@ -42,7 +42,6 @@ var miningOnceCmd = &cmds.Command{
 		fcn := GetNode(env)
 
 		cur := fcn.ChainMgr.GetBestBlock()
-		log.LogKV(req.Context, "best-block", cur.Cid().String())
 
 		addrs := fcn.Wallet.GetAddresses()
 		if len(addrs) == 0 {
@@ -50,7 +49,6 @@ var miningOnceCmd = &cmds.Command{
 		}
 
 		rewardAddr := addrs[0]
-		log.LogKV(req.Context, "reward-address", rewardAddr.String())
 
 		blockGenerator := mining.NewBlockGenerator(fcn.MsgPool, func(ctx context.Context, cid *cid.Cid) (types.StateTree, error) {
 			return types.LoadStateTree(ctx, fcn.CborStore, cid)
@@ -63,7 +61,6 @@ var miningOnceCmd = &cmds.Command{
 			return err
 
 		}
-		log.LogKV(req.Context, "new-block", res.NewBlock.Cid().String())
 		re.Emit(res.NewBlock.Cid()) // nolint: errcheck
 
 		return nil
