@@ -6,21 +6,21 @@ test_description="Test mining command"
 
 test_expect_success "init iptb nodes" '
   NUM_NODES=50
-  iptb-private init -n "$NUM_NODES" --type=filecoin --deployment=local
+  iptb init -n "$NUM_NODES" --type=filecoin --deployment=local
 '
 
 test_expect_success "start iptb cluster" '
-  iptb-private start
+  iptb start
 '
 
 test_expect_success "connect iptb nodes" '
-  iptb-private connect [0-49] [0-49]
+  iptb connect [0-49] [0-49]
 '
 
 test_expect_success "each node mines a block" '
   for ((i=0; i<"$NUM_NODES"; i++))
   do
-    iptb-private run "$i" go-filecoin mining once
+    iptb run "$i" go-filecoin mining once
     sleep 1
   done
 '
@@ -30,13 +30,13 @@ test_expect_success "block chain lenght is correct" '
   echo "$EXPECT" > expect
   for ((i=0; i<"$NUM_NODES"; i++))
   do
-    iptb-private run "$i" go-filecoin chain ls --enc=json | tee debug"$i"  |wc -l > actual
+    iptb run "$i" go-filecoin chain ls --enc=json | tee debug"$i"  |wc -l > actual
     test_cmp actual expect
   done
 '
 
 test_expect_success "stop iptb" '
-  iptb-private stop
+  iptb stop
 '
 
 test_done
