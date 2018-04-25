@@ -14,13 +14,7 @@ test_expect_success "start iptb cluster" '
 '
 
 test_expect_success "connect iptb nodes" '
-  for ((i=0; i<"$NUM_NODES"; i++))
-  do
-    for ((j=0; j<"$NUM_NODES"; j++))
-    do
-      iptb-private connect "$i" "$j"
-    done
-  done
+  iptb-private connect [0-49] [0-49]
 '
 
 test_expect_success "each node mines a block" '
