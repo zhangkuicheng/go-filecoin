@@ -115,21 +115,14 @@ func (ma *MinerActor) AddAsk(ctx *VMContext, price *types.TokenAmount, size *typ
 		mstore.LockedStorage = total
 
 		// TODO: kinda feels weird that I can't get a real type back here
-		out, ret, err := ctx.Send(StorageMarketAddress, "addAsk", nil, []interface{}{price, size})
+		out, err := ctx.Send(StorageMarketAddress, "addAsk", nil, []interface{}{price, size})
 		if err != nil {
 			return nil, err
 		}
 
-		askID, err := abi.Deserialize(out, abi.Integer)
+		askID, err := abi.Deserialize(out.Return[:], abi.Integer)
 		if err != nil {
 			return nil, faultErrorWrap(err, "error deserializing")
-		}
-
-		if ret != 0 {
-			// TODO: Log an error maybe? need good ways of signaling *why* failures happened.
-			// I guess we do want to revert all state changes in this case.
-			// Which is usually signalled through an error. Something smells.
-			return nil, newRevertError("call to StorageMarket.addAsk failed")
 		}
 
 		return askID.Val, nil
@@ -221,16 +214,13 @@ func (ma *MinerActor) CommitSector(ctx *VMContext, sectorID int64, commR []byte,
 			return nil, newRevertError("sector already committed")
 		}
 
-		resp, ret, err := ctx.Send(StorageMarketAddress, "commitDeals", nil, []interface{}{sector.Deals})
+		resp, err := ctx.Send(StorageMarketAddress, "commitDeals", nil, []interface{}{sector.Deals})
 		if err != nil {
 			return nil, err
 		}
-		if ret != 0 {
-			return nil, newRevertError("failed to call commitDeals")
-		}
 
 		sector.CommR = commR
-		power := types.NewBytesAmountFromBytes(resp)
+		power := types.NewBytesAmountFromBytes(resp.Return[:])
 		mstore.Power = mstore.Power.Add(power)
 
 		return nil, nil

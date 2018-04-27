@@ -209,11 +209,6 @@ func attemptApplyMessage(ctx context.Context, st types.StateTree, msg *types.Mes
 		return nil, faultErrorWrap(err, "failed to get To actor")
 	}
 
-	c, err := msg.Cid()
-	if err != nil {
-		return nil, faultErrorWrap(err, "failed to get CID from the message")
-	}
-
 	if msg.Nonce < fromActor.Nonce {
 		return nil, errNonceTooLow
 	}
@@ -221,15 +216,5 @@ func attemptApplyMessage(ctx context.Context, st types.StateTree, msg *types.Mes
 		return nil, errNonceTooHigh
 	}
 
-	ret, exitCode, vmErr := Send(ctx, fromActor, toActor, msg, st)
-	if IsFault(vmErr) {
-		return nil, vmErr
-	}
-
-	vmErrString := ""
-	if vmErr != nil {
-		vmErrString = vmErr.Error()
-	}
-
-	return types.NewMessageReceipt(c, exitCode, vmErrString, ret), vmErr
+	return Send(ctx, fromActor, toActor, msg, st)
 }

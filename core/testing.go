@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	cbor "gx/ipfs/QmRVSCwQtW1rjHCay9NqKXDwbtKTgDcN4iY7PrpSqfKM5D/go-ipld-cbor"
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
@@ -200,11 +201,23 @@ func (ma *FakeActor) GoodCall(ctx *VMContext) (uint8, error) {
 
 // NestedBalance sents 100 to the given address.
 func (ma *FakeActor) NestedBalance(ctx *VMContext, target types.Address) (uint8, error) {
-	_, code, err := ctx.Send(target, "", types.NewTokenAmount(100), nil)
-	return code, err
+	receipt, err := ctx.Send(target, "", types.NewTokenAmount(100), nil)
+	if err != nil {
+		return 1, err
+	}
+	return receipt.ExitCode, nil
 }
 
 // NewStorage returns an empty FakeActorStorage struct
 func (ma *FakeActor) NewStorage() interface{} {
 	return &FakeActorStorage{}
+}
+
+func addressFromReturn(val types.ReturnValue) (types.Address, error) {
+	out, err := abi.DecodeValues(val[:], []abi.Type{abi.Address})
+	if err != nil {
+		return types.Address{}, err
+	}
+	fmt.Printf("%v %T %s\n", out[0], out[0].Val, out[0].Type)
+	return out[0].Val.(types.Address), nil
 }

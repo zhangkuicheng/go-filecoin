@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"math/big"
 	"reflect"
 	"strings"
 
@@ -36,7 +35,7 @@ type ExecutableActor interface {
 }
 
 // ExportedFunc is the signature an exported method of an actor is expected to have.
-type ExportedFunc func(ctx *VMContext) ([]byte, uint8, error)
+type ExportedFunc func(ctx *VMContext) error
 
 // FunctionSignature describes the signature of a single function.
 // TODO: convert signatures into non go types, but rather low level agreed up types
@@ -113,10 +112,10 @@ func MakeTypedExport(actor ExecutableActor, method string) ExportedFunc {
 		}
 	}
 
-	return func(ctx *VMContext) ([]byte, uint8, error) {
+	return func(ctx *VMContext) error {
 		params, err := abi.DecodeValues(ctx.Message().Params, signature.Params)
 		if err != nil {
-			return nil, 1, revertErrorWrap(err, "invalid params")
+			return ctx.Revert(1, []byte(revertErrorWrap(err, "invalid params").Error()))
 		}
 
 		args := []reflect.Value{
@@ -132,9 +131,10 @@ func MakeTypedExport(actor ExecutableActor, method string) ExportedFunc {
 
 		var retVal []byte
 		if signature.Return != nil {
-			ret, err := marshalValue(out[0].Interface())
+			fmt.Printf("got %v %s\n", out[0], out[0].Interface())
+			ret, err := abi.ToEncodedValues(out[0].Interface())
 			if err != nil {
-				return nil, 1, faultErrorWrap(err, "failed to marshal output value")
+				return faultErrorWrap(err, "failed to marshal output value")
 			}
 
 			retVal = ret
@@ -148,39 +148,17 @@ func MakeTypedExport(actor ExecutableActor, method string) ExportedFunc {
 
 		outErr, ok := out[1].Interface().(error)
 		if ok {
-			if !(shouldRevert(outErr) || IsFault(outErr)) {
-				panic("you are a bad person: error must be either a reverterror or a fault")
+			if shouldRevert(outErr) {
+				return ctx.Revert(exitCode, []byte(outErr.Error()))
 			}
-		} else {
-			// The value of the returned error was nil.
-			outErr = nil
+			if IsFault(outErr) {
+				return outErr
+			}
+
+			panic("you are a bad person: error must be either a reverterror or a fault")
 		}
 
-		return retVal, exitCode, outErr
-	}
-}
-
-// marshalValue serializes a given go type into a byte slice.
-// The returned format matches the format that is expected to be interoperapble between VM and
-// the rest of the system.
-func marshalValue(val interface{}) ([]byte, error) {
-	switch t := val.(type) {
-	case *big.Int:
-		if t == nil {
-			return []byte{}, nil
-		}
-		return t.Bytes(), nil
-	case []byte:
-		return t, nil
-	case string:
-		return []byte(t), nil
-	case types.Address:
-		if t == (types.Address{}) {
-			return []byte{}, nil
-		}
-		return t.Bytes(), nil
-	default:
-		return nil, fmt.Errorf("unknown type: %s", reflect.TypeOf(t))
+		return ctx.Return(retVal)
 	}
 }
 

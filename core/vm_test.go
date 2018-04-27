@@ -56,10 +56,10 @@ func TestSendErrorHandling(t *testing.T) {
 			},
 		}
 
-		_, code, sendErr := send(context.Background(), deps, actor1, actor2, msg, &types.MockStateTree{NoMocks: true})
+		receipt, sendErr := send(context.Background(), deps, actor1, actor2, msg, &types.MockStateTree{NoMocks: true})
 
 		assert.Error(sendErr)
-		assert.Equal(1, int(code))
+		assert.Equal(1, int(receipt.ExitCode))
 		assert.Equal(transferErr, sendErr)
 	})
 
@@ -77,10 +77,10 @@ func TestSendErrorHandling(t *testing.T) {
 			},
 		}
 
-		_, code, sendErr := send(context.Background(), deps, actor1, actor2, msg, &types.MockStateTree{NoMocks: true})
+		receipt, sendErr := send(context.Background(), deps, actor1, actor2, msg, &types.MockStateTree{NoMocks: true})
 
 		assert.Error(sendErr)
-		assert.Equal(1, int(code))
+		assert.Equal(1, int(receipt.ExitCode))
 		assert.True(called)
 		assert.True(IsFault(sendErr))
 	})
@@ -102,10 +102,10 @@ func TestSendErrorHandling(t *testing.T) {
 			},
 		}
 
-		_, code, sendErr := send(context.Background(), deps, actor1, actor2, msg, &types.MockStateTree{NoMocks: true})
+		receipt, sendErr := send(context.Background(), deps, actor1, actor2, msg, &types.MockStateTree{NoMocks: true})
 
 		assert.Error(sendErr)
-		assert.Equal(1, int(code))
+		assert.Equal(1, int(receipt.ExitCode))
 		assert.True(called)
 		assert.True(shouldRevert(sendErr))
 	})

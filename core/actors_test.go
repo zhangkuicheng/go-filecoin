@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
@@ -93,11 +92,11 @@ func TestMakeTypedExportSuccess(t *testing.T) {
 			},
 		})
 
-		ret, exitCode, err := MakeTypedExport(a, "two")(makeCtx("two"))
-
+		ctx := makeCtx("two")
+		err := MakeTypedExport(a, "two")(ctx)
 		assert.NoError(err)
-		assert.Equal(exitCode, uint8(0))
-		assert.Nil(ret)
+		assert.Equal(uint8(0), ctx.exitCode)
+		assert.Equal(types.ReturnValue{}, ctx.returnVal)
 	})
 
 	t.Run("with return", func(t *testing.T) {
@@ -110,11 +109,16 @@ func TestMakeTypedExportSuccess(t *testing.T) {
 			},
 		})
 
-		ret, exitCode, err := MakeTypedExport(a, "four")(makeCtx("four"))
+		ctx := makeCtx("four")
+		err := MakeTypedExport(a, "four")(ctx)
 
 		assert.NoError(err)
-		assert.Equal(exitCode, uint8(0))
-		assert.Equal(string(ret), "hello")
+		assert.Equal(uint8(0), ctx.exitCode)
+
+		out, err := abi.DecodeValues(ctx.returnVal[:], []abi.Type{abi.String})
+		assert.NoError(err)
+		fmt.Println(out)
+		assert.Equal("hello", out[0].Val.(string))
 	})
 
 	t.Run("with error return", func(t *testing.T) {
@@ -127,11 +131,12 @@ func TestMakeTypedExportSuccess(t *testing.T) {
 			},
 		})
 
-		ret, exitCode, err := MakeTypedExport(a, "five")(makeCtx("five"))
+		ctx := makeCtx("five")
+		err := MakeTypedExport(a, "five")(ctx)
 
-		assert.Contains(err.Error(), "fail5")
-		assert.Equal(exitCode, uint8(2))
-		assert.Nil(ret)
+		assert.NoError(err)
+		assert.Contains(string(ctx.returnVal[:]), "fail5")
+		assert.Equal(uint8(2), ctx.exitCode)
 	})
 
 	t.Run("with error that is not revert or fault", func(t *testing.T) {
@@ -223,35 +228,6 @@ func TestMakeTypedExportFail(t *testing.T) {
 			})
 		})
 	}
-}
-
-func TestMarshalValue(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		assert := assert.New(t)
-
-		testCases := []struct {
-			In  interface{}
-			Out []byte
-		}{
-			{In: []byte("hello"), Out: []byte("hello")},
-			{In: big.NewInt(100), Out: big.NewInt(100).Bytes()},
-			{In: "hello", Out: []byte("hello")},
-		}
-
-		for _, tc := range testCases {
-			out, err := marshalValue(tc.In)
-			assert.NoError(err)
-			assert.Equal(out, tc.Out)
-		}
-	})
-
-	t.Run("failure", func(t *testing.T) {
-		assert := assert.New(t)
-
-		out, err := marshalValue(big.NewRat(1, 2))
-		assert.Equal(err.Error(), "unknown type: *big.Rat")
-		assert.Nil(out)
-	})
 }
 
 func cidFromString(input string) (*cid.Cid, error) {

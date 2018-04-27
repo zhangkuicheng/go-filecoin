@@ -159,6 +159,7 @@ func ToValues(i []interface{}) ([]*Value, error) {
 
 	out := make([]*Value, 0, len(i))
 	for _, v := range i {
+		fmt.Printf("converting %v %T\n", v, v)
 		switch v := v.(type) {
 		case types.Address:
 			out = append(out, &Value{Type: Address, Val: v})

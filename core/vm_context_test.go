@@ -60,10 +60,10 @@ func TestVMContextSendFailures(t *testing.T) {
 
 		ctx := NewVMContext(actor1, actor2, newMsg(), &types.MockStateTree{})
 
-		_, code, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
+		receipt, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
 
 		assert.Error(err)
-		assert.Equal(1, int(code))
+		assert.Equal(uint8(1), receipt.ExitCode)
 		assert.True(IsFault(err))
 		assert.Equal([]string{"ToValues"}, calls)
 	})
@@ -85,10 +85,10 @@ func TestVMContextSendFailures(t *testing.T) {
 
 		ctx := NewVMContext(actor1, actor2, newMsg(), &types.MockStateTree{})
 
-		_, code, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
+		receipt, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
 
 		assert.Error(err)
-		assert.Equal(1, int(code))
+		assert.Equal(1, int(receipt.ExitCode))
 		assert.True(shouldRevert(err))
 		assert.Equal([]string{"ToValues", "EncodeValues"}, calls)
 	})
@@ -115,10 +115,10 @@ func TestVMContextSendFailures(t *testing.T) {
 
 		ctx := NewVMContext(actor1, actor2, msg, &types.MockStateTree{})
 
-		_, code, err := ctx.send(deps, to, "foo", nil, []interface{}{})
+		receipt, err := ctx.send(deps, to, "foo", nil, []interface{}{})
 
 		assert.Error(err)
-		assert.Equal(1, int(code))
+		assert.Equal(1, int(receipt.ExitCode))
 		assert.True(IsFault(err))
 		assert.Equal([]string{"ToValues", "EncodeValues"}, calls)
 	})
@@ -144,10 +144,10 @@ func TestVMContextSendFailures(t *testing.T) {
 
 		ctx := NewVMContext(actor1, actor2, newMsg(), &types.MockStateTree{})
 
-		_, code, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
+		receipt, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
 
 		assert.Error(err)
-		assert.Equal(1, int(code))
+		assert.Equal(1, int(receipt.ExitCode))
 		assert.True(IsFault(err))
 		assert.Equal([]string{"ToValues", "EncodeValues", "GetOrCreateActor"}, calls)
 	})
@@ -167,9 +167,9 @@ func TestVMContextSendFailures(t *testing.T) {
 				calls = append(calls, "GetOrCreateActor")
 				return f()
 			},
-			Send: func(ctx context.Context, from, to *types.Actor, msg *types.Message, st types.StateTree) ([]byte, uint8, error) {
+			Send: func(ctx context.Context, from, to *types.Actor, msg *types.Message, st types.StateTree) (*types.MessageReceipt, error) {
 				calls = append(calls, "Send")
-				return nil, 123, expectedVMSendErr
+				return &types.MessageReceipt{ExitCode: 123}, expectedVMSendErr
 			},
 			SetActor: func(_ context.Context, _ types.Address, _ *types.Actor) error {
 				calls = append(calls, "SetActor")
@@ -183,10 +183,10 @@ func TestVMContextSendFailures(t *testing.T) {
 
 		ctx := NewVMContext(actor1, actor2, newMsg(), &types.MockStateTree{})
 
-		_, code, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
+		receipt, err := ctx.send(deps, newAddress(), "foo", nil, []interface{}{})
 
 		assert.Error(err)
-		assert.Equal(123, int(code))
+		assert.Equal(123, int(receipt.ExitCode))
 		assert.Equal(expectedVMSendErr, err)
 		assert.Equal([]string{"ToValues", "EncodeValues", "GetOrCreateActor", "Send"}, calls)
 	})

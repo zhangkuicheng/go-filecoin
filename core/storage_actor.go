@@ -125,7 +125,7 @@ func (sma *StorageMarketActor) CreateMiner(ctx *VMContext, pledge *types.BytesAm
 		}
 		// -- end --
 
-		_, _, err = ctx.Send(addr, "", ctx.message.Value, nil)
+		_, err = ctx.Send(addr, "", ctx.message.Value, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -237,15 +237,12 @@ func (sma *StorageMarketActor) AddDeal(ctx *VMContext, askID, bidID *big.Int, bi
 			return nil, newRevertErrorf("unknown bid %s", bidID)
 		}
 
-		mown, ret, err := ctx.Send(ask.Owner, "getOwner", nil, nil)
+		mown, err := ctx.Send(ask.Owner, "getOwner", nil, nil)
 		if err != nil {
 			return nil, err
 		}
-		if ret != 0 {
-			return nil, newRevertErrorf("ask.miner.getOwner() failed")
-		}
 
-		if !bytes.Equal(ctx.Message().From.Bytes(), mown) {
+		if !bytes.Equal(ctx.Message().From.Bytes(), mown.Return[:]) {
 			return nil, fmt.Errorf("cannot create a deal for someone elses ask")
 		}
 
