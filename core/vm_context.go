@@ -18,8 +18,9 @@ type VMContext struct {
 	message *types.Message
 	state   types.StateTree
 
-	returnVal types.ReturnValue
-	exitCode  uint8
+	returnVal  types.ReturnValue
+	returnSize uint32
+	exitCode   uint8
 }
 
 // NewVMContext returns an initialized context.
@@ -51,8 +52,9 @@ func (ctx *VMContext) WriteStorage(memory []byte) error {
 // Revert sets the current return value and marks the call as failed with an exitCode.
 // TODO: use ptr + size once allocations are implemented.
 func (ctx *VMContext) Revert(exitCode uint8, ret []byte) error {
+	fmt.Printf("revert %d (%s)\n", len(ret), ret)
 	if exitCode < 1 {
-		return fmt.Errorf("invalid exitCode: %d, must be > 0", exitCode)
+		return fmt.Errorf("invalid exit code: %d, must be > 0", exitCode)
 	}
 
 	if len(ret) > types.ReturnValueLength {
@@ -60,7 +62,7 @@ func (ctx *VMContext) Revert(exitCode uint8, ret []byte) error {
 	}
 
 	ctx.exitCode = exitCode
-	copy(ctx.returnVal[:], ret)
+	ctx.setReturnVal(ret)
 
 	return nil
 }
@@ -70,14 +72,24 @@ func (ctx *VMContext) Revert(exitCode uint8, ret []byte) error {
 // Multiple calls will overwrite the past values
 // TODO: use ptr + size once allocations are implemented.
 func (ctx *VMContext) Return(ret []byte) error {
+	fmt.Printf("return %d (%s)\n", len(ret), ret)
 	if len(ret) > types.ReturnValueLength {
 		return fmt.Errorf("return value too large: expected < %d, got %d", types.ReturnValueLength, len(ret))
 	}
 
 	ctx.exitCode = 0
-	copy(ctx.returnVal[:], ret)
+	ctx.setReturnVal(ret)
 
 	return nil
+}
+
+func (ctx *VMContext) setReturnVal(ret []byte) {
+	copy(ctx.returnVal[:], ret)
+	ctx.returnSize = uint32(len(ret))
+
+	for i := len(ret); i < types.ReturnValueLength; i++ {
+		ctx.returnVal[i] = 0
+	}
 }
 
 // Send sends a message to another actor.

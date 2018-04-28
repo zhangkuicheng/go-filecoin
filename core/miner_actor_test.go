@@ -45,7 +45,7 @@ func TestAddAsk(t *testing.T) {
 
 	receipt, err := ApplyMessage(ctx, st, msg)
 	assert.NoError(err)
-	assert.Equal(types.NewTokenAmount(0), types.NewTokenAmountFromBytes(receipt.Return[:]))
+	assert.Equal(types.NewTokenAmount(0), types.NewTokenAmountFromBytes(receipt.ReturnBytes()))
 
 	storageMkt, err := st.GetActor(ctx, StorageMarketAddress)
 	assert.NoError(err)
@@ -68,7 +68,7 @@ func TestAddAsk(t *testing.T) {
 
 	receipt, err = ApplyMessage(ctx, st, msg)
 	assert.NoError(err)
-	assert.Equal(big.NewInt(1), big.NewInt(0).SetBytes(receipt.Return[:]))
+	assert.Equal(big.NewInt(1), big.NewInt(0).SetBytes(receipt.ReturnBytes()))
 
 	storageMkt, err = st.GetActor(ctx, StorageMarketAddress)
 	assert.NoError(err)
@@ -91,5 +91,5 @@ func TestAddAsk(t *testing.T) {
 
 	receipt, err = ApplyMessage(ctx, st, msg)
 	assert.NoError(err)
-	assert.Contains(string(receipt.Return[:]), ErrInsufficientPledge.Error())
+	assert.Contains(string(receipt.ReturnBytes()), ErrInsufficientPledge.Error())
 }

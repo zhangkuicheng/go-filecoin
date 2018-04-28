@@ -28,11 +28,6 @@ type sendDeps struct {
 func send(ctx context.Context, deps sendDeps, from, to *types.Actor, msg *types.Message, st types.StateTree) (*types.MessageReceipt, error) {
 	vmCtx := NewVMContext(from, to, msg, st)
 
-	c, err := msg.Cid()
-	if err != nil {
-		return nil, faultErrorWrap(err, "could not generate cid for message")
-	}
-
 	if msg.Value != nil {
 		if err := deps.transfer(from, to, msg.Value); err != nil {
 			return nil, err
@@ -50,7 +45,7 @@ func send(ctx context.Context, deps sendDeps, from, to *types.Actor, msg *types.
 	if msg.Method == "" {
 		// if only tokens are transferred there is no need for a method
 		// this means we can shortcircuit execution
-		return types.NewMessageReceipt(c, 0, types.ReturnValue{}), nil
+		return types.NewMessageReceipt(0, types.ReturnValue{}, 0), nil
 	}
 
 	toExecutable, err := deps.LoadCode(to.Code)
@@ -67,7 +62,7 @@ func send(ctx context.Context, deps sendDeps, from, to *types.Actor, msg *types.
 		return nil, faultErrorWrapf(err, "failed to execute method")
 	}
 
-	return types.NewMessageReceipt(c, vmCtx.exitCode, vmCtx.returnVal), nil
+	return types.NewMessageReceipt(vmCtx.exitCode, vmCtx.returnVal, vmCtx.returnSize), nil
 }
 
 func transfer(fromActor, toActor *types.Actor, value *types.TokenAmount) error {

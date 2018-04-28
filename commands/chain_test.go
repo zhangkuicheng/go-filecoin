@@ -124,7 +124,10 @@ func TestChainLsRun(t *testing.T) {
 		child := types.NewBlockForTest(parent, 1)
 
 		message := types.NewMessageForTestGetter()()
-		receipt := types.NewMessageReceipt(types.SomeCid(), 123, "something terrible happened", []byte{1, 2, 3})
+		errMessage := []byte("something terrible happened")
+		errBytes := types.ReturnValue{}
+		copy(errBytes[:], errMessage)
+		receipt := types.NewMessageReceipt(123, errBytes, len(errMessage))
 		child.Messages = []*types.Message{message}
 		child.MessageReceipts = []*types.MessageReceipt{receipt}
 

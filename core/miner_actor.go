@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"math/big"
 
 	cbor "gx/ipfs/QmRVSCwQtW1rjHCay9NqKXDwbtKTgDcN4iY7PrpSqfKM5D/go-ipld-cbor"
@@ -120,7 +121,7 @@ func (ma *MinerActor) AddAsk(ctx *VMContext, price *types.TokenAmount, size *typ
 			return nil, err
 		}
 
-		askID, err := abi.Deserialize(out.Return[:], abi.Integer)
+		askID, err := abi.Deserialize(out.ReturnBytes(), abi.Integer)
 		if err != nil {
 			return nil, faultErrorWrap(err, "error deserializing")
 		}
@@ -136,6 +137,7 @@ func (ma *MinerActor) AddAsk(ctx *VMContext, price *types.TokenAmount, size *typ
 		return nil, 1, newRevertErrorf("expected an Integer return value from call, but got %T instead", out)
 	}
 
+	fmt.Printf("addAsk %s\n", askID)
 	return askID, 0, nil
 }
 
@@ -220,7 +222,7 @@ func (ma *MinerActor) CommitSector(ctx *VMContext, sectorID int64, commR []byte,
 		}
 
 		sector.CommR = commR
-		power := types.NewBytesAmountFromBytes(resp.Return[:])
+		power := types.NewBytesAmountFromBytes(resp.ReturnBytes())
 		mstore.Power = mstore.Power.Add(power)
 
 		return nil, nil

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -190,4 +191,68 @@ func TestVMContextSendFailures(t *testing.T) {
 		assert.Equal(expectedVMSendErr, err)
 		assert.Equal([]string{"ToValues", "EncodeValues", "GetOrCreateActor", "Send"}, calls)
 	})
+}
+
+func TestVMContextReturn(t *testing.T) {
+	assert := assert.New(t)
+	addrGetter := types.NewAddressForTestGetter()
+	ctx := context.Background()
+
+	cst := hamt.NewCborStore()
+	state := types.NewEmptyStateTree(cst)
+
+	toActor, err := NewAccountActor(nil)
+	assert.NoError(err)
+	toAddr := addrGetter()
+
+	assert.NoError(state.SetActor(ctx, toAddr, toActor))
+
+	msg := types.NewMessage(addrGetter(), toAddr, 0, nil, "hello", nil)
+
+	vmCtx := NewVMContext(nil, toActor, msg, state)
+
+	// initial write
+	assert.NoError(vmCtx.Return([]byte("hello")))
+	out := [types.ReturnValueLength]byte{}
+	copy(out[:], []byte("hello"))
+	assert.Equal(out, vmCtx.returnVal)
+
+	// overwrite with something shorter
+	assert.NoError(vmCtx.Return([]byte("foo")))
+	out = [types.ReturnValueLength]byte{}
+	copy(out[:], []byte("foo"))
+	assert.Equal(out, vmCtx.returnVal)
+
+	// overwrite with something filling all of it
+	data := bytes.Repeat([]byte{9}, types.ReturnValueLength)
+	assert.NoError(vmCtx.Return(data))
+	assert.Equal(data, vmCtx.returnVal[:])
+}
+
+func TestVMContextRevert(t *testing.T) {
+	assert := assert.New(t)
+	addrGetter := types.NewAddressForTestGetter()
+	ctx := context.Background()
+
+	cst := hamt.NewCborStore()
+	state := types.NewEmptyStateTree(cst)
+
+	toActor, err := NewAccountActor(nil)
+	assert.NoError(err)
+	toAddr := addrGetter()
+
+	assert.NoError(state.SetActor(ctx, toAddr, toActor))
+
+	msg := types.NewMessage(addrGetter(), toAddr, 0, nil, "hello", nil)
+
+	vmCtx := NewVMContext(nil, toActor, msg, state)
+
+	// inivalid exit code of 0
+	err = vmCtx.Revert(0, nil)
+	assert.Error(err)
+	assert.Contains(err.Error(), "invalid exit code")
+
+	// valid exit code
+	assert.NoError(vmCtx.Revert(12, nil))
+	assert.Equal(uint8(12), vmCtx.exitCode)
 }

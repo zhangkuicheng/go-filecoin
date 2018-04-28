@@ -242,7 +242,7 @@ func (sma *StorageMarketActor) AddDeal(ctx *VMContext, askID, bidID *big.Int, bi
 			return nil, err
 		}
 
-		if !bytes.Equal(ctx.Message().From.Bytes(), mown.Return[:]) {
+		if !bytes.Equal(ctx.Message().From.Bytes(), mown.ReturnBytes()) {
 			return nil, fmt.Errorf("cannot create a deal for someone elses ask")
 		}
 
