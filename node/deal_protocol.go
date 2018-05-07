@@ -13,6 +13,7 @@ import (
 	"gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
 	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
+	uio "github.com/ipfs/go-ipfs/unixfs/io"
 	dag "gx/ipfs/QmNUCLv5fmUBuAcwbkt58NQvMcJgd5FPCYV2yNCXq4Wnd6/go-ipfs/merkledag"
 
 	"github.com/filecoin-project/go-filecoin/abi"
@@ -374,6 +375,18 @@ func (sm *StorageMarket) finishDeal(ctx context.Context, minerOwner types.Addres
 }
 
 func (sm *StorageMarket) stageForSealing(ctx context.Context, ref *cid.Cid) error {
+	dserv := dag.NewDAGService(sm.nd.Blockservice)
+
+	nd, err := dserv.Get(ctx, ref)
+	if err != nil {
+		return err
+	}
+
+	r, err := uio.NewDagReader(ctx, nd, dserv)
+	if err != nil {
+		return err
+	}
+
 	// TODO:
 	return nil
 }
