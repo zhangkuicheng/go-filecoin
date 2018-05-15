@@ -156,7 +156,16 @@ func NewStorageMarket(nd *Node) *StorageMarket {
 }
 
 // ProposeDeal the handler for incoming deal proposals
-func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (*DealResponse, error) {
+func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (dr *DealResponse, err error) {
+	// this is TODO for now because it's weaved into the `go sm.ProcessDeal(.)`
+	ctx := log.Start(context.TODO(), "ProposeDealHandler")
+	log.SetTag(ctx, "deal", propose.Deal)
+	defer func() {
+		log.SetTag(ctx, "deal-response", dr)
+		log.FinishWithErr(ctx, err)
+	}()
+
+
 	ask, err := sm.smi.GetAsk(propose.Deal.Ask)
 	if err != nil {
 		return &DealResponse{
@@ -164,6 +173,7 @@ func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (*DealResponse, erro
 			State:   Rejected,
 		}, nil
 	}
+	log.SetTag(ctx, "ask", ask)
 
 	bid, err := sm.smi.GetBid(propose.Deal.Bid)
 	if err != nil {
@@ -172,8 +182,10 @@ func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (*DealResponse, erro
 			State:   Rejected,
 		}, nil
 	}
+	log.SetTag(ctx, "bid", bid)
 
 	// TODO: also validate that the bids and asks are not expired
+	log.SetTag(ctx, "bid-used", bid.Used)
 	if bid.Used {
 		return &DealResponse{
 			Message: "bid already used",
@@ -188,6 +200,7 @@ func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (*DealResponse, erro
 		// or a system fault.
 		return nil, err
 	}
+	log.SetTag(ctx, "miner-owner", ask.Owner)
 
 	if !sm.nd.Wallet.HasAddress(mowner) {
 		return &DealResponse{
@@ -213,6 +226,7 @@ func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (*DealResponse, erro
 	id := negotiationID(mowner, propose)
 	sm.deals.Lock()
 	defer sm.deals.Unlock()
+	log.SetTag(ctx, "negotiation", id)
 
 	oneg, ok := sm.deals.set[id]
 	if ok {
@@ -232,7 +246,7 @@ func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (*DealResponse, erro
 	sm.deals.set[id] = neg
 
 	// TODO: put this into a scheduler
-	go sm.processDeal(id)
+	go sm.processDeal(ctx, id)
 
 	return &DealResponse{
 		State: Accepted,
@@ -323,7 +337,7 @@ func negotiationID(minerID types.Address, propose *DealProposal) [32]byte {
 	return sha256.Sum256(data)
 }
 
-func (sm *StorageMarket) processDeal(id [32]byte) {
+func (sm *StorageMarket) processDeal(ctx context.Context, id [32]byte) {
 	var propose *DealProposal
 	var minerOwner types.Address
 	sm.updateNegotiation(id, func(n *Negotiation) {
@@ -332,7 +346,7 @@ func (sm *StorageMarket) processDeal(id [32]byte) {
 		n.State = Started
 	})
 
-	msgcid, err := sm.finishDeal(context.TODO(), minerOwner, propose)
+	msgcid, err := sm.finishDeal(ctx, minerOwner, propose)
 	if err != nil {
 		log.Warning(err)
 		sm.updateNegotiation(id, func(n *Negotiation) {
@@ -348,9 +362,33 @@ func (sm *StorageMarket) processDeal(id [32]byte) {
 	})
 }
 
+// func addLoggingDataForDeal(ctx context.Context, propose *DealProposal) {
+// 	if cid, err := propose.Deal.Cid(); err == nil {
+// 		log.SetTag(ctx, "deal", cid.String())
+// 	}
+// 	if cid, err := propose.Deal.Ask.Cid(); err == nil {
+// 		log.SetTag(ctx, "ask", cid.String())
+// 	}
+// 	if propose.Deal.Ask {
+// 		log.SetTag(ctx, "miner", propose.Deal.Ask.Owner)
+// 	}
+// 	if cid, err := propose.Deal.Bid.Cid(); err == nil {
+// 		log.SetTag(ctx, "bid", cid.String())
+// 	}
+// 	if propose.Deal.Bid {
+// 		log.SetTag(ctx, "client", propose.Deal.Bid.Owner)
+// 	}
+// 	if propose.Deal.DataRef {
+// 		log.SetTag(ctx, "data", propose.Deal.DataRef.String())
+// 	}
+// }
+
 func (sm *StorageMarket) finishDeal(ctx context.Context, minerOwner types.Address, propose *DealProposal) (*cid.Cid, error) {
+	ctx = log.Start(ctx, "storageMarketFinishDeal")
+	defer log.Finish(ctx)
+
 	// TODO: better file fetching
-	if err := sm.fetchData(context.TODO(), propose.Deal.DataRef); err != nil {
+	if err := sm.fetchData(ctx, propose.Deal.DataRef); err != nil {
 		return nil, errors.Wrap(err, "fetching data failed")
 	}
 
@@ -372,7 +410,11 @@ func (sm *StorageMarket) stageForSealing(ctx context.Context, ref *cid.Cid) erro
 	return nil
 }
 
-func (sm *StorageMarket) fetchData(ctx context.Context, ref *cid.Cid) error {
+func (sm *StorageMarket) fetchData(ctx context.Context, ref *cid.Cid) (err error) {
+	log.Start(ctx, "storageMarketFetchData")
+	defer func() { log.FinishWithErr(ctx, err) }()
+
+	log.SetTag(ctx, "data", ref.String())
 	return dag.FetchGraph(ctx, ref, dag.NewDAGService(sm.nd.Blockservice))
 }
 

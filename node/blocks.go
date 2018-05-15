@@ -82,8 +82,13 @@ func (node *Node) AddNewMessage(ctx context.Context, msg *types.Message) (err er
 	defer func() {
 		log.SetTag(ctx, "method", msg.Method)
 		log.SetTag(ctx, "nonce", msg.Nonce)
+		log.SetTag(ctx, "value", msg.Value)
 		log.SetTag(ctx, "from", msg.From)
 		log.SetTag(ctx, "to", msg.To)
+		c, err := msg.Cid()
+		if err == nil {
+			log.SetTag(ctx, "msg", c)
+		}
 		log.FinishWithErr(ctx, err)
 	}()
 	if _, err := node.MsgPool.Add(msg); err != nil {

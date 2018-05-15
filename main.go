@@ -5,6 +5,8 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/commands"
 
+	logging "gx/ipfs/QmRb5jh8z2E8hMGN2tkvs1yHynUanqnZ3UeKwgN1i9P1F8/go-log"
+
 	/* USED FOR JAEGER TRACER */
 	//opentracing "github.com/opentracing/opentracing-go"
 	//"github.com/uber/jaeger-client-go/config"
@@ -44,7 +46,7 @@ func main() {
 
 	// TODO: make configurable
 	// TODO: find a better home for this
-	//logging.Configure(logging.LevelInfo)
+	logging.Configure(logging.LevelDebug)
 
 	// TODO implement help text like so:
 	// https://github.com/ipfs/go-ipfs/blob/master/core/commands/root.go#L91

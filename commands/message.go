@@ -38,22 +38,28 @@ var msgSendCmd = &cmds.Command{
 		cmdkit.StringOption("from", "address to send message from"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+		req.Context = log.Start(req.Context, "msgSendCmd")
+		defer log.Finish(req.Context)
+
 		n := GetNode(env)
 
 		target, err := types.NewAddressFromString(req.Arguments[0])
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "target", target)
 
 		val, ok := req.Options["value"].(int)
 		if !ok {
 			val = 0
 		}
+		log.SetTag(req.Context, "value", val)
 
 		fromAddr, err := addressWithDefault(req.Options["from"], n)
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "from", fromAddr)
 
 		msg := types.NewMessage(fromAddr, target, types.NewTokenAmount(uint64(val)), "", nil)
 
@@ -65,6 +71,7 @@ var msgSendCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "msg", c.String())
 
 		re.Emit(c) // nolint: errcheck
 
@@ -97,12 +104,16 @@ var msgWaitCmd = &cmds.Command{
 		cmdkit.BoolOption("return", "print the return value from the receipt").WithDefault(false),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+		req.Context = log.Start(req.Context, "msgSendCmd")
+		defer log.Finish(req.Context)
+
 		n := GetNode(env)
 
 		msgCid, err := cid.Parse(req.Arguments[0])
 		if err != nil {
 			return errors.Wrap(err, "invalid message cid")
 		}
+		log.SetTag(req.Context, "msg", msgCid)
 
 		var found bool
 		err = n.ChainMgr.WaitForMessage(req.Context, msgCid, func(blk *types.Block, msg *types.Message,
@@ -111,6 +122,8 @@ var msgWaitCmd = &cmds.Command{
 			if err != nil && err != node.ErrNoMethod {
 				return errors.Wrap(err, "unable to determine return type")
 			}
+			log.SetTag(req.Context, "message", msgCid.String())
+			log.SetTag(req.Context, "receipt", receipt)
 
 			res := waitResult{
 				Message:   msg,
