@@ -1,9 +1,11 @@
 package wallet
 
 import (
-	"errors"
 	"reflect"
 	"sync"
+
+	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
+	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
 
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -84,4 +86,25 @@ func (w *Wallet) Backends(kind reflect.Type) []Backend {
 	cpy := make([]Backend, len(w.backends[kind]))
 	copy(cpy, w.backends[kind])
 	return cpy
+}
+
+// Sign cryptographically signs `data` using the private key of address `addr`.
+// TODO Zero out the sensitive data when complete
+func (w *Wallet) Sign(addr types.Address, data []byte) ([]byte, error) {
+	// Check that we are storing the address to sign for.
+	backend, err := w.Find(addr)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to sign data")
+	}
+	return backend.Sign(addr, data)
+}
+
+// Verify cryptographically verifies that 'sig' is the signed hash of 'data' for
+// the key `bpub`.
+func (w *Wallet) Verify(bpub, data, sig []byte) (bool, error) {
+	pub, err := ci.UnmarshalPublicKey(bpub)
+	if err != nil {
+		return false, err
+	}
+	return pub.Verify(data, sig)
 }

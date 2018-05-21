@@ -134,3 +134,45 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 
 	return newAdder, nil
 }
+
+// Sign cryptographically signs `data` using the private key of address `addr`.
+// TODO Zero out the sensitive data when complete
+func (backend *DSBackend) Sign(addr types.Address, data []byte) ([]byte, error) {
+	// Check that we are storing the address to sign for.
+	priv, err := backend.getPrivateKey(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	return priv.Sign(data)
+}
+
+// Verify cryptographically verifies that 'sig' is the signed hash of 'data' for
+// the key `bpub`.
+func (backend *DSBackend) Verify(bpub, data, sig []byte) (bool, error) {
+	pub, err := ci.UnmarshalPublicKey(bpub)
+	if err != nil {
+		return false, err
+	}
+	return pub.Verify(data, sig)
+}
+
+// getPrivateKey fetches and unmarshals the private key pointed to by address `addr`.
+// TODO Zero out the sensitive data when complete
+func (backend *DSBackend) getPrivateKey(addr types.Address) (ci.PrivKey, error) {
+	bpriv, err := backend.ds.Get(ds.NewKey(addr.String()))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to fetch private key from backend")
+	}
+	return ci.UnmarshalPrivateKey(bpriv.([]byte))
+}
+
+// getPublicKey fetches and unmarshals the public key pointed used to generate `addr`.
+// TODO Zero out the sensitive data when complete
+func (backend *DSBackend) getPublicKey(addr types.Address) (ci.PubKey, error) {
+	priv, err := backend.getPrivateKey(addr)
+	if err != nil {
+		return nil, err
+	}
+	return priv.GetPublic(), nil
+}

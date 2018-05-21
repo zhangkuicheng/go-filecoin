@@ -182,6 +182,12 @@
       "hash": "QmXjHfhUzN9W57ajPh6N1wQvPYGuRDQAmjqhxFSSqeEjuc",
       "name": "go-ipfs-keystore",
       "version": "0.0.2"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmexBtiTTEwwn42Yi6ouKt6VqzpA6wjJgiW1oh9VfaRrup",
+      "name": "go-multibase",
+      "version": "0.2.6"
     }
   ],
   "gxVersion": "0.12.1",
