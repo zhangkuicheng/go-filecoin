@@ -15,7 +15,6 @@ type Backend interface {
 	// TODO Zero out the sensitive data when complete
 	Sign(addr types.Address, data []byte) ([]byte, error)
 
-	// Verify cryptographically verifies that 'sig' is the signed hash of 'data' for
-	// the key `bpub`.
-	Verify(bpub, data, sig []byte) (bool, error)
+	// Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
+	Verify(data, sig []byte) (bool, error)
 }

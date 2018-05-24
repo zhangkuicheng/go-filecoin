@@ -5,7 +5,8 @@ import (
 	"sync"
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
-	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+
+	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -99,12 +100,19 @@ func (w *Wallet) Sign(addr types.Address, data []byte) ([]byte, error) {
 	return backend.Sign(addr, data)
 }
 
-// Verify cryptographically verifies that 'sig' is the signed hash of 'data' for
-// the key `bpub`.
-func (w *Wallet) Verify(bpub, data, sig []byte) (bool, error) {
-	pub, err := ci.UnmarshalPublicKey(bpub)
+// Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
+func (w *Wallet) Verify(data, sig []byte) (bool, error) {
+	hash := sha256.Sum256(data)
+
+	k, _, err := recoverCompact(sig, hash[:])
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to revocer public key")
 	}
-	return pub.Verify(data, sig)
+
+	valid, err := k.Verify(data, sig)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify data")
+	}
+
+	return valid, nil
 }

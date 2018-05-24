@@ -73,21 +73,16 @@ func TestSimpleSignAndVerify(t *testing.T) {
 
 	t.Log("sign content")
 	sig, err := w.Sign(addr, []byte("can i have your autograph?"))
-	assert.NoError(err)
-
-	// Get the public used to generate the address
-	pub, err := fs.getPublicKey(addr)
-	assert.NoError(err)
-	bpub, err := pub.Bytes()
+	t.Logf("Sig: %x", sig)
 	assert.NoError(err)
 
 	t.Log("verify signed content")
-	valid, err := w.Verify(bpub, []byte("can i have your autograph?"), sig)
+	valid, err := w.Verify([]byte("can i have your autograph?"), sig)
 	assert.NoError(err)
 	assert.True(valid)
 
 	t.Log("verify fails for unsigned content")
-	valid, err = w.Verify(bpub, []byte("can i have your name?"), sig)
+	valid, err = w.Verify([]byte("can i have your name?"), sig)
 	assert.NoError(err)
 	assert.False(valid)
 }
@@ -135,15 +130,15 @@ func TestMultiWalletSignAndVerify(t *testing.T) {
 	// produce some valid sig's for testing
 	data1 := []byte("foo")
 	data2 := []byte("bar")
-	sig1, bpub1 := signAndVerify(t, data1, addr1, w1, fs1)
-	sig2, bpub2 := signAndVerify(t, data2, addr2, w2, fs2)
+	sig1, _ := signAndVerify(t, data1, addr1, w1, fs1)
+	sig2, _ := signAndVerify(t, data2, addr2, w2, fs2)
 
 	// Verify the work done by a different peer
 	t.Log("verify when missing private key")
-	valid, err := w2.Verify(bpub1, data1, sig1)
+	valid, err := w2.Verify(data1, sig1)
 	assert.NoError(err)
 	assert.True(valid)
-	valid, err = w1.Verify(bpub2, data2, sig2)
+	valid, err = w1.Verify(data2, sig2)
 	assert.NoError(err)
 	assert.True(valid)
 
@@ -153,26 +148,26 @@ func TestMultiWalletSignAndVerify(t *testing.T) {
 	assert.Contains(err.Error(), ErrUnknownAddress.Error())
 
 	t.Log("invalid public key for verify")
-	valid, err = w1.Verify(bpub2, data1, sig1)
+	valid, err = w1.Verify(data1, sig1)
 	assert.NoError(err)
 	assert.False(valid)
-	valid, err = w2.Verify(bpub1, data2, sig2)
+	valid, err = w2.Verify(data2, sig2)
 	assert.NoError(err)
 	assert.False(valid)
 
 	t.Log("invalid signature for verify")
-	valid, err = w1.Verify(bpub1, data1, sig2)
+	valid, err = w1.Verify(data1, sig2)
 	assert.NoError(err)
 	assert.False(valid)
-	valid, err = w2.Verify(bpub2, data2, sig1)
+	valid, err = w2.Verify(data2, sig1)
 	assert.NoError(err)
 	assert.False(valid)
 
 	t.Log("invalid data for verify")
-	valid, err = w1.Verify(bpub1, data2, sig1)
+	valid, err = w1.Verify(data2, sig1)
 	assert.NoError(err)
 	assert.False(valid)
-	valid, err = w2.Verify(bpub2, data1, sig2)
+	valid, err = w2.Verify(data1, sig2)
 	assert.NoError(err)
 	assert.False(valid)
 }
@@ -190,7 +185,7 @@ func signAndVerify(t *testing.T, data []byte, addr types.Address, w *Wallet, fs 
 	assert.NoError(t, err)
 
 	t.Log("verify signed content")
-	valid, err := w.Verify(bpub, data, sig)
+	valid, err := w.Verify(data, sig)
 	assert.NoError(t, err)
 	assert.True(t, valid)
 

@@ -11,6 +11,9 @@ import (
 	dsq "gx/ipfs/QmXRKBQA4wXP7xWbFiZsR1GP4HV6wMDQ1aWFxZZ4uBcPX9/go-datastore/query"
 	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
 
+	btcec "github.com/btcsuite/btcd/btcec"
+	sha256 "github.com/minio/sha256-simd"
+
 	"github.com/filecoin-project/go-filecoin/repo"
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -103,6 +106,7 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 		bpub = bpub[:cap(bpriv)]
 	}()
 
+	// bpub is a serialized and compressed specp256ki public key.
 	bpub, err = pub.Bytes()
 	if err != nil {
 		return types.Address{}, err
@@ -110,6 +114,7 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 
 	// An address is derived from a public key. This is what allows you to get
 	// money out of the actor, if you have the matching private key for the address.
+	// adderHash is the blake160 hash of the public key.
 	adderHash, err := types.AddressHash(bpub)
 	if err != nil {
 		return types.Address{}, err
@@ -144,17 +149,24 @@ func (backend *DSBackend) Sign(addr types.Address, data []byte) ([]byte, error) 
 		return nil, err
 	}
 
-	return priv.Sign(data)
+	sk, ok := priv.(*ci.Secp256k1PrivateKey)
+	if !ok {
+		//TODO: figure out handling for this case
+		return nil, errors.New("unknown private key type")
+	}
+
+	hash := sha256.Sum256(data)
+	return btcec.SignCompact(btcec.S256(), (*btcec.PrivateKey)(sk), hash[:], true)
 }
 
-// Verify cryptographically verifies that 'sig' is the signed hash of 'data' for
-// the key `bpub`.
-func (backend *DSBackend) Verify(bpub, data, sig []byte) (bool, error) {
-	pub, err := ci.UnmarshalPublicKey(bpub)
+// Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
+func (backend *DSBackend) Verify(data, sig []byte) (bool, error) {
+	hash := sha256.Sum256(data)
+	k, _, err := recoverCompact(sig, hash[:])
 	if err != nil {
-		return false, err
+		panic(err)
 	}
-	return pub.Verify(data, sig)
+	return k.Verify(data, sig)
 }
 
 // getPrivateKey fetches and unmarshals the private key pointed to by address `addr`.
@@ -167,12 +179,15 @@ func (backend *DSBackend) getPrivateKey(addr types.Address) (ci.PrivKey, error) 
 	return ci.UnmarshalPrivateKey(bpriv.([]byte))
 }
 
-// getPublicKey fetches and unmarshals the public key pointed used to generate `addr`.
-// TODO Zero out the sensitive data when complete
 func (backend *DSBackend) getPublicKey(addr types.Address) (ci.PubKey, error) {
-	priv, err := backend.getPrivateKey(addr)
+	sk, err := backend.getPrivateKey(addr)
 	if err != nil {
 		return nil, err
 	}
-	return priv.GetPublic(), nil
+	return sk.GetPublic(), nil
+}
+
+func recoverCompact(sig, hash []byte) (ci.PubKey, bool, error) {
+	k, isCompressed, err := btcec.RecoverCompact(btcec.S256(), sig, hash)
+	return (*ci.Secp256k1PublicKey)(k), isCompressed, err
 }
