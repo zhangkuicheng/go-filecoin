@@ -71,23 +71,19 @@ func TestSimpleSignAndVerify(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(fs, backend)
 
+	dataA := []byte("can i have your autograph?")
+	dataB := []byte("can i have your name?")
 	t.Log("sign content")
-	sig, err := w.Sign(addr, []byte("can i have your autograph?"))
-	pk, err := fs.getPublicKey(addr)
-	assert.NoError(err)
-	bpk, err := pk.Bytes()
-	assert.NoError(err)
-	t.Logf("PK: %x", bpk)
-	t.Logf("Sig: %x", sig)
+	sig, err := w.Sign(addr, dataA)
 	assert.NoError(err)
 
 	t.Log("verify signed content")
-	valid, err := w.Verify([]byte("can i have your autograph?"), sig)
+	valid, err := w.Verify(dataA, sig)
 	assert.NoError(err)
 	assert.True(valid)
 
 	t.Log("verify fails for unsigned content")
-	valid, err = w.Verify([]byte("can i have your name?"), sig)
+	valid, err = w.Verify(dataB, sig)
 	assert.NoError(err)
 	assert.False(valid)
 }

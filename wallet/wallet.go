@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"fmt"
 	"math/big"
 	"reflect"
 	"sync"
@@ -105,6 +106,7 @@ func (w *Wallet) Sign(addr types.Address, data []byte) ([]byte, error) {
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
 func (w *Wallet) Verify(data, sig []byte) (bool, error) {
 	hash := sha256.Sum256(data)
+
 	mpk, _, err := btcec.RecoverCompact(btcec.S256(), sig, hash[:])
 	if err != nil {
 		return false, errors.Wrap(err, "wallet :: Failed to recover pk")
@@ -115,5 +117,10 @@ func (w *Wallet) Verify(data, sig []byte) (bool, error) {
 	s := big.NewInt(0).SetBytes(sig[33:])
 	osig := &btcec.Signature{R: r, S: s}
 
-	return osig.Verify(hash[:], mpk), nil
+	valid, err := osig.Verify(hash[:], mpk), nil
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify data")
+	}
+	fmt.Printf("\nWALLET-VERIFY: valid: %t\nsig: %x\ndata: %s\nhash: %x\n\n", valid, sig, string(data), hash)
+	return valid, nil
 }

@@ -208,29 +208,22 @@ var verifyCmd = &cmds.Command{
 		Tagline: "verify signature of data against pubkey",
 	},
 	Arguments: []cmdkit.Argument{
-		cmdkit.StringArg("pubkey", true, false, "public key to use for verification in multibase-base32hex encoding"),
 		cmdkit.StringArg("data", true, false, "data to verify in multibase-base32hex encoding"),
 		cmdkit.StringArg("sig", true, false, "sig to verify against in multibase-base32hex encoding"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 		fcn := GetNode(env)
 
-		// TODO: UX around this is poor, as it is not easy for a use to get,
-		// a public key.
-		bpub, err := mustDecodeAs(req.Arguments[0], defaultEncoding)
+		data, err := mustDecodeAs(req.Arguments[0], defaultEncoding)
 		if err != nil {
 			return err
 		}
-		data, err := mustDecodeAs(req.Arguments[1], defaultEncoding)
-		if err != nil {
-			return err
-		}
-		sig, err := mustDecodeAs(req.Arguments[2], defaultEncoding)
+		sig, err := mustDecodeAs(req.Arguments[1], defaultEncoding)
 		if err != nil {
 			return err
 		}
 
-		valid, err := fcn.Wallet.Verify(bpub, data, sig)
+		valid, err := fcn.Wallet.Verify(data, sig)
 		if err != nil {
 			return err
 		}

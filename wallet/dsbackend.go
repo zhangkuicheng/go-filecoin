@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
@@ -144,7 +145,6 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 // Sign cryptographically signs `data` using the private key of address `addr`.
 // TODO Zero out the sensitive data when complete
 func (backend *DSBackend) Sign(addr types.Address, data []byte) ([]byte, error) {
-	// Check that we are storing the address to sign for.
 	priv, err := backend.getPrivateKey(addr)
 	if err != nil {
 		return nil, err
@@ -160,7 +160,12 @@ func (backend *DSBackend) Sign(addr types.Address, data []byte) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	return btcec.SignCompact(btcec.S256(), ((*btcec.PrivateKey)(sk)), hash[:], false)
+	sig, err := btcec.SignCompact(btcec.S256(), (*btcec.PrivateKey)(sk), hash[:], false)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to sign data")
+	}
+	fmt.Printf("\nDSB-SIGN: sig: %x\ndata: %s\nhash: %x\n\n", sig, string(data), hash)
+	return sig, nil
 }
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
@@ -176,7 +181,12 @@ func (backend *DSBackend) Verify(data, sig []byte) (bool, error) {
 	s := big.NewInt(0).SetBytes(sig[33:])
 	osig := &btcec.Signature{R: r, S: s}
 
-	return osig.Verify(hash[:], mpk), nil
+	valid, err := osig.Verify(hash[:], mpk), nil
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify data")
+	}
+	fmt.Printf("\nBACKEDN-VERIFY: valid: %t\nsig: %x\ndata: %s\nhash: %x\n\n", valid, sig, string(data), hash)
+	return valid, nil
 }
 
 // getPrivateKey fetches and unmarshals the private key pointed to by address `addr`.
