@@ -116,13 +116,13 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 
 	// An address is derived from a public key. This is what allows you to get
 	// money out of the actor, if you have the matching private key for the address.
-	// adderHash is the blake160 hash of the public key.
-	adderHash, err := types.AddressHash(bpub)
+	// addrHash is the blake160 hash of the public key.
+	addrHash, err := types.AddressHash(bpub)
 	if err != nil {
 		return types.Address{}, err
 	}
 	// TODO: Use the address type we are running on from the config.
-	newAdder := types.NewMainnetAddress(adderHash)
+	newAdder := types.NewMainnetAddress(addrHash)
 
 	bpriv, err = priv.Bytes()
 	if err != nil {
