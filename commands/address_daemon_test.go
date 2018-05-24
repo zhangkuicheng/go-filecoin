@@ -25,7 +25,7 @@ func TestSignErrorCases(t *testing.T) {
 	d.RunFail("encoding not supported", "wallet", "sign", addr, "123")
 
 	// Sign with known but unsupported encoding (base32hexUpper).
-	d.RunFail("Encoding must be base32hex", "wallet", "sign", addr, "V123")
+	d.RunFail("Encoding must be multibase-base32hex", "wallet", "sign", addr, "V123")
 
 	// Sign with invalid address.
 	d.RunFail("invalid checksum", "wallet", "sign", "fqcc", "123")
