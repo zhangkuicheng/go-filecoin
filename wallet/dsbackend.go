@@ -181,10 +181,7 @@ func (backend *DSBackend) Verify(data, sig []byte) (bool, error) {
 	s := big.NewInt(0).SetBytes(sig[33:])
 	osig := &btcec.Signature{R: r, S: s}
 
-	valid, err := osig.Verify(hash[:], mpk), nil
-	if err != nil {
-		return false, errors.Wrap(err, "failed to verify data")
-	}
+	valid := osig.Verify(hash[:], mpk)
 	fmt.Printf("\nBACKEDN-VERIFY: valid: %t\nsig: %x\ndata: %s\nhash: %x\n\n", valid, sig, string(data), hash)
 	return valid, nil
 }
