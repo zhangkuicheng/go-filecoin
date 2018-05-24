@@ -122,7 +122,7 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 		return types.Address{}, err
 	}
 	// TODO: Use the address type we are running on from the config.
-	newAdder := types.NewMainnetAddress(addrHash)
+	newAddr := types.NewMainnetAddress(addrHash)
 
 	bpriv, err = priv.Bytes()
 	if err != nil {
@@ -133,13 +133,13 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 	defer backend.lk.Unlock()
 
 	// Persist the address (public key) and its corresponding private key.
-	if err := backend.ds.Put(ds.NewKey(newAdder.String()), bpriv); err != nil {
+	if err := backend.ds.Put(ds.NewKey(newAddr.String()), bpriv); err != nil {
 		return types.Address{}, errors.Wrap(err, "failed to store new address")
 	}
 
-	backend.cache[newAdder] = struct{}{}
+	backend.cache[newAddr] = struct{}{}
 
-	return newAdder, nil
+	return newAddr, nil
 }
 
 // Sign cryptographically signs `data` using the private key of address `addr`.
