@@ -145,17 +145,17 @@ var balanceCmd = &cmds.Command{
 	},
 }
 
-const reqEnc = multibase.Base32hex
+const defaultEncoding = multibase.Base32hex
 
-// requireArgEncoding returns an error if `arg` is not encoded in `e`, or if
+// mustDecodeAs returns an error if `arg` is not encoded in `e`, or if
 // decoding `arg` fails.
-func requireArgEncoding(e multibase.Encoding, arg string) ([]byte, error) {
+func mustDecodeAs(arg string, e multibase.Encoding) ([]byte, error) {
 	enc, out, err := multibase.Decode(arg)
 	if err != nil {
 		return nil, err
 	}
 	if enc != e {
-		return nil, fmt.Errorf("Encoding must be base32hex")
+		return nil, fmt.Errorf("Encoding must be multibase-base32hex")
 	}
 	return out, nil
 }
@@ -166,7 +166,7 @@ var signCmd = &cmds.Command{
 	},
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("address", true, false, "address to use for signing"),
-		cmdkit.StringArg("data", true, false, "data to sign in base32hex encoding"),
+		cmdkit.StringArg("data", true, false, "data to sign in multibase-base32hex encoding"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 		fcn := GetNode(env)
@@ -175,7 +175,7 @@ var signCmd = &cmds.Command{
 			return err
 		}
 
-		data, err := requireArgEncoding(reqEnc, req.Arguments[1])
+		data, err := mustDecodeAs(req.Arguments[1], defaultEncoding)
 		if err != nil {
 			return err
 		}
@@ -185,7 +185,7 @@ var signCmd = &cmds.Command{
 			return err
 		}
 
-		out, err := multibase.Encode(reqEnc, sig)
+		out, err := multibase.Encode(defaultEncoding, sig)
 		if err != nil {
 			return err
 		}
@@ -208,24 +208,24 @@ var verifyCmd = &cmds.Command{
 		Tagline: "verify signature of data against pubkey",
 	},
 	Arguments: []cmdkit.Argument{
-		cmdkit.StringArg("pubkey", true, false, "public key to use for verification in base32hex encoding"),
-		cmdkit.StringArg("data", true, false, "data to verify in base32hex encoding"),
-		cmdkit.StringArg("sig", true, false, "sig to verify against in base32hex encoding"),
+		cmdkit.StringArg("pubkey", true, false, "public key to use for verification in multibase-base32hex encoding"),
+		cmdkit.StringArg("data", true, false, "data to verify in multibase-base32hex encoding"),
+		cmdkit.StringArg("sig", true, false, "sig to verify against in multibase-base32hex encoding"),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 		fcn := GetNode(env)
 
 		// TODO: UX around this is poor, as it is not easy for a use to get,
 		// a public key.
-		bpub, err := requireArgEncoding(reqEnc, req.Arguments[0])
+		bpub, err := mustDecodeAs(req.Arguments[0], defaultEncoding)
 		if err != nil {
 			return err
 		}
-		data, err := requireArgEncoding(reqEnc, req.Arguments[1])
+		data, err := mustDecodeAs(req.Arguments[1], defaultEncoding)
 		if err != nil {
 			return err
 		}
-		sig, err := requireArgEncoding(reqEnc, req.Arguments[2])
+		sig, err := mustDecodeAs(req.Arguments[2], defaultEncoding)
 		if err != nil {
 			return err
 		}
