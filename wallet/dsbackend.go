@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"crypto/rand"
+	"math/big"
 	"reflect"
 	"strings"
 	"sync"
@@ -156,28 +157,26 @@ func (backend *DSBackend) Sign(addr types.Address, data []byte) ([]byte, error) 
 	}
 
 	hash := sha256.Sum256(data)
-	sig, err := ((*btcec.PrivateKey)(sk)).Sign(hash[:])
 	if err != nil {
 		return nil, err
 	}
-	return sig.Serialize(), nil
+	return btcec.SignCompact(btcec.S256(), ((*btcec.PrivateKey)(sk)), hash[:], false)
 }
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
 func (backend *DSBackend) Verify(data, sig []byte) (bool, error) {
-
 	hash := sha256.Sum256(data)
-	signature, err := btcec.ParseSignature(sig, btcec.S256())
+	mpk, _, err := btcec.RecoverCompact(btcec.S256(), sig, hash[:])
 	if err != nil {
-		return false, errors.Wrap(err, "backend :: Failed to parse sig")
+		return false, errors.Wrap(err, "wallet :: Failed to recover pk")
 	}
 
-	k, _, err := btcec.RecoverCompact(btcec.S256(), sig, hash[:])
-	if err != nil {
-		return false, errors.Wrap(err, "backend :: Failed to recover pk")
-	}
+	// Because of course this is how things work
+	r := big.NewInt(0).SetBytes(sig[1:33])
+	s := big.NewInt(0).SetBytes(sig[33:])
+	osig := &btcec.Signature{R: r, S: s}
 
-	return signature.Verify(hash[:], k), nil
+	return osig.Verify(hash[:], mpk), nil
 }
 
 // getPrivateKey fetches and unmarshals the private key pointed to by address `addr`.
@@ -196,9 +195,4 @@ func (backend *DSBackend) getPublicKey(addr types.Address) (ci.PubKey, error) {
 		return nil, err
 	}
 	return sk.GetPublic(), nil
-}
-
-func recoverCompact(sig, hash []byte) (ci.PubKey, bool, error) {
-	k, isCompressed, err := btcec.RecoverCompact(btcec.S256(), sig, hash)
-	return (*ci.Secp256k1PublicKey)(k), isCompressed, err
 }
