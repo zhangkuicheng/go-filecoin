@@ -156,17 +156,28 @@ func (backend *DSBackend) Sign(addr types.Address, data []byte) ([]byte, error) 
 	}
 
 	hash := sha256.Sum256(data)
-	return btcec.SignCompact(btcec.S256(), (*btcec.PrivateKey)(sk), hash[:], true)
+	sig, err := ((*btcec.PrivateKey)(sk)).Sign(hash[:])
+	if err != nil {
+		return nil, err
+	}
+	return sig.Serialize(), nil
 }
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
 func (backend *DSBackend) Verify(data, sig []byte) (bool, error) {
+
 	hash := sha256.Sum256(data)
-	k, _, err := recoverCompact(sig, hash[:])
+	signature, err := btcec.ParseSignature(sig, btcec.S256())
 	if err != nil {
-		panic(err)
+		return false, errors.Wrap(err, "backend :: Failed to parse sig")
 	}
-	return k.Verify(data, sig)
+
+	k, _, err := btcec.RecoverCompact(btcec.S256(), sig, hash[:])
+	if err != nil {
+		return false, errors.Wrap(err, "backend :: Failed to recover pk")
+	}
+
+	return signature.Verify(hash[:], k), nil
 }
 
 // getPrivateKey fetches and unmarshals the private key pointed to by address `addr`.

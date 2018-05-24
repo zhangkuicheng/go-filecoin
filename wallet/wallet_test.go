@@ -73,6 +73,11 @@ func TestSimpleSignAndVerify(t *testing.T) {
 
 	t.Log("sign content")
 	sig, err := w.Sign(addr, []byte("can i have your autograph?"))
+	pk, err := fs.getPublicKey(addr)
+	assert.NoError(err)
+	bpk, err := pk.Bytes()
+	assert.NoError(err)
+	t.Logf("PK: %x", bpk)
 	t.Logf("Sig: %x", sig)
 	assert.NoError(err)
 

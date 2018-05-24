@@ -6,6 +6,7 @@ import (
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
+	btcec "github.com/btcsuite/btcd/btcec"
 	sha256 "github.com/minio/sha256-simd"
 
 	"github.com/filecoin-project/go-filecoin/types"
@@ -102,17 +103,17 @@ func (w *Wallet) Sign(addr types.Address, data []byte) ([]byte, error) {
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
 func (w *Wallet) Verify(data, sig []byte) (bool, error) {
+
 	hash := sha256.Sum256(data)
-
-	k, _, err := recoverCompact(sig, hash[:])
+	signature, err := btcec.ParseSignature(sig, btcec.S256())
 	if err != nil {
-		return false, errors.Wrap(err, "failed to revocer public key")
+		return false, errors.Wrap(err, "wallet :: Failed to parse sig")
 	}
 
-	valid, err := k.Verify(data, sig)
+	k, _, err := btcec.RecoverCompact(btcec.S256(), sig, hash[:])
 	if err != nil {
-		return false, errors.Wrap(err, "failed to verify data")
+		return false, errors.Wrap(err, "wallet :: Failed to recover pk")
 	}
 
-	return valid, nil
+	return signature.Verify(hash[:], k), nil
 }
