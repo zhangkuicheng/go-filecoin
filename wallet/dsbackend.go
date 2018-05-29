@@ -1,9 +1,6 @@
 package wallet
 
 import (
-	"crypto/rand"
-	"fmt"
-	"math/big"
 	"reflect"
 	"strings"
 	"sync"
@@ -11,11 +8,10 @@ import (
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	ds "gx/ipfs/QmXRKBQA4wXP7xWbFiZsR1GP4HV6wMDQ1aWFxZZ4uBcPX9/go-datastore"
 	dsq "gx/ipfs/QmXRKBQA4wXP7xWbFiZsR1GP4HV6wMDQ1aWFxZZ4uBcPX9/go-datastore/query"
-	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
 
-	btcec "github.com/btcsuite/btcd/btcec"
-	sha256 "github.com/minio/sha256-simd"
+	"github.com/btcsuite/btcd/btcec"
 
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/repo"
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -90,33 +86,13 @@ func (backend *DSBackend) HasAddress(addr types.Address) bool {
 // NewAddress creates a new address and stores it.
 // Safe for concurrent access.
 func (backend *DSBackend) NewAddress() (types.Address, error) {
-	// Generate a key pair that may be used to authenticate messages
-	// from an address.
-	priv, pub, err := ci.GenerateSecp256k1Key(rand.Reader)
+	// generate a private key
+	priv, err := crypto.GenerateSecp256k1Key()
 	if err != nil {
 		return types.Address{}, err
 	}
 
-	// Zero out the public and private keys for security reasons.
-	// TODO: We need a common way to zero out sensitive data
-	var bpriv []byte
-	var bpub []byte
-	defer func() {
-		priv = nil
-		pub = nil
-		bpriv = bpriv[:cap(bpriv)]
-		bpub = bpub[:cap(bpriv)]
-	}()
-
-	// bpub is a serialized and compressed specp256ki public key.
-	bpub, err = pub.Bytes()
-	if err != nil {
-		return types.Address{}, err
-	}
-
-	// An address is derived from a public key. This is what allows you to get
-	// money out of the actor, if you have the matching private key for the address.
-	// addrHash is the blake160 hash of the public key.
+	bpub := priv.PubKey().SerializeUncompressed()
 	addrHash, err := types.AddressHash(bpub)
 	if err != nil {
 		return types.Address{}, err
@@ -124,15 +100,10 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 	// TODO: Use the address type we are running on from the config.
 	newAddr := types.NewMainnetAddress(addrHash)
 
-	bpriv, err = priv.Bytes()
-	if err != nil {
-		return types.Address{}, err
-	}
-
 	backend.lk.Lock()
 	defer backend.lk.Unlock()
 
-	// Persist the address (public key) and its corresponding private key.
+	bpriv := priv.Serialize()
 	if err := backend.ds.Put(ds.NewKey(newAddr.String()), bpriv); err != nil {
 		return types.Address{}, errors.Wrap(err, "failed to store new address")
 	}
@@ -142,64 +113,33 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 	return newAddr, nil
 }
 
-// Sign cryptographically signs `data` using the private key of address `addr`.
-// TODO Zero out the sensitive data when complete
+// Sign Needs comments TODO
 func (backend *DSBackend) Sign(addr types.Address, data []byte) ([]byte, error) {
-	priv, err := backend.getPrivateKey(addr)
+	privateKey, _, err := backend.getKeyPair(addr)
 	if err != nil {
 		return nil, err
 	}
-
-	sk, ok := priv.(*ci.Secp256k1PrivateKey)
-	if !ok {
-		//TODO: figure out handling for this case
-		return nil, errors.New("unknown private key type")
-	}
-
-	hash := sha256.Sum256(data)
-	if err != nil {
-		return nil, err
-	}
-	sig, err := btcec.SignCompact(btcec.S256(), (*btcec.PrivateKey)(sk), hash[:], false)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to sign data")
-	}
-	fmt.Printf("\nDSB-SIGN: sig: %x\ndata: %s\nhash: %x\n\n", sig, string(data), hash)
-	return sig, nil
+	return sign(privateKey, data)
 }
 
-// Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
+// Verify Needs comments TODO
 func (backend *DSBackend) Verify(data, sig []byte) (bool, error) {
-	hash := sha256.Sum256(data)
-	mpk, _, err := btcec.RecoverCompact(btcec.S256(), sig, hash[:])
-	if err != nil {
-		return false, errors.Wrap(err, "wallet :: Failed to recover pk")
-	}
-
-	// Because of course this is how things work
-	r := big.NewInt(0).SetBytes(sig[1:33])
-	s := big.NewInt(0).SetBytes(sig[33:])
-	osig := &btcec.Signature{R: r, S: s}
-
-	valid := osig.Verify(hash[:], mpk)
-	fmt.Printf("\nBACKEDN-VERIFY: valid: %t\nsig: %x\ndata: %s\nhash: %x\n\n", valid, sig, string(data), hash)
-	return valid, nil
+	return verify(data, sig)
 }
 
-// getPrivateKey fetches and unmarshals the private key pointed to by address `addr`.
-// TODO Zero out the sensitive data when complete
-func (backend *DSBackend) getPrivateKey(addr types.Address) (ci.PrivKey, error) {
+func (backend *DSBackend) getKeyPair(addr types.Address) (*btcec.PrivateKey, *btcec.PublicKey, error) {
 	bpriv, err := backend.ds.Get(ds.NewKey(addr.String()))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fetch private key from backend")
+		return nil, nil, errors.Wrap(err, "failed to fetch private key from backend")
 	}
-	return ci.UnmarshalPrivateKey(bpriv.([]byte))
+	priv, pub := btcec.PrivKeyFromBytes(btcec.S256(), bpriv.([]byte))
+	return priv, pub, nil
 }
 
-func (backend *DSBackend) getPublicKey(addr types.Address) (ci.PubKey, error) {
-	sk, err := backend.getPrivateKey(addr)
+func (backend *DSBackend) getPublicKey(addr types.Address) (*btcec.PublicKey, error) {
+	priv, _, err := backend.getKeyPair(addr)
 	if err != nil {
 		return nil, err
 	}
-	return sk.GetPublic(), nil
+	return priv.PubKey(), nil
 }

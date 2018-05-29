@@ -6,6 +6,7 @@ import (
 	"gx/ipfs/QmXRKBQA4wXP7xWbFiZsR1GP4HV6wMDQ1aWFxZZ4uBcPX9/go-datastore"
 
 	"github.com/filecoin-project/go-filecoin/types"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -71,8 +72,8 @@ func TestSimpleSignAndVerify(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(fs, backend)
 
-	dataA := []byte("can i have your autograph?")
-	dataB := []byte("can i have your name?")
+	// data to sign
+	dataA := []byte("THIS IS A SIGNED SLICE OF DATA")
 	t.Log("sign content")
 	sig, err := w.Sign(addr, dataA)
 	assert.NoError(err)
@@ -82,6 +83,8 @@ func TestSimpleSignAndVerify(t *testing.T) {
 	assert.NoError(err)
 	assert.True(valid)
 
+	// data that is unsigned
+	dataB := []byte("I AM UNSIGNED DATA!")
 	t.Log("verify fails for unsigned content")
 	valid, err = w.Verify(dataB, sig)
 	assert.NoError(err)
@@ -182,8 +185,7 @@ func signAndVerify(t *testing.T, data []byte, addr types.Address, w *Wallet, fs 
 	// Get the public used to generate the address
 	pub, err := fs.getPublicKey(addr)
 	assert.NoError(t, err)
-	bpub, err = pub.Bytes()
-	assert.NoError(t, err)
+	bpub = pub.SerializeUncompressed()
 
 	t.Log("verify signed content")
 	valid, err := w.Verify(data, sig)

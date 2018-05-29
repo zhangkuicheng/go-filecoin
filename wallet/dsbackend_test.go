@@ -5,11 +5,10 @@ import (
 	"testing"
 
 	"gx/ipfs/QmXRKBQA4wXP7xWbFiZsR1GP4HV6wMDQ1aWFxZZ4uBcPX9/go-datastore"
-	ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
+	//ci "gx/ipfs/QmaPbCnUMBohSGo3KnxEa2bHqyJVVeEEcwtqJAYxerieBo/go-libp2p-crypto"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/filecoin-project/go-filecoin/types"
+	//"github.com/filecoin-project/go-filecoin/types"
 )
 
 func TestDSBackendSimple(t *testing.T) {
@@ -38,6 +37,7 @@ func TestDSBackendSimple(t *testing.T) {
 	assert.True(fs2.HasAddress(addr))
 }
 
+/*
 func TestDSBackendUnmarshalPrivateKey(t *testing.T) {
 	assert := assert.New(t)
 
@@ -69,6 +69,7 @@ func TestDSBackendUnmarshalPrivateKey(t *testing.T) {
 	assert.Equal(addr, dAdder)
 
 }
+*/
 
 func TestDSBackendParallel(t *testing.T) {
 	assert := assert.New(t)
