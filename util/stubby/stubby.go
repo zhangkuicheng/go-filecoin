@@ -1,8 +1,12 @@
-// package stubby utilities for easily replacing methods or functions with "stub" implementations for tests.
+// Package stubby enables replacing methods or functions with "stub" implementations for tests.
 package stubby
 
 import (
+	"os"
 	"reflect"
+	"strings"
+
+	"github.com/filecoin-project/go-filecoin/util/chk"
 )
 
 // Registry manages a set of named stubs. The typical usage would be to make registry a member of some
@@ -14,11 +18,11 @@ import (
 //     stubby stubby.Registry
 // }
 //
-// func (mt MyThing) jump(int requestedHeight) (achivedHeight int) {
-//     if f := f.stubby.Get("jump"); f != nil {
-//         f(requestedHeight, &acheviedHeight)
+// func (mt MyThing) jump(int requestedHeight) (achievedHeight int) {
+//     if f.stubby.Call("jump", requestedHeight, &achievedHeight) {
 //         return
 //     }
+//	   ...
 // }
 //
 // Then, under test:
@@ -32,9 +36,17 @@ type Registry struct {
 	m map[string]reflect.Value
 }
 
+var (
+	underTest = strings.HasSuffix(os.Args[0], ".test")
+)
+
 // Add adds a named stub to the registry. The passed value must be a
 // reference to a function.
 func (s *Registry) Add(name string, fn interface{}) func() {
+	if !underTest {
+		panic("Add should not be called outside of tests")
+	}
+
 	if s.m == nil {
 		s.m = map[string]reflect.Value{}
 	}
@@ -46,29 +58,29 @@ func (s *Registry) Add(name string, fn interface{}) func() {
 
 // Remove unregisters a stub.
 func (s *Registry) Remove(name string) {
+	if !underTest {
+		panic("Remove should not be called outside of tests")
+	}
+
 	delete(s.m, name)
 }
 
-// Get returns a wrapper for a stub that makes it convenient to execute
-// from inside the real implementation. The returned function should be
-// called with all expected input arguments, plus pointers to all expected
+// Call invokes the named stub if there is one. Call should be invoked
+// with all expected input arguments, plus pointers to all expected
 // output arguments. The return function will set the output argument
 // pointers before returning.
 //
-// If there is no matching stub, Get() returns nil. Get() only allocates
-// if there is in fact a registered stub, so there's no cost to use this
-// in production code.
-func (s Registry) Get(name string) func(args ...interface{}) {
-	fn, ok := s.m[name]
-	if ok {
-		return func(args ...interface{}) {
-			call(fn, args...)
-		}
+// If there is no matching stub, Call() returns false.
+func (s Registry) Call(name string, args ...interface{}) (hadMatch bool) {
+	if s.m == nil {
+		return false
 	}
-	return nil
-}
 
-func call(fn reflect.Value, args ...interface{}) {
+	fn, ok := s.m[name]
+	if !ok {
+		return false
+	}
+
 	argValues := []reflect.Value{}
 
 	// This is a little subtle because of variadic parameters. There
@@ -84,9 +96,10 @@ func call(fn reflect.Value, args ...interface{}) {
 
 	for i, r := range resultValues {
 		dstValue := reflect.ValueOf(args[numIn+i])
-		if dstValue.Kind() != reflect.Ptr {
-			panic("invalid dst type for output arg: " + dstValue.Kind().String())
-		}
+		chk.True(dstValue.Kind() == reflect.Ptr,
+			"Invalid dst type for output arg: %v. Must be pointer.", dstValue.Type())
 		reflect.Indirect(dstValue).Set(r)
 	}
+
+	return true
 }

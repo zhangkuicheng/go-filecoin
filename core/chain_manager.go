@@ -244,8 +244,7 @@ type BestBlockGetter func() *types.Block
 
 // GetBestBlock returns the head of our currently selected 'best' chain.
 func (s *ChainManager) GetBestBlock() (r *types.Block) {
-	if f := s.Stubby.Get("GetBestBlock"); f != nil {
-		f(&r)
+	if s.Stubby.Call("GetBestBlock", &r) {
 		return
 	}
 	s.bestBlock.Lock()
@@ -306,8 +305,7 @@ func (s *ChainManager) acceptNewBestBlock(ctx context.Context, blk *types.Block)
 // FetchBlock gets the requested block, either from disk or from the network.
 func (s *ChainManager) FetchBlock(ctx context.Context, c *cid.Cid) (r *types.Block, err error) {
 	log.Infof("fetching block, [%s]", c.String())
-	if f := s.Stubby.Get("FetchBlock"); f != nil {
-		f(ctx, c, &r, &err)
+	if s.Stubby.Call("FetchBlock", ctx, c, &r, &err) {
 		return
 	}
 
