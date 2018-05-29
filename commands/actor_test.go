@@ -48,9 +48,9 @@ func TestActorLs(t *testing.T) {
 			return nil
 		})
 		nd := node.MakeNodesUnstarted(t, 1, true)[0]
-		nd.ChainMgr.GetBestBlock = func() *types.Block {
+		nd.ChainMgr.Stubby.Add("GetBestBlock", func() *types.Block {
 			return &types.Block{StateRoot: nil}
-		}
+		})
 
 		err := runActorLs(ctx, emitter.emit, nd, nil)
 		require.Error(err)

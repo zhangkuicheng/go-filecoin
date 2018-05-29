@@ -261,9 +261,9 @@ func TestBlockHistoryFetchError(t *testing.T) {
 
 	blockCh := stm.BlockHistory(ctx)
 
-	stm.FetchBlock = func(ctx context.Context, cid *cid.Cid) (*types.Block, error) {
+	stm.Stubby.Add("FetchBlock", func(ctx context.Context, cid *cid.Cid) (*types.Block, error) {
 		return nil, fmt.Errorf("error fetching block (in test)")
-	}
+	})
 	// One block is already ready.
 	assert.True(block2.Equals((<-blockCh).(*types.Block)))
 

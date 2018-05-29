@@ -268,9 +268,9 @@ func testWaitNew(ctx context.Context, assert *assert.Assertions, node *Node,
 func testWaitError(ctx context.Context, assert *assert.Assertions, node *Node, stm *core.ChainManagerForTest) {
 	newMsg := types.NewMessageForTestGetter()
 
-	stm.FetchBlock = func(ctx context.Context, cid *cid.Cid) (*types.Block, error) {
+	stm.Stubby.Add("FetchBlock", func(ctx context.Context, cid *cid.Cid) (*types.Block, error) {
 		return nil, fmt.Errorf("error fetching block (in test)")
-	}
+	})
 
 	m1, m2, m3, m4 := newMsg(), newMsg(), newMsg(), newMsg()
 	chain := core.NewChainWithMessages(node.CborStore, stm.GetBestBlock(), msgs{m1, m2})

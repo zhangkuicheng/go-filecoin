@@ -17,6 +17,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
+	"github.com/filecoin-project/go-filecoin/util/stubby"
 )
 
 var log = logging.Logger("chain")
@@ -103,13 +104,12 @@ type ChainManager struct {
 
 	ds datastore.Datastore
 
+	Stubby stubby.Registry
+
 	// BestBlockPubSub is a pubsub channel that publishes all best blocks.
 	// We operate under the assumption that blocks published to this channel
 	// will always be queued and delivered to subscribers in the order discovered.
 	BestBlockPubSub *pubsub.PubSub
-
-	FetchBlock   func(context.Context, *cid.Cid) (*types.Block, error)
-	GetBestBlock func() *types.Block
 }
 
 // NewChainManager creates a new filecoin chain manager.
@@ -122,8 +122,6 @@ func NewChainManager(ds datastore.Datastore, cs *hamt.CborIpldStore) *ChainManag
 		knownGoodBlocks: cid.NewSet(),
 		tips:            tipIndex{},
 	}
-	cm.FetchBlock = cm.fetchBlock
-	cm.GetBestBlock = cm.getBestBlock
 
 	return cm
 }
@@ -245,7 +243,11 @@ func (s *ChainManager) GetGenesisCid() *cid.Cid {
 type BestBlockGetter func() *types.Block
 
 // GetBestBlock returns the head of our currently selected 'best' chain.
-func (s *ChainManager) getBestBlock() *types.Block {
+func (s *ChainManager) GetBestBlock() (r *types.Block) {
+	if f := s.Stubby.Get("GetBestBlock"); f != nil {
+		f(&r)
+		return
+	}
 	s.bestBlock.Lock()
 	defer s.bestBlock.Unlock()
 	return s.bestBlock.blk // TODO: return immutable copy?
@@ -301,9 +303,13 @@ func (s *ChainManager) acceptNewBestBlock(ctx context.Context, blk *types.Block)
 	return ChainAccepted, nil
 }
 
-// fetchBlock gets the requested block, either from disk or from the network.
-func (s *ChainManager) fetchBlock(ctx context.Context, c *cid.Cid) (*types.Block, error) {
+// FetchBlock gets the requested block, either from disk or from the network.
+func (s *ChainManager) FetchBlock(ctx context.Context, c *cid.Cid) (r *types.Block, err error) {
 	log.Infof("fetching block, [%s]", c.String())
+	if f := s.Stubby.Get("FetchBlock"); f != nil {
+		f(ctx, c, &r, &err)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
