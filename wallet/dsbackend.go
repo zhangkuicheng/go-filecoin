@@ -92,8 +92,7 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 		return types.Address{}, err
 	}
 
-	bpub := priv.PubKey().SerializeUncompressed()
-	addrHash, err := types.AddressHash(bpub)
+	addrHash, err := types.AddressHash(priv.PubKey().SerializeUncompressed())
 	if err != nil {
 		return types.Address{}, err
 	}
@@ -103,8 +102,7 @@ func (backend *DSBackend) NewAddress() (types.Address, error) {
 	backend.lk.Lock()
 	defer backend.lk.Unlock()
 
-	bpriv := priv.Serialize()
-	if err := backend.ds.Put(ds.NewKey(newAddr.String()), bpriv); err != nil {
+	if err := backend.ds.Put(ds.NewKey(newAddr.String()), priv.Serialize()); err != nil {
 		return types.Address{}, errors.Wrap(err, "failed to store new address")
 	}
 
