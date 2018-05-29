@@ -7,6 +7,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/types"
 
+	sha256 "github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,22 +74,22 @@ func TestSimpleSignAndVerify(t *testing.T) {
 	assert.Equal(fs, backend)
 
 	// data to sign
-	dataA := []byte("THIS IS A SIGNED SLICE OF DATA")
+	dataA := sha256.Sum256([]byte("THIS IS A SIGNED SLICE OF DATA"))
 	t.Log("sign content")
-	sig, err := w.Sign(addr, dataA)
+	sig, err := w.Sign(addr, dataA[:])
 	assert.NoError(err)
 
 	t.Log("verify signed content")
-	valid, err := w.Verify(dataA, sig)
+	valid, err := w.Verify(dataA[:], sig)
 	assert.NoError(err)
 	assert.True(valid)
 
 	// data that is unsigned
-	dataB := []byte("I AM UNSIGNED DATA!")
+	dataB := sha256.Sum256([]byte("I AM UNSIGNED DATA!"))
 	t.Log("verify fails for unsigned content")
-	valid, err = w.Verify(dataB, sig)
+	secondValid, err := w.Verify(dataB[:], sig)
 	assert.NoError(err)
-	assert.False(valid)
+	assert.False(secondValid)
 }
 
 func TestMultiWalletSignAndVerify(t *testing.T) {

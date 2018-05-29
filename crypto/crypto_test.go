@@ -15,18 +15,33 @@ func TestSign(t *testing.T) {
 	assert.NoError(err)
 
 	data := []byte("foo")
+	poopoo := []byte("bar")
+
 	msg := sha256.Sum256(data)
+	badMsg := sha256.Sum256(poopoo)
 
 	sig, err := Sign(msg[:], (*ecdsa.PrivateKey)(genPrivateKey))
 	if err != nil {
 		t.Errorf("Sign error: %s", err)
 	}
 
-	recoveredPub, err := Ecrecover(msg[:], sig)
-	if err != nil {
-		t.Errorf("ECRecover error: %s", err)
-	}
+	sigv := sig[:len(sig)-1] // remove recovery id
+	valid, err := VerifySignature(genPrivateKey.PubKey().SerializeUncompressed(), msg[:], sigv)
+	assert.NoError(err)
+	assert.True(valid)
 
-	assert.Equal(genPrivateKey.PubKey().SerializeUncompressed(), recoveredPub)
+	valid, err = VerifySignature(genPrivateKey.PubKey().SerializeUncompressed(), badMsg[:], sigv)
+	assert.NoError(err)
+	assert.False(valid)
 
+	recoverPubKey, err := Ecrecover(msg[:], sig)
+	assert.NoError(err)
+
+	valid, err = VerifySignature(recoverPubKey, msg[:], sigv)
+	assert.NoError(err)
+	assert.True(valid)
+
+	valid, err = VerifySignature(recoverPubKey, badMsg[:], sigv)
+	assert.NoError(err)
+	assert.False(valid)
 }

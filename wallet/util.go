@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	sha256 "github.com/minio/sha256-simd"
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
@@ -14,9 +13,7 @@ import (
 
 // Sign cryptographically signs `data` using the private key of address `addr`.
 // TODO Zero out the sensitive data when complete
-func sign(priv *btcec.PrivateKey, data []byte) ([]byte, error) {
-	// hash the content before signing
-	hash := sha256.Sum256(data)
+func sign(priv *btcec.PrivateKey, hash []byte) ([]byte, error) {
 
 	// sign the content
 	sig, err := crypto.Sign(hash[:], (*ecdsa.PrivateKey)(priv))
@@ -24,15 +21,12 @@ func sign(priv *btcec.PrivateKey, data []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "Failed to sign data")
 	}
 
-	fmt.Printf("\nSIGN - \nsk:\t%x\npk:\t%x\nsig:\t%x\ndata:\t%s\nhash:\t%x\n\n", priv.Serialize(), priv.PubKey().SerializeUncompressed(), sig, string(data), hash[:])
+	fmt.Printf("\nSIGN - \nsk:\t%x\npk:\t%x\nsig:\t%x\nhash:\t%x\n\n", priv.Serialize(), priv.PubKey().SerializeUncompressed(), sig, hash[:])
 	return sig, nil
 }
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data'.
-func verify(data, signature []byte) (bool, error) {
-	// hash the content before verify
-	hash := sha256.Sum256(data)
-
+func verify(hash, signature []byte) (bool, error) {
 	// recover the public key from the content and the sig
 	pk, err := crypto.Ecrecover(hash[:], signature)
 	if err != nil {
@@ -46,6 +40,6 @@ func verify(data, signature []byte) (bool, error) {
 		return false, err
 	}
 
-	fmt.Printf("\nVERIFY - \npk:\t%x\nsig:\t%x\ndata:\t%s\nhash:\t%x\nvalid:\t%t\n\n", pk, signature, string(data), hash[:], valid)
+	fmt.Printf("\nVERIFY - \npk:\t%x\n sig:\t%x\n hash:\t%x\n valid:\t%t\n\n", pk, signature, hash[:], valid)
 	return valid, nil
 }
