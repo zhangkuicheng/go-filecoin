@@ -31,7 +31,8 @@ type Input struct {
 	Ctx     context.Context
 	TipSets []core.TipSet
 	// TODO This should apparently be a miner actor address.
-	RewardAddress types.Address
+	RewardAddress      types.Address
+	forceWinningTicket bool
 }
 
 // NewInput instantiates a new Input.
@@ -93,12 +94,14 @@ func NewWorkerWithDeps(blockGenerator BlockGenerator, mine mineFunc, createPoST 
 
 // MineOnce is a convenience function that presents a synchronous blocking
 // interface to the worker.
-func MineOnce(ctx context.Context, w Worker, tipSets []core.TipSet, rewardAddress types.Address) Output {
+func MineOnce(ctx context.Context, w Worker, tipSets []core.TipSet, rewardAddress types.Address, forceWinningTicket bool) Output {
 	subCtx, subCtxCancel := context.WithCancel(ctx)
 	defer subCtxCancel()
 
 	inCh, outCh, _ := w.Start(subCtx)
-	go func() { inCh <- NewInput(subCtx, tipSets, rewardAddress) }()
+	in := NewInput(subCtx, tipSets, rewardAddress)
+	in.forceWinningTicket = forceWinningTicket
+	go func() { inCh <- in }()
 	return <-outCh
 }
 
@@ -198,8 +201,7 @@ func Mine(ctx context.Context, input Input, nullBlockTimer NullBlockTimerFunc, b
 		proof := createProof(challenge, createPoST)
 		ticket := createTicket(proof)
 
-		// TODO: Test the interplay of isWinningTicket() and createPoST()
-		if isWinningTicket(ticket, myPower, totalPower) {
+		if input.forceWinningTicket || isWinningTicket(ticket, myPower, totalPower) {
 			// TODO(EC): Generate should take parents, not a single block
 			baseBlock := core.BaseBlockFromTipSets(input.TipSets)
 			next, err := blockGenerator.Generate(ctx, baseBlock, ticket, nullBlockCount, input.RewardAddress)

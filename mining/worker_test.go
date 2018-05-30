@@ -32,7 +32,7 @@ func TestMineOnce(t *testing.T) {
 		outCh <- Output{NewBlock: b}
 	}
 	worker := NewWorkerWithDeps(mockBg, echoMine, func() {}, nullBlockImmediately)
-	result := MineOnce(context.Background(), worker, tipSets, rewardAddr)
+	result := MineOnce(context.Background(), worker, tipSets, rewardAddr, false)
 	assert.NoError(result.Err)
 	assert.True(baseBlock.StateRoot.Equals(result.NewBlock.StateRoot))
 	assert.Error(mineCtx.Err())
