@@ -138,7 +138,7 @@ func TestPaymentChannelRedeemSuccess(t *testing.T) {
 func TestPaymentChannelReclaimSuccess(t *testing.T) {
 	payer := &address.TestAddress
 	target := &address.TestAddress2
-	eol := types.NewBlockHeight(20)
+	eol := types.NewBlockHeight(5)
 	amt := types.NewTokenAmount(10000)
 
 	daemonTestWithPaymentChannel(t, payer, target, amt, eol, func(d *TestDaemon, channelID *types.ChannelID) {
@@ -153,6 +153,7 @@ func TestPaymentChannelReclaimSuccess(t *testing.T) {
 		lsStr := listChannelsAsStrs(d, payer)[0]
 		assert.Equal(fmt.Sprintf("%v: target: %s, amt: 10000, amt redeemed: 10, eol: %s", channelID, target.String(), eol.String()), lsStr)
 
+		// mine enough times such that the block height >= EOL
 		d.RunSuccess("mining once")
 		d.RunSuccess("mining once")
 
@@ -174,7 +175,7 @@ func TestPaymentChannelReclaimSuccess(t *testing.T) {
 func TestPaymentChannelCloseSuccess(t *testing.T) {
 	payer := &address.TestAddress
 	target := &address.TestAddress2
-	eol := types.NewBlockHeight(100)
+	eol := types.NewBlockHeight(5)
 	amt := types.NewTokenAmount(10000)
 
 	daemonTestWithPaymentChannel(t, payer, target, amt, eol, func(d *TestDaemon, channelID *types.ChannelID) {
@@ -257,7 +258,7 @@ func daemonTestWithPaymentChannel(t *testing.T, payerAddress *types.Address, tar
 		wg.Done()
 	}()
 
-	d.RunSuccess("mining once")
+	d.RunSuccess("mining once --force-winning-ticket=true")
 	wg.Wait()
 }
 
@@ -344,7 +345,7 @@ func mustRedeemVoucher(t *testing.T, d *TestDaemon, voucher paymentbroker.Paymen
 		wg.Done()
 	}()
 
-	d.RunSuccess("mining once")
+	d.RunSuccess("mining once --force-winning-ticket=true")
 
 	wg.Wait()
 }
@@ -373,7 +374,7 @@ func mustCloseChannel(t *testing.T, d *TestDaemon, voucher paymentbroker.Payment
 		wg.Done()
 	}()
 
-	d.RunSuccess("mining once")
+	d.RunSuccess("mining once --force-winning-ticket=true")
 
 	wg.Wait()
 }
@@ -402,7 +403,7 @@ func mustReclaimChannel(t *testing.T, d *TestDaemon, channelID *types.ChannelID,
 		wg.Done()
 	}()
 
-	d.RunSuccess("mining once")
+	d.RunSuccess("mining once --force-winning-ticket=true")
 
 	wg.Wait()
 }

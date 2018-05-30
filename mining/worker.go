@@ -54,10 +54,11 @@ func NewOutput(b *types.Block, e error) Output {
 
 // AsyncWorker implements the plumbing that drives mining.
 type AsyncWorker struct {
-	blockGenerator BlockGenerator
-	createPoST     DoSomeWorkFunc // TODO: rename createPoSTFunc?
-	mine           mineFunc
-	nullBlockTimer NullBlockTimerFunc
+	BlockGenerator  BlockGenerator
+	CreatePoST      DoSomeWorkFunc // TODO: rename createPoSTFunc?
+	Mine            mineFunc
+	NullBlockTimer  NullBlockTimerFunc
+	IsWinningTicket TicketChecker
 }
 
 // Worker is the mining interface consumers use. When you Start() a worker
@@ -77,17 +78,13 @@ type Worker interface {
 }
 
 // NewWorker instantiates a new Worker.
-func NewWorker(blockGenerator BlockGenerator) Worker {
-	return NewWorkerWithDeps(blockGenerator, Mine, createPoST, nullBlockTimer)
-}
-
-// NewWorkerWithDeps instantiates a new Worker with custom functions.
-func NewWorkerWithDeps(blockGenerator BlockGenerator, mine mineFunc, createPoST DoSomeWorkFunc, nullBlockTimer NullBlockTimerFunc) Worker {
+func NewWorker(blockGenerator BlockGenerator) *AsyncWorker {
 	return &AsyncWorker{
-		blockGenerator: blockGenerator,
-		createPoST:     createPoST,
-		mine:           mine,
-		nullBlockTimer: nullBlockTimer,
+		BlockGenerator:  blockGenerator,
+		CreatePoST:      createPoST,
+		Mine:            mine,
+		NullBlockTimer:  nullBlockTimer,
+		IsWinningTicket: isWinningTicket,
 	}
 }
 
@@ -154,7 +151,7 @@ func (w *AsyncWorker) Start(miningCtx context.Context) (chan<- Input, <-chan Out
 						currentRunCtx, currentRunCancel = context.WithCancel(input.Ctx)
 						doneWg.Add(1)
 						go func() {
-							w.mine(currentRunCtx, input, w.nullBlockTimer, w.blockGenerator, w.createPoST, outCh)
+							w.Mine(currentRunCtx, input, w.NullBlockTimer, w.BlockGenerator, w.IsWinningTicket, w.CreatePoST, outCh)
 							doneWg.Done()
 						}()
 						currentBlock = newBaseBlock
@@ -174,13 +171,16 @@ func (w *AsyncWorker) Start(miningCtx context.Context) (chan<- Input, <-chan Out
 // is a good idea for now.
 type DoSomeWorkFunc func()
 
-type mineFunc func(ctx context.Context, input Input, nullBlockTimer NullBlockTimerFunc, bg BlockGenerator, createPoST DoSomeWorkFunc, out chan<- Output)
+type mineFunc func(context.Context, Input, NullBlockTimerFunc, BlockGenerator, TicketChecker, DoSomeWorkFunc, chan<- Output)
 
 // NullBlockTimerFunc blocks until it is time to add a null block.
 type NullBlockTimerFunc func()
 
+// TicketChecker determines whether a ticket is a winning ticket.
+type TicketChecker func(ticket []byte, myPower, totalPower int64) bool
+
 // Mine does the actual work. It's the implementation of worker.mine.
-func Mine(ctx context.Context, input Input, nullBlockTimer NullBlockTimerFunc, blockGenerator BlockGenerator, createPoST DoSomeWorkFunc, outCh chan<- Output) {
+func mine(ctx context.Context, input Input, nullBlockTimer NullBlockTimerFunc, blockGenerator BlockGenerator, isWinningTicket TicketChecker, createPoST DoSomeWorkFunc, outCh chan<- Output) {
 	ctx = log.Start(ctx, "Worker.Mine")
 	defer log.Finish(ctx)
 
@@ -198,7 +198,6 @@ func Mine(ctx context.Context, input Input, nullBlockTimer NullBlockTimerFunc, b
 		proof := createProof(challenge, createPoST)
 		ticket := createTicket(proof)
 
-		// TODO: Test the interplay of isWinningTicket() and createPoST()
 		if isWinningTicket(ticket, myPower, totalPower) {
 			// TODO(EC): Generate should take parents, not a single block
 			baseBlock := core.BaseBlockFromTipSets(input.TipSets)
@@ -260,7 +259,7 @@ func createTicket(proof []byte) []byte {
 	return h[:]
 }
 
-var isWinningTicket = func(ticket []byte, myPower, totalPower int64) bool {
+func isWinningTicket(ticket []byte, myPower, totalPower int64) bool {
 	// See https://github.com/filecoin-project/aq/issues/70 for an explanation of the math here.
 	lhs := &big.Int{}
 	lhs.SetBytes(ticket)

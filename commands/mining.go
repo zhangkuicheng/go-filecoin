@@ -27,6 +27,9 @@ var miningCmd = &cmds.Command{
 }
 
 var miningOnceCmd = &cmds.Command{
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("force-winning-ticket", "causes the miner to get a winning ticket and mine for every block"),
+	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 		fcn := GetNode(env)
 
@@ -43,7 +46,15 @@ var miningOnceCmd = &cmds.Command{
 		}, mining.ApplyMessages)
 		// TODO(EC): Need to read best tipsets from storage and pass in. See also Node::StartMining().
 		tipSets := []core.TipSet{{cur.Cid().String(): cur}}
-		res := mining.MineOnce(req.Context, mining.NewWorker(blockGenerator), tipSets, rewardAddr)
+		worker := mining.NewWorker(blockGenerator)
+		if forceWinningTicket, ok := req.Options["force-winning-ticket"]; ok {
+			if forceWinningTicket.(bool) {
+				worker.IsWinningTicket = func([]byte, int64, int64) bool {
+					return true
+				}
+			}
+		}
+		res := mining.MineOnce(req.Context, worker, tipSets, rewardAddr)
 		if res.Err != nil {
 			return res.Err
 		}

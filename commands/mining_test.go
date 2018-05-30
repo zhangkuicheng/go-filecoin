@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,4 +35,23 @@ func TestMinerGenBlock(t *testing.T) {
 	sum := new(big.Int)
 	fmt.Println(beforeBalance, afterBalance)
 	assert.True(sum.Add(beforeBalance, big.NewInt(1000)).Cmp(afterBalance) == 0)
+}
+
+func TestMinerForceWinningTicket(t *testing.T) {
+	assert := assert.New(t)
+	d := NewDaemon(t).Start()
+	defer d.ShutdownSuccess()
+
+	mineAndReturnHeight := func() uint64 {
+		bh := runSuccessFirstLine(d, "mining once --force-winning-ticket")
+		out := d.RunSuccess("--enc=json show block " + bh)
+		var b types.Block
+		err := json.Unmarshal(out.stdout, &b)
+		assert.NoError(err)
+		return b.Height
+	}
+
+	heightBefore := mineAndReturnHeight()
+	heightAfter := mineAndReturnHeight()
+	assert.Equal(heightBefore+1, heightAfter)
 }
