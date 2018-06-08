@@ -40,7 +40,12 @@ type Processor func(ctx context.Context, blk *types.Block, st state.Tree) ([]*Ap
 // will in many cases be successfully applied even though an
 // error was thrown causing any state changes to be rolled back.
 // See comments on ApplyMessage for specific intent.
-func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree) ([]*ApplicationResult, error) {
+func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree) (ars []*ApplicationResult, err error) {
+	ctx = log.Start(ctx, "ProcessBlock")
+	defer func() {
+		log.SetTag(ctx, "block", blk.Cid())
+		log.FinishWithErr(ctx, err)
+	}()
 	var results []*ApplicationResult
 	var emptyResults []*ApplicationResult
 	bh := types.NewBlockHeight(blk.Height)
@@ -143,7 +148,11 @@ type ApplicationResult struct {
 //   - ApplyMessage and VMContext.Send() are the only things that should call
 //     Send() -- all the user-actor logic goes in ApplyMessage and all the
 //     actor-actor logic goes in VMContext.Send
-func ApplyMessage(ctx context.Context, st state.Tree, msg *types.Message, bh *types.BlockHeight) (*ApplicationResult, error) {
+func ApplyMessage(ctx context.Context, st state.Tree, msg *types.Message, bh *types.BlockHeight) (ar *ApplicationResult, err error) {
+	ctx = log.Start(ctx, "ApplyMessage")
+	defer func() {
+		log.SetTag(ctx, "message", msg)
+	}()
 	cachedStateTree := state.NewCachedStateTree(st)
 
 	r, err := attemptApplyMessage(ctx, cachedStateTree, msg, bh)

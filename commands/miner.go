@@ -36,28 +36,40 @@ message to be mined as this is required to return the address of the new miner.`
 	Options: []cmdkit.Option{
 		cmdkit.StringOption("from", "address to send from"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "minerCreateCmd")
+		defer func() {
+			log.SetTags(req.Context, map[string]interface{}{
+				"args": req.Arguments,
+				"path": req.Path,
+			})
+			log.FinishWithErr(req.Context, err)
+		}()
 		n := GetNode(env)
 
 		fromAddr, err := fromAddress(req.Options, n)
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "from-address", fromAddr.String())
 
 		pledge, ok := types.NewBytesAmountFromString(req.Arguments[0], 10)
 		if !ok {
 			return ErrInvalidPledge
 		}
+		log.SetTag(req.Context, "pledge", pledge.String())
 
 		collateral, ok := types.NewTokenAmountFromString(req.Arguments[1], 10)
 		if !ok {
 			return ErrInvalidCollateral
 		}
+		log.SetTag(req.Context, "collateral", collateral.String())
 
 		addr, err := n.CreateMiner(req.Context, fromAddr, *pledge, *collateral)
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "addr", addr.String())
 
 		return re.Emit(addr)
 	},
@@ -81,28 +93,40 @@ var minerAddAskCmd = &cmds.Command{
 	Options: []cmdkit.Option{
 		cmdkit.StringOption("from", "address to send the ask from"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "minerAddAskCmd")
+		defer func() {
+			log.SetTags(req.Context, map[string]interface{}{
+				"args": req.Arguments,
+				"path": req.Path,
+			})
+			log.FinishWithErr(req.Context, err)
+		}()
 		n := GetNode(env)
 
 		fromAddr, err := fromAddress(req.Options, n)
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "from-address", fromAddr.String())
 
 		minerAddr, err := types.NewAddressFromString(req.Arguments[0])
 		if err != nil {
 			return errors.Wrap(err, "invalid miner address")
 		}
+		log.SetTag(req.Context, "miner-address", minerAddr.String())
 
 		size, ok := types.NewBytesAmountFromString(req.Arguments[1], 10)
 		if !ok {
 			return ErrInvalidSize
 		}
+		log.SetTag(req.Context, "size", size.String())
 
 		price, ok := types.NewTokenAmountFromString(req.Arguments[2], 10)
 		if !ok {
 			return ErrInvalidPrice
 		}
+		log.SetTag(req.Context, "price", price.String())
 
 		params, err := abi.ToEncodedValues(price, size)
 		if err != nil {
@@ -122,6 +146,7 @@ var minerAddAskCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "msg", c.String())
 
 		re.Emit(c) // nolint: errcheck
 

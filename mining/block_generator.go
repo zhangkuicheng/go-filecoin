@@ -76,7 +76,17 @@ func ApplyMessages(ctx context.Context, messages []*types.Message, st state.Tree
 }
 
 // Generate returns a new block created from the messages in the pool.
-func (b blockGenerator) Generate(ctx context.Context, baseBlock *types.Block, ticket types.Signature, nullBlockCount uint64, rewardAddress types.Address) (*types.Block, error) {
+func (b blockGenerator) Generate(ctx context.Context, baseBlock *types.Block, ticket types.Signature, nullBlockCount uint64, rewardAddress types.Address) (blk *types.Block, err error) {
+	ctx = log.Start(ctx, "Generate")
+	defer func() {
+		log.SetTags(ctx, map[string]interface{}{
+			"base-block":       baseBlock.Cid().String(),
+			"reward-address":   rewardAddress.String(),
+			"ticket":           string(ticket),
+			"null-block-count": nullBlockCount,
+			"new-block":        blk.Cid().String(),
+		})
+	}()
 	stateTree, err := b.getStateTree(ctx, baseBlock.StateRoot)
 	if err != nil {
 		return nil, err

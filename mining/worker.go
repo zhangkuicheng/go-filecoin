@@ -94,6 +94,11 @@ func NewWorkerWithDeps(blockGenerator BlockGenerator, mine mineFunc, createPoST 
 // MineOnce is a convenience function that presents a synchronous blocking
 // interface to the worker.
 func MineOnce(ctx context.Context, w Worker, tipSets []core.TipSet, rewardAddress types.Address) Output {
+	ctx = log.Start(ctx, "Worker.MineOnce")
+	defer func() {
+		log.SetTag(ctx, "reward-address", rewardAddress.String())
+		log.Finish(ctx)
+	}()
 	subCtx, subCtxCancel := context.WithCancel(ctx)
 	defer subCtxCancel()
 
@@ -116,6 +121,7 @@ func MineOnce(ctx context.Context, w Worker, tipSets []core.TipSet, rewardAddres
 // take the input channel from the caller and then shut everything down
 // when the input channel is closed.
 func (w *AsyncWorker) Start(miningCtx context.Context) (chan<- Input, <-chan Output, *sync.WaitGroup) {
+	miningCtx = log.Start(miningCtx, "AsyncWorker.Start")
 	inCh := make(chan Input)
 	outCh := make(chan Output)
 	var doneWg sync.WaitGroup
@@ -123,6 +129,7 @@ func (w *AsyncWorker) Start(miningCtx context.Context) (chan<- Input, <-chan Out
 	doneWg.Add(1)
 	go func() {
 		defer doneWg.Done()
+		defer log.Finish(miningCtx)
 		var currentRunCtx context.Context
 		var currentRunCancel = func() {}
 		var currentBlock *types.Block

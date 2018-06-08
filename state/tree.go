@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	logging "gx/ipfs/QmPuosXfnE2Xrdiw95D78AhW41GYwGqpstKMf4TEsE4f33/go-log"
 	cbor "gx/ipfs/QmRVSCwQtW1rjHCay9NqKXDwbtKTgDcN4iY7PrpSqfKM5D/go-ipld-cbor"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
@@ -12,6 +13,8 @@ import (
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 )
+
+var log = logging.Logger("state/tree")
 
 // tree is a state tree that maps addresses to actors.
 type tree struct {
@@ -40,7 +43,13 @@ type Tree interface {
 var _ Tree = &tree{}
 
 // LoadStateTree loads the state tree referenced by the given cid.
-func LoadStateTree(ctx context.Context, store *hamt.CborIpldStore, c *cid.Cid, builtinActors map[string]exec.ExecutableActor) (Tree, error) {
+func LoadStateTree(ctx context.Context, store *hamt.CborIpldStore, c *cid.Cid, builtinActors map[string]exec.ExecutableActor) (t Tree, err error) {
+	ctx = log.Start(ctx, "LoadStateTree")
+	defer func() {
+		log.SetTag(ctx, "root", c.String())
+		log.FinishWithErr(ctx, err)
+	}()
+
 	root, err := hamt.LoadNode(ctx, store, c)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load node")
@@ -75,7 +84,13 @@ func newEmptyStateTree(store *hamt.CborIpldStore) *tree {
 
 // Flush serialized the state tree and flushes unflushed changes to the backing
 // datastore. The cid of the state tree is returned.
-func (t *tree) Flush(ctx context.Context) (*cid.Cid, error) {
+func (t *tree) Flush(ctx context.Context) (cid *cid.Cid, err error) {
+	ctx = log.Start(ctx, "Flush")
+	defer func() {
+		log.SetTag(ctx, "root", cid.String())
+		log.FinishWithErr(ctx, err)
+	}()
+
 	if err := t.root.Flush(ctx); err != nil {
 		return nil, err
 	}
@@ -120,7 +135,13 @@ func (t *tree) GetBuiltinActorCode(codePointer *cid.Cid) (exec.ExecutableActor, 
 // GetActor retrieves an actor by their address. If no actor
 // exists at the given address then an error will be returned
 // for which IsActorNotFoundError(err) is true.
-func (t *tree) GetActor(ctx context.Context, a types.Address) (*types.Actor, error) {
+func (t *tree) GetActor(ctx context.Context, a types.Address) (actor *types.Actor, err error) {
+	ctx = log.Start(ctx, "GetActor")
+	defer func() {
+		log.SetTag(ctx, "address", a.String())
+		log.FinishWithErr(ctx, err)
+	}()
+
 	data, err := t.root.Find(ctx, a.String())
 	if err == hamt.ErrNotFound {
 		return nil, &actorNotFoundError{}
@@ -138,7 +159,13 @@ func (t *tree) GetActor(ctx context.Context, a types.Address) (*types.Actor, err
 
 // GetOrCreateActor retrieves an actor by their address
 // If no actor exists at the given address it returns a newly initialized actor.
-func (t *tree) GetOrCreateActor(ctx context.Context, address types.Address, creator func() (*types.Actor, error)) (*types.Actor, error) {
+func (t *tree) GetOrCreateActor(ctx context.Context, address types.Address, creator func() (*types.Actor, error)) (actor *types.Actor, err error) {
+	ctx = log.Start(ctx, "GetOrCreateActor")
+	defer func() {
+		log.SetTag(ctx, "address", address.String())
+		log.FinishWithErr(ctx, err)
+	}()
+
 	act, err := t.GetActor(ctx, address)
 	if IsActorNotFoundError(err) {
 		return creator()
@@ -148,7 +175,13 @@ func (t *tree) GetOrCreateActor(ctx context.Context, address types.Address, crea
 
 // SetActor sets the memory slot at address 'a' to the given actor.
 // This operation can overwrite existing actors at that address.
-func (t *tree) SetActor(ctx context.Context, a types.Address, act *types.Actor) error {
+func (t *tree) SetActor(ctx context.Context, a types.Address, act *types.Actor) (err error) {
+	ctx = log.Start(ctx, "SetActor")
+	defer func() {
+		log.SetTag(ctx, "address", a.String())
+		log.FinishWithErr(ctx, err)
+	}()
+
 	data, err := act.Marshal()
 	if err != nil {
 		return errors.Wrap(err, "marshal actor failed")

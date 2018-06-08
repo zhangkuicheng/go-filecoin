@@ -14,7 +14,7 @@ func main() {
 	//		`go-filecoin log level "system" "level"`
 	// TODO: find a better home for this
 	// TODO fix this in go-log 4 == INFO
-	logging.SetAllLoggers(4)
+	logging.SetAllLoggers(5)
 
 	// TODO implement help text like so:
 	// https://github.com/ipfs/go-ipfs/blob/master/core/commands/root.go#L91

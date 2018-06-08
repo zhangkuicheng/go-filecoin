@@ -213,7 +213,7 @@ func TestStateTreeMarketPeekerAddsDeal(t *testing.T) {
 	nd := MakeNodesUnstarted(t, 1, false)[0]
 	err := nd.ChainMgr.Genesis(ctx, core.InitGenesis)
 	assert.NoError(err)
-	assert.NoError(nd.Start())
+	assert.NoError(nd.Start(ctx))
 
 	msa := &stateTreeMarketPeeker{nd}
 

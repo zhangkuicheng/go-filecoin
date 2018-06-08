@@ -92,6 +92,7 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 func (node *Node) AddNewMessage(ctx context.Context, msg *types.Message) (err error) {
 	ctx = log.Start(ctx, "Node.AddNewMessage")
 	log.SetTag(ctx, "message", msg)
+	//TODO(frrist) may need to add msg.CID here
 	defer func() {
 		log.FinishWithErr(ctx, err)
 	}()
