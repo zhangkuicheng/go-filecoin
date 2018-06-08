@@ -41,7 +41,12 @@ type Processor func(ctx context.Context, blk *types.Block, st state.Tree) ([]*ty
 // error was thrown causing any state changes to be rolled back.
 // See comments on ApplyMessage for specific intent.
 //
-func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree) ([]*types.MessageReceipt, error) {
+func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree) (mr []*types.MessageReceipt, err error) {
+	ctx = log.Start(ctx, "ProcessBlock")
+	defer func() {
+		log.SetTag(ctx, "block", blk.Cid())
+		log.FinishWithErr(ctx, err)
+	}()
 	var receipts []*types.MessageReceipt
 	emptyReceipts := []*types.MessageReceipt{}
 	bh := types.NewBlockHeight(blk.Height)
@@ -136,7 +141,11 @@ func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree) ([]*type
 //   - ApplyMessage and VMContext.Send() are the only things that should call
 //     Send() -- all the user-actor logic goes in ApplyMessage and all the
 //     actor-actor logic goes in VMContext.Send
-func ApplyMessage(ctx context.Context, st state.Tree, msg *types.Message, bh *types.BlockHeight) (*types.MessageReceipt, error) {
+func ApplyMessage(ctx context.Context, st state.Tree, msg *types.Message, bh *types.BlockHeight) (mr *types.MessageReceipt, err error) {
+	ctx = log.Start(ctx, "ApplyMessage")
+	defer func() {
+		log.SetTag(ctx, "message", msg)
+	}()
 	cachedStateTree := state.NewCachedStateTree(st)
 
 	r, err := attemptApplyMessage(ctx, cachedStateTree, msg, bh)

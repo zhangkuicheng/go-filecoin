@@ -194,11 +194,14 @@ go-filecoin swarm connect /ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUE
 		cmdkit.StringArg("address", true, true, "Address of peer to connect to.").EnableStdin(),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+		req.Context = log.Start(req.Context, "swarmConnectCmd")
+		defer log.Finish(req.Context)
 		ctx := req.Context
 
 		n := GetNode(env)
 
 		addrs := req.Arguments
+		log.SetTag(req.Context, "addrs", addrs)
 
 		snet, ok := n.Host.Network().(*swarm.Network)
 		if !ok {
@@ -214,14 +217,22 @@ go-filecoin swarm connect /ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUE
 
 		output := make([]connectResult, len(pis))
 		for i, pi := range pis {
+			var err error
+			ctx := log.Start(ctx, "swarmConnectCmdTo")
+			defer log.FinishWithErr(ctx, err)
+
 			swrm.Backoff().Clear(pi.ID)
 
 			output[i].Peer = pi.ID.Pretty()
 
-			err := n.Host.Connect(ctx, pi)
+			err = n.Host.Connect(ctx, pi)
+			log.SetTag(ctx, "peer", output[i].Peer)
+			err = n.Host.Connect(ctx, pi)
 			if err != nil {
+				log.SetTag(ctx, "outcome", "failure")
 				return fmt.Errorf("%s failure: %s", output[i].Peer, err)
 			}
+			log.SetTag(ctx, "outcome", "success")
 		}
 
 		re.Emit(output) // nolint: errcheck

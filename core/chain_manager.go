@@ -143,6 +143,7 @@ func (s *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err er
 
 	s.bestBlock.Lock()
 	defer s.bestBlock.Unlock()
+	log.SetTag(ctx, "genesis", genesis.Cid().String())
 	return s.setBestBlock(ctx, genesis)
 }
 

@@ -6,10 +6,14 @@ package vm
 import (
 	"context"
 
+	logging "gx/ipfs/QmPuosXfnE2Xrdiw95D78AhW41GYwGqpstKMf4TEsE4f33/go-log"
+
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
 )
+
+var log = logging.Logger("vm")
 
 var (
 	// Most errors should live in the actors that throw them. However some
@@ -23,7 +27,12 @@ var (
 
 // Send executes a message pass inside the VM. If error is set it
 // will always satisfy either ShouldRevert() or IsFault().
-func Send(ctx context.Context, vmCtx *Context) ([]byte, uint8, error) {
+func Send(ctx context.Context, vmCtx *Context) (b []byte, ret uint8, err error) {
+	ctx = log.Start(ctx, "Send")
+	defer func() {
+		log.SetTag(ctx, "message", vmCtx.message)
+		log.FinishWithErr(ctx, err)
+	}()
 	deps := sendDeps{
 		transfer: transfer,
 	}

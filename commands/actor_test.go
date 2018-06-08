@@ -75,7 +75,7 @@ func TestActorLs(t *testing.T) {
 		var chainMgrForTest *core.ChainManagerForTest // nolint: gosimple, megacheck
 		chainMgrForTest = nd.ChainMgr
 		chainMgrForTest.SetBestBlockForTest(ctx, b1)
-		assert.NoError(nd.Start())
+		assert.NoError(nd.Start(ctx))
 		tokenAmount := types.NewTokenAmount(100)
 
 		getActors := func(context.Context, *hamt.CborIpldStore, *cid.Cid) ([]string, []*types.Actor, error) {

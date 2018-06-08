@@ -83,7 +83,7 @@ func getRepo(req *cmds.Request) (repo.Repo, error) {
 }
 
 func runAPIAndWait(ctx context.Context, node *node.Node, config *config.Config, req *cmds.Request) error {
-	if err := node.Start(); err != nil {
+	if err := node.Start(ctx); err != nil {
 		return err
 	}
 
@@ -131,7 +131,7 @@ func runAPIAndWait(ctx context.Context, node *node.Node, config *config.Config, 
 	if err := apiserv.Shutdown(ctx); err != nil {
 		fmt.Println("failed to shut down api server:", err)
 	}
-	node.Stop()
+	node.Stop(ctx)
 
 	return nil
 }

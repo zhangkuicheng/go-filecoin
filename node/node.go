@@ -144,6 +144,8 @@ func RewardAddress(addr types.Address) ConfigOpt {
 
 // New creates a new node.
 func New(ctx context.Context, opts ...ConfigOpt) (*Node, error) {
+	ctx = log.Start(ctx, "New")
+	defer log.Finish(ctx)
 	n := &Config{}
 	for _, o := range opts {
 		if err := o(n); err != nil {
@@ -156,6 +158,8 @@ func New(ctx context.Context, opts ...ConfigOpt) (*Node, error) {
 
 // Build instantiates a filecoin Node from the settings specified in the config.
 func (nc *Config) Build(ctx context.Context) (*Node, error) {
+	ctx = log.Start(ctx, "Build")
+	defer log.Finish(ctx)
 	var host host.Host
 
 	if !nc.OfflineMode {
@@ -253,7 +257,9 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 }
 
 // Start boots up the node.
-func (node *Node) Start() error {
+func (node *Node) Start(ctx context.Context) error {
+	ctx = log.Start(ctx, "Start")
+	defer log.Finish(ctx)
 	if err := node.ChainMgr.Load(); err != nil {
 		return err
 	}
@@ -407,7 +413,9 @@ func (node *Node) cancelSubscriptions() {
 }
 
 // Stop initiates the shutdown of the node.
-func (node *Node) Stop() {
+func (node *Node) Stop(ctx context.Context) {
+	ctx = log.Start(ctx, "Stop")
+	defer log.Finish(ctx)
 	node.ChainMgr.BestBlockPubSub.Unsub(node.BestBlockCh)
 	if node.cancelMining != nil {
 		node.cancelMining()
@@ -445,14 +453,19 @@ func (node *Node) addNewlyMinedBlock(ctx context.Context, b *types.Block) {
 }
 
 // StartMining causes the node to start feeding blocks to the mining worker.
-func (node *Node) StartMining() error {
+func (node *Node) StartMining(ctx context.Context) error {
+	ctx = log.Start(ctx, "StartMining")
+
 	if node.rewardAddress == (types.Address{}) {
 		return ErrNoRewardAddress
 	}
 	node.setIsMining(true)
 	node.miningDoneWg.Add(1)
 	go func() {
-		defer func() { node.miningDoneWg.Done() }()
+		defer func() {
+			node.miningDoneWg.Done()
+			log.Finish(ctx)
+		}()
 		// TODO(EC): Here is where we kick mining off when we start off. Will
 		// need to change to pass in best tipsets, of which there can be multiple.
 		bb := node.ChainMgr.GetBestBlock()
@@ -467,13 +480,18 @@ func (node *Node) StartMining() error {
 }
 
 // StopMining stops mining on new blocks.
-func (node *Node) StopMining() {
+func (node *Node) StopMining(ctx context.Context) {
+	ctx = log.Start(ctx, "StartMining")
+	defer log.Finish(ctx)
 	// TODO should probably also keep track of and cancel last mining.Input.Ctx.
 	node.setIsMining(false)
 }
 
 // GetSignature fetches the signature for the given method on the appropriate actor.
 func (node *Node) GetSignature(ctx context.Context, actorAddr types.Address, method string) (*exec.FunctionSignature, error) {
+	ctx = log.Start(ctx, "GetSignature")
+	defer log.Finish(ctx)
+
 	st, err := state.LoadStateTree(ctx, node.CborStore, node.ChainMgr.GetBestBlock().StateRoot, builtin.Actors)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load state tree")

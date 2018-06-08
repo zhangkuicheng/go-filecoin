@@ -45,7 +45,7 @@ func MakeNodesStarted(t *testing.T, n int, offlineMode bool) []*Node {
 	t.Helper()
 	nds := MakeNodesUnstarted(t, n, offlineMode)
 	for _, n := range nds {
-		require.NoError(t, n.Start())
+		require.NoError(t, n.Start(context.Background()))
 	}
 	return nds
 }

@@ -45,25 +45,38 @@ var clientAddBidCmd = &cmds.Command{
 	Options: []cmdkit.Option{
 		cmdkit.StringOption("from", "address to send the bid from"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "clientAddBidCmd")
+		defer func() {
+			log.SetTags(req.Context, map[string]interface{}{
+				"args": req.Arguments,
+				"path": req.Path,
+			})
+			log.FinishWithErr(req.Context, err)
+		}()
+
 		n := GetNode(env)
 
 		fromAddr, err := fromAddress(req.Options, n)
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "from-address", fromAddr.String())
 
 		size, ok := types.NewBytesAmountFromString(req.Arguments[0], 10)
 		if !ok {
 			return ErrInvalidSize
 		}
+		log.SetTag(req.Context, "size", size.String())
 
 		price, ok := types.NewTokenAmountFromString(req.Arguments[1], 10)
 		if !ok {
 			return ErrInvalidPrice
 		}
+		log.SetTag(req.Context, "price", price.String())
 
 		funds := price.CalculatePrice(size)
+		log.SetTag(req.Context, "funds", funds.String())
 
 		params, err := abi.ToEncodedValues(price, size)
 		if err != nil {
@@ -84,6 +97,7 @@ var clientAddBidCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "msg", msgCid.String())
 
 		re.Emit(msgCid) // nolint: errcheck
 
@@ -144,23 +158,34 @@ var clientProposeDealCmd = &cmds.Command{
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("data", true, false, "bid to propose a deal with"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "clientProposeDealCmd")
+		defer func() {
+			log.SetTags(req.Context, map[string]interface{}{
+				"args": req.Arguments,
+				"path": req.Path,
+			})
+			log.FinishWithErr(req.Context, err)
+		}()
 		nd := GetNode(env)
 
 		askID, ok := req.Options["ask"].(int)
 		if !ok {
 			return fmt.Errorf("must specify an ask")
 		}
+		log.SetTag(req.Context, "ask-id", askID)
 
 		bidID, ok := req.Options["bid"].(int)
 		if !ok {
 			return fmt.Errorf("must specify a bid")
 		}
+		log.SetTag(req.Context, "bid-id", bidID)
 
 		data, err := cid.Decode(req.Arguments[0])
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "data", data.String())
 
 		defaddr := nd.RewardAddress()
 
@@ -177,6 +202,8 @@ var clientProposeDealCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "deal-status", resp.State.String())
+		log.SetTag(req.Context, "deal-id", resp.ID)
 
 		re.Emit(resp) // nolint: errcheck
 		return nil
