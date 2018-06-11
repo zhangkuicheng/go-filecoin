@@ -24,6 +24,8 @@ jobs:
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     steps:
       - checkout
+      - attach_workspace:
+          at: "."
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -36,6 +38,8 @@ jobs:
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     steps:
       - checkout
+      - attach_workspace:
+          at: "."
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -50,6 +54,8 @@ jobs:
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     steps:
       - checkout
+      - attach_workspace:
+          at: "."
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
