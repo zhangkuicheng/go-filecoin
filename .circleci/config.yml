@@ -1,37 +1,73 @@
 version: 2
 jobs:
-  build:
+  fetch_deps:
     docker:
       - image: circleci/golang:1.10
-
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     steps:
       - add_ssh_keys:
           fingerprints:
             - "1e:73:c5:15:75:e0:e4:98:54:3c:2b:9e:e8:94:14:2e"
-
       - checkout
-
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
-
-      - run:
-          name: Install Dependencies
-          command: go run ./build/*.go deps
-
+      - run: go run ./build/*.go deps
       - save_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
           paths:
             - "/go/pkg"
             - "/go/src/gx" # gx deps
+
+  build:
+    docker:
+      - image: circleci/golang:1.110
+    working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    steps:
+      - checkout
+      - restore_cache:
+          key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
           name: Build
           command: go run ./build/*.go build
+
+  test:
+    docker:
+      - image: circleci/golang:1.110
+    working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    steps:
+      - checkout
+      - restore_cache:
+          key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
           name: Test
           command: |
             go test ./... -v -covermode=atomic -coverprofile=coverage.txt &&
             bash <(curl -s https://codecov.io/bash)
+
+  lint:
+    docker:
+      - image: circleci/golang:1.110
+    working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    steps:
+      - checkout
+      - restore_cache:
+          key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
           name: Lint
           command: go run ./build/*.go lint
+
+
+workflows:
+  version: 2
+  test_all:
+    jobs:
+      - fetch_deps
+      - lint:
+          requires:
+            - fetch_deps
+      - test:
+          requires:
+            - fetch_deps
+      - build:
+          requires:
+            - fetch_deps
