@@ -20,7 +20,7 @@ jobs:
 
   build:
     docker:
-      - image: circleci/golang:1.110
+      - image: circleci/golang:1.10
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     steps:
       - checkout
@@ -32,7 +32,7 @@ jobs:
 
   test:
     docker:
-      - image: circleci/golang:1.110
+      - image: circleci/golang:1.10
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     steps:
       - checkout
@@ -46,7 +46,7 @@ jobs:
 
   lint:
     docker:
-      - image: circleci/golang:1.110
+      - image: circleci/golang:1.10
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     steps:
       - checkout
