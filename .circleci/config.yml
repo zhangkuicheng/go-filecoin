@@ -21,8 +21,8 @@ jobs:
       - persist_to_workspace:
           root: "/go"
           paths:
-            - "/pkg"
-            - "/src"
+            - "pkg"
+            - "src"
       - save_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
           paths:
