@@ -1,9 +1,15 @@
 version: 2
+
+defaults: &defaults
+  working_directory: /go/src/github.com/filecoin-project/go-filecoin
+  docker:
+    - image: circleci/golang:1.10
+  environment:
+    GOPATH: /go
+
 jobs:
   fetch_deps:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    <<: *defaults
     steps:
       - add_ssh_keys:
           fingerprints:
@@ -12,6 +18,11 @@ jobs:
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run: go run ./build/*.go deps
+      - persist_to_workspace:
+          root: "/go"
+          paths:
+            - "/pkg"
+            - "/src"
       - save_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
           paths:
@@ -19,13 +30,11 @@ jobs:
             - "/go/src/gx" # gx deps
 
   build:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    <<: *defaults
     steps:
       - checkout
       - attach_workspace:
-          at: "."
+          at: "/go"
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -33,13 +42,11 @@ jobs:
           command: go run ./build/*.go build
 
   test:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    <<: *defaults
     steps:
       - checkout
       - attach_workspace:
-          at: "."
+          at: "/go"
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -49,13 +56,11 @@ jobs:
             bash <(curl -s https://codecov.io/bash)
 
   lint:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    <<: *defaults
     steps:
       - checkout
       - attach_workspace:
-          at: "."
+          at: "/go"
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
