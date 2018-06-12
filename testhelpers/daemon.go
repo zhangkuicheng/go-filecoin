@@ -117,19 +117,18 @@ func runCommand(cmd string, opts ...string) ([]byte, error) {
 }
 
 // Logf is a daemon logger
-// TODO print the daemon api like `Log` see below
 func (d *Daemon) Logf(format string, a ...interface{}) {
-	fmt.Printf(format, a...)
+	fmt.Printf("[%s]\t%s\n", d.CmdAddr, fmt.Sprintf(format, a...))
 }
 
 // Log is a daemon logger
 func (d *Daemon) Info(msg ...string) {
-	fmt.Printf("[%s]\t %s", d.CmdAddr, msg)
+	fmt.Printf("[%s]\t %s\n", d.CmdAddr, msg)
 }
 
 // Log is a daemon logger
 func (d *Daemon) Error(err error) {
-	fmt.Errorf("[%s]\t %s", d.CmdAddr, err)
+	fmt.Errorf("[%s]\t %s\n", d.CmdAddr, err)
 }
 
 // Run runs commands on the daemon
@@ -151,7 +150,7 @@ func (d *Daemon) RunWithStdin(stdin io.Reader, args ...string) (*Output, error) 
 
 	finalArgs := append(args, "--repodir="+d.RepoDir, "--cmdapiaddr="+d.CmdAddr)
 
-	d.Logf("run: %q", strings.Join(finalArgs, " "))
+	d.Logf("run: %q\n", strings.Join(finalArgs, " "))
 	cmd := exec.Command(bin, finalArgs...)
 
 	if stdin != nil {

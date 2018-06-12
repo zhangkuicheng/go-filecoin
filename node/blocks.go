@@ -17,7 +17,7 @@ const MessageTopic = "/fil/msgs"
 
 // AddNewBlock processes a block on the local chain and publishes it to the network.
 func (node *Node) AddNewBlock(ctx context.Context, b *types.Block) (err error) {
-	ctx = log.Start(ctx, "Node.AddNewBlock")
+	ctx = log.Start(ctx, "AddNewBlock")
 	log.SetTag(ctx, "block", b)
 	defer func() {
 		log.FinishWithErr(ctx, err)
@@ -47,7 +47,7 @@ func (node *Node) handleSubscription(ctx context.Context, f floodSubProcessorFun
 }
 
 func (node *Node) processBlock(ctx context.Context, pubSubMsg *floodsub.Message) (err error) {
-	ctx = log.Start(ctx, "Node.processBlock")
+	ctx = log.Start(ctx, "processBlock")
 	defer func() {
 		log.FinishWithErr(ctx, err)
 	}()
@@ -61,7 +61,7 @@ func (node *Node) processBlock(ctx context.Context, pubSubMsg *floodsub.Message)
 	if err != nil {
 		return errors.Wrap(err, "got bad block data")
 	}
-	log.SetTag(ctx, "block", blk)
+	log.SetTag(ctx, "block", blk.Cid().String())
 
 	res, err := node.ChainMgr.ProcessNewBlock(ctx, blk)
 	if err != nil {
@@ -73,7 +73,7 @@ func (node *Node) processBlock(ctx context.Context, pubSubMsg *floodsub.Message)
 }
 
 func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Message) (err error) {
-	ctx = log.Start(ctx, "Node.processMessage")
+	ctx = log.Start(ctx, "processMessage")
 	defer func() {
 		log.FinishWithErr(ctx, err)
 	}()
@@ -90,10 +90,13 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 
 // AddNewMessage adds a new message to the pool and publishes it to the network.
 func (node *Node) AddNewMessage(ctx context.Context, msg *types.Message) (err error) {
-	ctx = log.Start(ctx, "Node.AddNewMessage")
-	log.SetTag(ctx, "message", msg)
+	ctx = log.Start(ctx, "AddNewMessage")
 	//TODO(frrist) may need to add msg.CID here
 	defer func() {
+		log.SetTag(ctx, "method", msg.Method)
+		log.SetTag(ctx, "nonce", msg.Nonce)
+		log.SetTag(ctx, "from", msg.From)
+		log.SetTag(ctx, "to", msg.To)
 		log.FinishWithErr(ctx, err)
 	}()
 
