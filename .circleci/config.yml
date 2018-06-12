@@ -18,26 +18,17 @@ jobs:
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run: go run ./build/*.go deps
-      - run: du -sh /go/pkg
-      - run: du -sh /go/src
-      - persist_to_workspace:
-          root: "/go"
-          paths:
-            - "pkg"
-            - "src"
       - save_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
           paths:
             - "/go/pkg"
-            - "/go/src/gx" # gx deps
+            - "/go/src"
 
   build:
     <<: *defaults
     steps:
       - checkout
       - run: sudo apt-get install tar
-      - attach_workspace:
-          at: "/go"
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -49,8 +40,6 @@ jobs:
     steps:
       - checkout
       - run: sudo apt-get install tar
-      - attach_workspace:
-          at: "/go"
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -64,8 +53,6 @@ jobs:
     steps:
       - checkout
       - run: sudo apt-get install tar
-      - attach_workspace:
-          at: "/go"
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
