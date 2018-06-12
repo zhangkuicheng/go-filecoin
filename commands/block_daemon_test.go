@@ -7,13 +7,15 @@ import (
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/require"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestBlockDaemon(t *testing.T) {
 	t.Run("show block <cid-of-genesis-block> --enc json returns JSON for a Filecoin block", func(t *testing.T) {
 		require := require.New(t)
 
-		d := NewDaemon(t).Start()
+		d := th.NewDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		// mine a block and get its CID

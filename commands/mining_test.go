@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func parseInt(assert *assert.Assertions, s string) *big.Int {
@@ -18,7 +20,7 @@ func parseInt(assert *assert.Assertions, s string) *big.Int {
 
 func TestMinerGenBlock(t *testing.T) {
 	assert := assert.New(t)
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	t.Log("[success] address in local wallet")

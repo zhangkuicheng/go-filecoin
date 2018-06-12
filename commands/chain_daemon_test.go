@@ -10,6 +10,8 @@ import (
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestChainDaemon(t *testing.T) {
@@ -17,16 +19,16 @@ func TestChainDaemon(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
 
-		d := NewDaemon(t).Start()
+		d := th.NewDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op1 := d.RunSuccess("mining", "once", "--enc", "text")
-		result1 := op1.readStdoutTrimNewlines()
+		result1 := op1.ReadStdoutTrimNewlines()
 		c, err := cid.Parse(result1)
 		require.NoError(err)
 
 		op2 := d.RunSuccess("chain", "ls", "--enc", "json")
-		result2 := op2.readStdoutTrimNewlines()
+		result2 := op2.ReadStdoutTrimNewlines()
 
 		var bs []types.Block
 		for _, line := range bytes.Split([]byte(result2), []byte{'\n'}) {
@@ -48,11 +50,11 @@ func TestChainDaemon(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
 
-		d := NewDaemon(t).Start()
+		d := th.NewDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op := d.RunSuccess("chain", "ls", "--enc", "json")
-		result := op.readStdoutTrimNewlines()
+		result := op.ReadStdoutTrimNewlines()
 
 		var b types.Block
 		err := json.Unmarshal([]byte(result), &b)

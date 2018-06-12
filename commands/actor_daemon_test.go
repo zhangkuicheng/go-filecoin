@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestActorDaemon(t *testing.T) {
@@ -14,11 +16,11 @@ func TestActorDaemon(t *testing.T) {
 		require := require.New(t)
 		assert := assert.New(t)
 
-		d := NewDaemon(t).Start()
+		d := th.NewDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op1 := d.RunSuccess("actor", "ls", "--enc", "json")
-		result1 := op1.readStdoutTrimNewlines()
+		result1 := op1.ReadStdoutTrimNewlines()
 
 		var avs []actorView
 		for _, line := range bytes.Split([]byte(result1), []byte{'\n'}) {

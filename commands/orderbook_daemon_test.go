@@ -6,12 +6,14 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/stretchr/testify/assert"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestBidList(t *testing.T) {
 	assert := assert.New(t)
 
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -36,7 +38,7 @@ func TestBidList(t *testing.T) {
 func TestAskList(t *testing.T) {
 	assert := assert.New(t)
 
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	minerAddr := d.CreateMinerAddr()
@@ -62,12 +64,12 @@ func TestDealList(t *testing.T) {
 	assert := assert.New(t)
 
 	// make a client
-	client := NewDaemon(t).Start()
+	client := th.NewDaemon(t).Start()
 	defer func() { t.Log(client.ReadStderr()) }()
 	defer client.ShutdownSuccess()
 
 	// make a miner
-	miner := NewDaemon(t).Start()
+	miner := th.NewDaemon(t).Start()
 	defer func() { t.Log(miner.ReadStderr()) }()
 	defer miner.ShutdownSuccess()
 

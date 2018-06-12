@@ -13,12 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestClientAddBidSuccess(t *testing.T) {
 	assert := assert.New(t)
 
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -51,7 +52,7 @@ func TestClientAddBidSuccess(t *testing.T) {
 }
 
 func TestClientAddBidFail(t *testing.T) {
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 	d.CreateWalletAddr()
 
@@ -75,10 +76,10 @@ func TestClientAddBidFail(t *testing.T) {
 func TestProposeDeal(t *testing.T) {
 	assert := assert.New(t)
 
-	dcli := NewDaemon(t).Start()
+	dcli := th.NewDaemon(t).Start()
 	defer func() { t.Log(dcli.ReadStderr()) }()
 	defer dcli.ShutdownSuccess()
-	dmin := NewDaemon(t).Start()
+	dmin := th.NewDaemon(t).Start()
 	defer func() { t.Log(dmin.ReadStderr()) }()
 	defer dmin.ShutdownSuccess()
 

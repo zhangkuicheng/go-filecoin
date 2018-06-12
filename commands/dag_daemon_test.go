@@ -8,9 +8,10 @@ import (
 	cbor "gx/ipfs/QmNRz7BDWfdFNVLt7AVvmRefkrURD25EeoipcXqo6yoXU1/go-ipld-cbor"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/require"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
+	"github.com/filecoin-project/go-filecoin/types"
 )
 
 func TestDagDaemon(t *testing.T) {
@@ -18,13 +19,13 @@ func TestDagDaemon(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
 
-		d := NewDaemon(t).Start()
+		d := th.NewDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		// get the CID of the genesis block from the "chain ls" command output
 
 		op1 := d.RunSuccess("chain", "ls", "--enc", "json")
-		result1 := op1.readStdoutTrimNewlines()
+		result1 := op1.ReadStdoutTrimNewlines()
 
 		genesisBlockJSONStr := bytes.Split([]byte(result1), []byte{'\n'})[0]
 
@@ -34,7 +35,7 @@ func TestDagDaemon(t *testing.T) {
 		// get an IPLD node from the DAG by its CID
 
 		op2 := d.RunSuccess("dag", "get", expected.Cid().String(), "--enc", "json")
-		result2 := op2.readStdoutTrimNewlines()
+		result2 := op2.ReadStdoutTrimNewlines()
 
 		ipldnode, err := cbor.FromJson(bytes.NewReader([]byte(result2)), types.DefaultHashFunction, -1)
 		require.NoError(err)

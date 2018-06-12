@@ -8,6 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/config"
 
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,7 @@ func TestConfigDaemon(t *testing.T) {
 	t.Run("config <key> prints config value", func(t *testing.T) {
 		assert := assert.New(t)
 
-		d := NewDaemon(t).Start()
+		d := th.NewDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op1 := d.RunSuccess("config", "bootstrap")
@@ -49,7 +50,7 @@ func TestConfigDaemon(t *testing.T) {
 	t.Run("config <key> <val> updates config", func(t *testing.T) {
 		assert := assert.New(t)
 
-		d := NewDaemon(t).Start()
+		d := th.NewDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op1 := d.RunSuccess("config", "bootstrap",

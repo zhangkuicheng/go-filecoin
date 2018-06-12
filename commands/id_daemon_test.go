@@ -6,18 +6,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestId(t *testing.T) {
 	assert := assert.New(t)
 
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	id := d.RunSuccess("id")
 
 	idContent := id.ReadStdout()
-	assert.Containsf(idContent, d.swarmAddr, "default addr")
+	assert.Containsf(idContent, d.SwarmAddr, "default addr")
 	assert.Contains(idContent, "ID")
 
 }
@@ -25,7 +27,7 @@ func TestId(t *testing.T) {
 func TestIdFormat(t *testing.T) {
 	assert := assert.New(t)
 
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	idContent := d.RunSuccess("id",
@@ -34,7 +36,7 @@ func TestIdFormat(t *testing.T) {
 
 	assert.Contains(idContent, "\t")
 	assert.Contains(idContent, "\n")
-	assert.Containsf(idContent, d.swarmAddr, "default addr")
+	assert.Containsf(idContent, d.SwarmAddr, "default addr")
 	assert.NotContains(idContent, "ID")
 }
 
@@ -46,14 +48,14 @@ func TestPersistId(t *testing.T) {
 	require.NoError(t, err)
 
 	// Start a demon in dir
-	d1 := NewDaemon(t, RepoDir(dir)).Start()
+	d1 := th.NewDaemon(t, th.RepoDir(dir)).Start()
 
 	// get the id and kill it
 	id1 := d1.GetID()
 	d1.ShutdownSuccess()
 
 	// restart the daemon
-	d2 := NewDaemon(t, ShouldInit(false), RepoDir(dir)).Start()
+	d2 := th.NewDaemon(t, th.ShouldInit(false), th.RepoDir(dir)).Start()
 
 	// get the id and compare to previous
 	id2 := d2.GetID()

@@ -7,12 +7,14 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/stretchr/testify/assert"
+
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestAddrsNewAndList(t *testing.T) {
 	assert := assert.New(t)
 
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	addrs := make([]string, 10)
@@ -29,33 +31,33 @@ func TestAddrsNewAndList(t *testing.T) {
 func TestWalletBalance(t *testing.T) {
 	assert := assert.New(t)
 
-	d := NewDaemon(t).Start()
+	d := th.NewDaemon(t).Start()
 	defer d.ShutdownSuccess()
 	addr := d.CreateWalletAddr()
 
 	t.Log("[success] not found, zero")
 	balance := d.RunSuccess("wallet", "balance", addr)
-	assert.Equal("0", balance.readStdoutTrimNewlines())
+	assert.Equal("0", balance.ReadStdoutTrimNewlines())
 
 	t.Log("[success] balance 10000000")
 	balance = d.RunSuccess("wallet", "balance", address.NetworkAddress.String())
-	assert.Equal("10000000", balance.readStdoutTrimNewlines())
+	assert.Equal("10000000", balance.ReadStdoutTrimNewlines())
 
 	t.Log("[success] newly generated one")
 	addrNew := d.RunSuccess("wallet addrs new")
-	balance = d.RunSuccess("wallet", "balance", addrNew.readStdoutTrimNewlines())
-	assert.Equal("0", balance.readStdoutTrimNewlines())
+	balance = d.RunSuccess("wallet", "balance", addrNew.ReadStdoutTrimNewlines())
+	assert.Equal("0", balance.ReadStdoutTrimNewlines())
 }
 
 func TestAddrsLookup(t *testing.T) {
 	assert := assert.New(t)
 
 	//Define 2 nodes, each with an address
-	d1 := NewDaemon(t, SwarmAddr("/ip4/127.0.0.1/tcp/6000")).Start()
+	d1 := th.NewDaemon(t, th.SwarmAddr("/ip4/127.0.0.1/tcp/6000")).Start()
 	defer d1.ShutdownSuccess()
 	d1.CreateWalletAddr()
 
-	d2 := NewDaemon(t, SwarmAddr("/ip4/127.0.0.1/tcp/6001")).Start()
+	d2 := th.NewDaemon(t, th.SwarmAddr("/ip4/127.0.0.1/tcp/6001")).Start()
 	defer d2.ShutdownSuccess()
 	d2.CreateWalletAddr()
 
