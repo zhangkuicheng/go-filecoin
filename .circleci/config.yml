@@ -27,7 +27,7 @@ jobs:
   build:
     <<: *defaults
     steps:
-      # - checkout
+      - checkout
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -37,7 +37,7 @@ jobs:
   test:
     <<: *defaults
     steps:
-      # - checkout
+      - checkout
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -49,7 +49,7 @@ jobs:
   lint:
     <<: *defaults
     steps:
-      # - checkout
+      - checkout
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
