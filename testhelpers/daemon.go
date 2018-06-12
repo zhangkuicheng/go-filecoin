@@ -1,7 +1,6 @@
 package testhelpers
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,15 +15,15 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-filecoin/config"
-	"github.com/filecoin-project/go-filecoin/types"
 )
 
 // Daemon is a daemon
 type Daemon struct {
-	CmdAddr   string
-	SwarmAddr string
-	RepoDir   string
-	Init      bool
+	CmdAddr    string
+	SwarmAddr  string
+	RepoDir    string
+	Init       bool
+	waitMining bool
 
 	// The filecoin daemon process
 	process *exec.Cmd
@@ -74,7 +73,7 @@ func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 	if d.Init {
 		out, err := runInit(repodirFlag)
 		if err != nil {
-			d.Log(string(out))
+			d.Info(string(out))
 			return nil, err
 		}
 	}
@@ -124,8 +123,13 @@ func (d *Daemon) Logf(format string, a ...interface{}) {
 }
 
 // Log is a daemon logger
-func (d *Daemon) Log(msg ...string) {
+func (d *Daemon) Info(msg ...string) {
 	fmt.Printf("[%s]\t %s", d.CmdAddr, msg)
+}
+
+// Log is a daemon logger
+func (d *Daemon) Error(err error) {
+	fmt.Errorf("[%s]\t %s", d.CmdAddr, err)
 }
 
 // Run runs commands on the daemon
@@ -201,64 +205,6 @@ func (d *Daemon) RunWithStdin(stdin io.Reader, args ...string) (*Output, error) 
 	return o, nil
 }
 
-// GetID gets the peerid of the daemon
-// TODO don't panic be happy
-func (d *Daemon) GetID() string {
-	out, err := d.Run("id")
-	if err != nil {
-		panic(err)
-	}
-	var parsed map[string]interface{}
-	if err := json.Unmarshal([]byte(out.ReadStdout()), &parsed); err != nil {
-		panic(err)
-	}
-
-	return parsed["ID"].(string)
-}
-
-// GetAddress gets the libp2p address of the daemon
-// TODO don't panic be happy
-func (d *Daemon) GetAddress() string {
-	out, err := d.Run("id")
-	if err != nil {
-		panic(err)
-	}
-	var parsed map[string]interface{}
-	if err := json.Unmarshal([]byte(out.ReadStdout()), &parsed); err != nil {
-		panic(err)
-	}
-
-	adders := parsed["Addresses"].([]interface{})
-	return adders[0].(string)
-}
-
-// ConnectSuccess connects 2 daemons and pacnis if it fails
-// TODO don't panic be happy
-func (d *Daemon) ConnectSuccess(remote *Daemon) *Output {
-	// Connect the nodes
-	out, err := d.Run("swarm", "connect", remote.GetAddress())
-	if err != nil {
-		panic(err)
-	}
-	peers1, err := d.Run("swarm", "peers")
-	if err != nil {
-		panic(err)
-	}
-	peers2, err := remote.Run("swarm", "peers")
-	if err != nil {
-		panic(err)
-	}
-
-	if !strings.Contains(peers1.ReadStdout(), remote.GetID()) {
-		panic("failed to connect (2->1)")
-	}
-	if !strings.Contains(peers2.ReadStdout(), d.GetID()) {
-		panic("failed to connect (1->2)")
-	}
-
-	return out
-}
-
 // ReadStdout reads that
 func (d *Daemon) ReadStdout() string {
 	d.lk.Lock()
@@ -328,7 +274,7 @@ func (d *Daemon) ShutdownEasy() {
 	}
 	dOut := d.ReadStderr()
 	if strings.Contains(dOut, "ERROR") {
-		d.Log("Daemon has error messages")
+		d.Info("Daemon has error messages")
 	}
 }
 
@@ -342,66 +288,6 @@ func (d *Daemon) WaitForAPI() error {
 		time.Sleep(time.Millisecond * 100)
 	}
 	return fmt.Errorf("filecoin node failed to come online in given time period (20 seconds)")
-}
-
-// CreateMinerAddr issues a new message to the network, mines the message
-// and returns the address of the new miner
-// equivalent to:
-//     `go-filecoin miner create --from $TEST_ACCOUNT 100000 20`
-// TODO don't panic be happy
-func (d *Daemon) CreateMinerAddr() types.Address {
-	// need money
-	_, err := d.Run("mining", "once")
-	if err != nil {
-		panic(err)
-	}
-
-	addr := d.Config().Mining.RewardAddress
-
-	var wg sync.WaitGroup
-	var minerAddr types.Address
-
-	wg.Add(1)
-	go func() {
-		miner, err := d.Run("miner", "create", "--from", addr.String(), "1000000", "1000")
-		if err != nil {
-			panic(err)
-		}
-		addr, err := types.NewAddressFromString(strings.Trim(miner.ReadStdout(), "\n"))
-		if err != nil {
-			panic(err)
-		}
-		if addr.Empty() {
-			panic("got back empty address")
-		}
-		minerAddr = addr
-		wg.Done()
-	}()
-
-	_, err = d.Run("mining", "once")
-	if err != nil {
-		panic(err)
-	}
-
-	wg.Wait()
-	return minerAddr
-}
-
-// CreateWalletAddr adds a new address to the daemons wallet and
-// returns it.
-// equivalent to:
-//     `go-filecoin wallet addrs new`
-// TODO don't panic be happy
-func (d *Daemon) CreateWalletAddr() string {
-	outNew, err := d.Run("wallet", "addrs", "new")
-	if err != nil {
-		panic(err)
-	}
-	addr := strings.Trim(outNew.ReadStdout(), "\n")
-	if addr == "" {
-		panic("address is empty")
-	}
-	return addr
 }
 
 // Config is a helper to read out the config of the deamon
@@ -430,142 +316,6 @@ func (d *Daemon) MineAndPropagate(wait time.Duration, peers ...*Daemon) {
 	d.MustHaveChainHeadBy(wait, peers)
 }
 
-// MustHaveChainHeadBy ensures all `peers` have the same chain head as `d`, by
-// duration `wait`
-func (d *Daemon) MustHaveChainHeadBy(wait time.Duration, peers []*Daemon) {
-	// will signal all nodes have completed check
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-
-	expHead := d.GetChainHead()
-
-	for _, p := range peers {
-		wg.Add(1)
-		go func(p *Daemon) {
-			for {
-				actHead := p.GetChainHead()
-				if expHead.Cid().Equals(actHead.Cid()) {
-					wg.Done()
-					return
-				}
-				time.Sleep(100 * time.Millisecond)
-			}
-		}(p)
-	}
-
-	go func() {
-		wg.Wait()
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-		return
-	case <-time.After(wait):
-		// TODO don't panic be happy
-		panic("Timeout waiting for chains to sync")
-	}
-}
-
-// GetChainHead returns the head block from `d`
-// TODO don't panic be happy
-func (d *Daemon) GetChainHead() types.Block {
-	out, err := d.Run("chain", "ls", "--enc=json")
-	if err != nil {
-		panic(err)
-	}
-	bc := d.MustUnmarshalChain(out.ReadStdout())
-	return bc[0]
-}
-
-// MustUnmarshalChain unmarshals the chain from `input` into a slice of blocks
-// TODO don't panic be happy
-func (d *Daemon) MustUnmarshalChain(input string) []types.Block {
-	chain := strings.Trim(input, "\n")
-	var bs []types.Block
-
-	for _, line := range bytes.Split([]byte(chain), []byte{'\n'}) {
-		var b types.Block
-		if err := json.Unmarshal(line, &b); err != nil {
-			panic(err)
-		}
-		bs = append(bs, b)
-	}
-
-	return bs
-}
-
-// MakeMoney mines a block and receives the block reward
-// TODO don't panic be happy
-func (d *Daemon) MakeMoney(rewards int) {
-	for i := 0; i < rewards; i++ {
-		d.MineAndPropagate(time.Second * 1)
-	}
-}
-
-// MakeDeal will make a deal with the miner `miner`, using data `dealData`.
-// MakeDeal will return the cid of `dealData`
-// TODO don't panic be happy
-func (d *Daemon) MakeDeal(dealData string, miner *Daemon) string {
-
-	// The daemons need 2 monies each.
-	d.MakeMoney(2)
-	miner.MakeMoney(2)
-
-	// How long to wait for miner blocks to propagate to other nodes
-	propWait := time.Second * 3
-
-	m := miner.CreateMinerAddr()
-
-	askO, err := miner.Run(
-		"miner", "add-ask",
-		"--from", miner.Config().Mining.RewardAddress.String(),
-		m.String(), "1200", "1",
-	)
-	if err != nil {
-		panic(err)
-	}
-	miner.MineAndPropagate(propWait, d)
-	_, err = miner.Run("message", "wait", "--return", strings.TrimSpace(askO.ReadStdout()))
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = d.Run(
-		"client", "add-bid",
-		"--from", d.Config().Mining.RewardAddress.String(),
-		"500", "1",
-	)
-	if err != nil {
-		panic(err)
-	}
-	d.MineAndPropagate(propWait, miner)
-
-	buf := strings.NewReader(dealData)
-	o, err := d.RunWithStdin(buf, "client", "import")
-	if err != nil {
-		panic(err)
-	}
-	ddCid := strings.TrimSpace(o.ReadStdout())
-
-	negidO, err := d.Run("client", "propose-deal", "--ask=0", "--bid=0", ddCid)
-	if err != nil {
-		panic(err)
-	}
-	time.Sleep(time.Millisecond * 20)
-
-	miner.MineAndPropagate(propWait, d)
-
-	negid := strings.Split(strings.Split(negidO.ReadStdout(), "\n")[1], " ")[1]
-	// ensure we have made the deal
-	_, err = d.Run("client", "query-deal", negid)
-	if err != nil {
-		panic(err)
-	}
-	// return the cid for the dealData (ddCid)
-	return ddCid
-}
-
 // TryAPICheck will check if the daemon is ready
 // TODO don't panic be happy
 func TryAPICheck(d *Daemon) error {
@@ -587,4 +337,16 @@ func TryAPICheck(d *Daemon) error {
 	}
 
 	return nil
+}
+
+func (d *Daemon) SetWaitMining(t bool) {
+	d.lk.Lock()
+	defer d.lk.Unlock()
+	d.waitMining = t
+}
+
+func (d *Daemon) WaitMining() bool {
+	d.lk.Lock()
+	defer d.lk.Unlock()
+	return d.waitMining
 }

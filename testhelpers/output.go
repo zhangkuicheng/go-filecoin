@@ -53,3 +53,21 @@ func (o *Output) ReadStdout() string {
 func (o *Output) ReadStdoutTrimNewlines() string {
 	return strings.Trim(o.ReadStdout(), "\n")
 }
+
+func (o *Output) Failed() bool {
+	if o.Error != nil {
+		return true
+	}
+	oErr := o.ReadStderr()
+	if o.Code != 0 {
+		return true
+	}
+
+	if strings.Contains(oErr, "CRITICAL") ||
+		strings.Contains(oErr, "ERROR") ||
+		strings.Contains(oErr, "WARNING") {
+		return true
+	}
+
+	return false
+}
