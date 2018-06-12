@@ -13,7 +13,7 @@ import (
 func TestId(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	id := d.RunSuccess("id")
@@ -27,7 +27,7 @@ func TestId(t *testing.T) {
 func TestIdFormat(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	idContent := d.RunSuccess("id",
@@ -48,14 +48,14 @@ func TestPersistId(t *testing.T) {
 	require.NoError(t, err)
 
 	// Start a demon in dir
-	d1 := th.NewDaemon(t, th.RepoDir(dir)).Start()
+	d1 := NewTestDaemon(t, th.RepoDir(dir)).Start()
 
 	// get the id and kill it
 	id1 := d1.GetID()
 	d1.ShutdownSuccess()
 
 	// restart the daemon
-	d2 := th.NewDaemon(t, th.ShouldInit(false), th.RepoDir(dir)).Start()
+	d2 := NewTestDaemon(t, th.ShouldInit(false), th.RepoDir(dir)).Start()
 
 	// get the id and compare to previous
 	id2 := d2.GetID()

@@ -10,8 +10,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestChainDaemon(t *testing.T) {
@@ -19,7 +17,7 @@ func TestChainDaemon(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
 
-		d := th.NewDaemon(t).Start()
+		d := NewTestDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op1 := d.RunSuccess("mining", "once", "--enc", "text")
@@ -50,7 +48,7 @@ func TestChainDaemon(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
 
-		d := th.NewDaemon(t).Start()
+		d := NewTestDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op := d.RunSuccess("chain", "ls", "--enc", "json")

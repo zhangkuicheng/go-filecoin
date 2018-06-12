@@ -13,8 +13,6 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/types"
-
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestMinerCreateSuccess(t *testing.T) {
@@ -23,7 +21,7 @@ func TestMinerCreateSuccess(t *testing.T) {
 	var err error
 	var addr types.Address
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	tf := func(fromAddress types.Address, expectSuccess bool) {
@@ -68,7 +66,7 @@ func TestMinerCreateSuccess(t *testing.T) {
 
 func TestMinerCreateFail(t *testing.T) {
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -95,7 +93,7 @@ func TestMinerCreateFail(t *testing.T) {
 func TestMinerAddAskSuccess(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -137,7 +135,7 @@ func TestMinerAddAskSuccess(t *testing.T) {
 func TestMinerAddAskFail(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()

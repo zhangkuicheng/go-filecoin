@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -19,7 +18,7 @@ func TestDagDaemon(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
 
-		d := th.NewDaemon(t).Start()
+		d := NewTestDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		// get the CID of the genesis block from the "chain ls" command output

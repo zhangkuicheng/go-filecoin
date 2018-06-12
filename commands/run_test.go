@@ -1,38 +1,120 @@
 package commands
 
 import (
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
-func runSuccessFirstLine(td *th.TestDaemon, args ...string) string {
+type TestOutput struct {
+	*th.Output
+	Test *testing.T
+}
+
+func (o *TestOutput) AssertSuccess() *TestOutput {
+	o.Test.Helper()
+	assert.NoError(o.Test, o.Error)
+	oErr := o.ReadStderr()
+
+	assert.Equal(o.Test, o.Code, 0, oErr)
+	assert.NotContains(o.Test, oErr, "CRITICAL")
+	assert.NotContains(o.Test, oErr, "ERROR")
+	assert.NotContains(o.Test, oErr, "WARNING")
+	return o
+
+}
+
+func (o *TestOutput) AssertFail(err string) *TestOutput {
+	o.Test.Helper()
+	assert.NoError(o.Test, o.Error)
+	assert.Equal(o.Test, 1, o.Code)
+	assert.Empty(o.Test, o.ReadStdout())
+	assert.Contains(o.Test, o.ReadStderr(), err)
+	return o
+}
+
+type TestDaemon struct {
+	*th.Daemon
+	Test *testing.T
+}
+
+func NewTestDaemon(t *testing.T, options ...func(*th.Daemon)) *TestDaemon {
+	newDaemon, err := th.NewDaemon(options...)
+	require.NoError(t, err)
+
+	return &TestDaemon{
+		Daemon: newDaemon,
+		Test:   t,
+	}
+}
+
+func (td *TestDaemon) Start() *TestDaemon {
+	_, err := td.Daemon.Start()
+	require.NoError(td.Test, err)
+	require.NoError(td.Test, td.WaitForAPI(), "Daemon failed to start")
+	return td
+}
+
+func (td *TestDaemon) Run(args ...string) (*TestOutput, error) {
+	td.Test.Helper()
+	output, err := td.RunWithStdin(nil, args...)
+	return &TestOutput{
+		Output: output,
+		Test:   td.Test,
+	}, err
+}
+
+func (td *TestDaemon) RunSuccess(args ...string) *TestOutput {
+	td.Test.Helper()
+	o, err := td.Run(args...)
+	assert.NoError(td.Test, err)
+	return o.AssertSuccess()
+}
+
+func (td *TestDaemon) RunFail(err string, args ...string) *TestOutput {
+	td.Test.Helper()
+	o, _ := td.Run(args...)
+	return o.AssertFail(err)
+}
+
+func (td *TestDaemon) ConfigExists(dir string) bool {
+	_, err := os.Stat(filepath.Join(td.RepoDir, "config.toml"))
+	if os.IsNotExist(err) {
+		return false
+	}
+	return err == nil
+}
+
+func (td *TestDaemon) ConnectSuccess(remote *TestDaemon) *TestOutput {
+	// Connect the nodes
+	out := td.RunSuccess("swarm", "connect", remote.GetAddress())
+	peers1 := td.RunSuccess("swarm", "peers")
+	peers2 := remote.RunSuccess("swarm", "peers")
+
+	td.Test.Log("[success] 1 -> 2")
+	require.Contains(td.Test, peers1.ReadStdout(), remote.GetID())
+
+	td.Test.Log("[success] 2 -> 1")
+	require.Contains(td.Test, peers2.ReadStdout(), td.GetID())
+
+	return out
+}
+
+func runSuccessFirstLine(td *TestDaemon, args ...string) string {
 	return runSuccessLines(td, args...)[0]
 }
 
-func runSuccessLines(td *th.TestDaemon, args ...string) []string {
+func runSuccessLines(td *TestDaemon, args ...string) []string {
 	output := td.RunSuccess(args...)
 	result := output.ReadStdoutTrimNewlines()
 	return strings.Split(result, "\n")
-}
-
-// Credit: https://github.com/phayes/freeport
-func GetFreePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
 func RunInit(opts ...string) ([]byte, error) {

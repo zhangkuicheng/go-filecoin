@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestActorDaemon(t *testing.T) {
@@ -16,7 +14,7 @@ func TestActorDaemon(t *testing.T) {
 		require := require.New(t)
 		assert := assert.New(t)
 
-		d := th.NewDaemon(t).Start()
+		d := NewTestDaemon(t).Start()
 		defer d.ShutdownSuccess()
 
 		op1 := d.RunSuccess("actor", "ls", "--enc", "json")

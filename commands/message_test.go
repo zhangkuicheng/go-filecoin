@@ -7,12 +7,10 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/stretchr/testify/assert"
-
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestMessageSend(t *testing.T) {
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.RunSuccess("mining", "once")
@@ -41,7 +39,7 @@ func TestMessageSend(t *testing.T) {
 }
 
 func TestMessageWait(t *testing.T) {
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	t.Run("[success] transfer only", func(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 func TestAddrsNewAndList(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	addrs := make([]string, 10)
@@ -31,7 +31,7 @@ func TestAddrsNewAndList(t *testing.T) {
 func TestWalletBalance(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 	addr := d.CreateWalletAddr()
 
@@ -53,11 +53,11 @@ func TestAddrsLookup(t *testing.T) {
 	assert := assert.New(t)
 
 	//Define 2 nodes, each with an address
-	d1 := th.NewDaemon(t, th.SwarmAddr("/ip4/127.0.0.1/tcp/6000")).Start()
+	d1 := NewTestDaemon(t, th.SwarmAddr("/ip4/127.0.0.1/tcp/6000")).Start()
 	defer d1.ShutdownSuccess()
 	d1.CreateWalletAddr()
 
-	d2 := th.NewDaemon(t, th.SwarmAddr("/ip4/127.0.0.1/tcp/6001")).Start()
+	d2 := NewTestDaemon(t, th.SwarmAddr("/ip4/127.0.0.1/tcp/6001")).Start()
 	defer d2.ShutdownSuccess()
 	d2.CreateWalletAddr()
 

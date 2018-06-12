@@ -38,20 +38,20 @@ func GetFilecoinBinary() (string, error) {
 	return "", err
 }
 
-func SwarmAddr(addr string) func(*TestDaemon) {
-	return func(td *TestDaemon) {
+func SwarmAddr(addr string) func(*Daemon) {
+	return func(td *Daemon) {
 		td.SwarmAddr = addr
 	}
 }
 
-func RepoDir(dir string) func(*TestDaemon) {
-	return func(td *TestDaemon) {
+func RepoDir(dir string) func(*Daemon) {
+	return func(td *Daemon) {
 		td.RepoDir = dir
 	}
 }
 
-func ShouldInit(i bool) func(*TestDaemon) {
-	return func(td *TestDaemon) {
-		td.init = i
+func ShouldInit(i bool) func(*Daemon) {
+	return func(td *Daemon) {
+		td.Init = i
 	}
 }

@@ -13,13 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-filecoin/address"
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestClientAddBidSuccess(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -52,7 +51,7 @@ func TestClientAddBidSuccess(t *testing.T) {
 }
 
 func TestClientAddBidFail(t *testing.T) {
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 	d.CreateWalletAddr()
 
@@ -76,10 +75,10 @@ func TestClientAddBidFail(t *testing.T) {
 func TestProposeDeal(t *testing.T) {
 	assert := assert.New(t)
 
-	dcli := th.NewDaemon(t).Start()
+	dcli := NewTestDaemon(t).Start()
 	defer func() { t.Log(dcli.ReadStderr()) }()
 	defer dcli.ShutdownSuccess()
-	dmin := th.NewDaemon(t).Start()
+	dmin := NewTestDaemon(t).Start()
 	defer func() { t.Log(dmin.ReadStderr()) }()
 	defer dmin.ShutdownSuccess()
 
@@ -114,7 +113,8 @@ func TestProposeDeal(t *testing.T) {
 	time.Sleep(time.Millisecond * 20) // wait for block propagation
 
 	buf := strings.NewReader("filecoin is a blockchain")
-	o := dcli.RunWithStdin(buf, "client", "import").AssertSuccess()
+	o, err := dcli.RunWithStdin(buf, "client", "import")
+	assert.NoError(err)
 	data := strings.TrimSpace(o.ReadStdout())
 
 	negidO := dcli.RunSuccess("client", "propose-deal", "--ask=0", "--bid=0", data)

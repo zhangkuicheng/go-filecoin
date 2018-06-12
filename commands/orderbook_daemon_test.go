@@ -6,14 +6,12 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/stretchr/testify/assert"
-
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestBidList(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -38,7 +36,7 @@ func TestBidList(t *testing.T) {
 func TestAskList(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	minerAddr := d.CreateMinerAddr()
@@ -64,12 +62,12 @@ func TestDealList(t *testing.T) {
 	assert := assert.New(t)
 
 	// make a client
-	client := th.NewDaemon(t).Start()
+	client := NewTestDaemon(t).Start()
 	defer func() { t.Log(client.ReadStderr()) }()
 	defer client.ShutdownSuccess()
 
 	// make a miner
-	miner := th.NewDaemon(t).Start()
+	miner := NewTestDaemon(t).Start()
 	defer func() { t.Log(miner.ReadStderr()) }()
 	defer miner.ShutdownSuccess()
 
@@ -78,7 +76,7 @@ func TestDealList(t *testing.T) {
 
 	// make a deal
 	dealData := "how linked lists will change the world"
-	dealDataCid := client.MakeDeal(dealData, miner)
+	dealDataCid := client.MakeDeal(dealData, miner.Daemon)
 
 	// both the miner and client can get the deal
 	// with the expected cid inside

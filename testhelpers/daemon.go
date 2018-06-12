@@ -13,22 +13,17 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"testing"
 	"time"
 
 	"github.com/filecoin-project/go-filecoin/config"
 	"github.com/filecoin-project/go-filecoin/types"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-type TestDaemon struct {
+type Daemon struct {
 	CmdAddr   string
 	SwarmAddr string
 	RepoDir   string
-
-	init bool
+	Init      bool
 
 	// The filecoin daemon process
 	process *exec.Cmd
@@ -37,76 +32,73 @@ type TestDaemon struct {
 	Stdin  io.Writer
 	Stdout io.Reader
 	Stderr io.Reader
-
-	test *testing.T
 }
 
-func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
+func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 	// Ensure we have the actual binary
 	filecoinBin, err := GetFilecoinBinary()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
 	//Ask the kernel for a port to avoid conflicts
 	cmdPort, err := GetFreePort()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	swarmPort, err := GetFreePort()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
 	dir, err := ioutil.TempDir("", "go-fil-test")
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
-	td := &TestDaemon{
+	d := &Daemon{
 		CmdAddr:   fmt.Sprintf(":%d", cmdPort),
 		SwarmAddr: fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", swarmPort),
 		RepoDir:   dir,
-		test:      t,
-		init:      true, // we want to init unless told otherwise
+		Init:      true, // we want to init unless told otherwise
 	}
 
 	// configure TestDaemon options
 	for _, option := range options {
-		option(td)
+		option(d)
 	}
 
-	repodirFlag := fmt.Sprintf("--repodir=%s", td.RepoDir)
-	if td.init {
+	repodirFlag := fmt.Sprintf("--repodir=%s", d.RepoDir)
+	if d.Init {
 		out, err := runInit(repodirFlag)
 		if err != nil {
-			t.Log(string(out))
-			t.Fatal(err)
+			d.Log(string(out))
+			return nil, err
 		}
 	}
 
 	// define filecoin daemon process
-	td.process = exec.Command(filecoinBin, "daemon",
-		fmt.Sprintf("--repodir=%s", td.RepoDir),
-		fmt.Sprintf("--cmdapiaddr=%s", td.CmdAddr),
-		fmt.Sprintf("--swarmlisten=%s", td.SwarmAddr),
+	d.process = exec.Command(filecoinBin, "daemon",
+		fmt.Sprintf("--repodir=%s", d.RepoDir),
+		fmt.Sprintf("--cmdapiaddr=%s", d.CmdAddr),
+		fmt.Sprintf("--swarmlisten=%s", d.SwarmAddr),
 	)
 
 	// setup process pipes
-	td.Stdout, err = td.process.StdoutPipe()
+	d.Stdout, err = d.process.StdoutPipe()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	td.Stderr, err = td.process.StderrPipe()
+	d.Stderr, err = d.process.StderrPipe()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	td.Stdin, err = td.process.StdinPipe()
+	d.Stdin, err = d.process.StdinPipe()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 
-	return td
+	return d, nil
 }
 
 func runInit(opts ...string) ([]byte, error) {
@@ -123,24 +115,33 @@ func runCommand(cmd string, opts ...string) ([]byte, error) {
 	return process.CombinedOutput()
 }
 
-func (td *TestDaemon) Run(args ...string) *Output {
-	td.test.Helper()
-	return td.RunWithStdin(nil, args...)
+// TODO print the daemon api like `Log` see below
+func (d *Daemon) Logf(format string, a ...interface{}) {
+	fmt.Printf(format, a...)
 }
 
-func (td *TestDaemon) RunWithStdin(stdin io.Reader, args ...string) *Output {
-	td.test.Helper()
+func (d *Daemon) Log(msg ...string) {
+	fmt.Printf("[%s]\t %s", d.CmdAddr, msg)
+}
+
+func (d *Daemon) Run(args ...string) (*Output, error) {
+	return d.RunWithStdin(nil, args...)
+}
+
+func (d *Daemon) RunWithStdin(stdin io.Reader, args ...string) (*Output, error) {
 	bin, err := GetFilecoinBinary()
-	require.NoError(td.test, err)
+	if err != nil {
+		return nil, err
+	}
 
 	// handle Run("cmd subcmd")
 	if len(args) == 1 {
 		args = strings.Split(args[0], " ")
 	}
 
-	finalArgs := append(args, "--repodir="+td.RepoDir, "--cmdapiaddr="+td.CmdAddr)
+	finalArgs := append(args, "--repodir="+d.RepoDir, "--cmdapiaddr="+d.CmdAddr)
 
-	td.test.Logf("run: %q", strings.Join(finalArgs, " "))
+	d.Logf("run: %q", strings.Join(finalArgs, " "))
 	cmd := exec.Command(bin, finalArgs...)
 
 	if stdin != nil {
@@ -148,18 +149,28 @@ func (td *TestDaemon) RunWithStdin(stdin io.Reader, args ...string) *Output {
 	}
 
 	stderr, err := cmd.StderrPipe()
-	require.NoError(td.test, err)
+	if err != nil {
+		return nil, err
+	}
 
 	stdout, err := cmd.StdoutPipe()
-	require.NoError(td.test, err)
+	if err != nil {
+		return nil, err
+	}
 
-	require.NoError(td.test, cmd.Start())
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
 
 	stderrBytes, err := ioutil.ReadAll(stderr)
-	require.NoError(td.test, err)
+	if err != nil {
+		return nil, err
+	}
 
 	stdoutBytes, err := ioutil.ReadAll(stdout)
-	require.NoError(td.test, err)
+	if err != nil {
+		return nil, err
+	}
 
 	o := &Output{
 		Args:   args,
@@ -167,7 +178,6 @@ func (td *TestDaemon) RunWithStdin(stdin io.Reader, args ...string) *Output {
 		stdout: stdoutBytes,
 		Stderr: stderr,
 		stderr: stderrBytes,
-		test:   td.test,
 	}
 
 	err = cmd.Wait()
@@ -182,110 +192,128 @@ func (td *TestDaemon) RunWithStdin(stdin io.Reader, args ...string) *Output {
 		// okay
 	}
 
-	return o
+	return o, nil
 }
 
-func (td *TestDaemon) RunSuccess(args ...string) *Output {
-	td.test.Helper()
-	return td.Run(args...).AssertSuccess()
-}
-
-func (td *TestDaemon) RunFail(err string, args ...string) *Output {
-	td.test.Helper()
-	return td.Run(args...).AssertFail(err)
-}
-
-func (td *TestDaemon) GetID() string {
-	out := td.RunSuccess("id")
+func (d *Daemon) GetID() string {
+	out, err := d.Run("id")
+	if err != nil {
+		panic(err)
+	}
 	var parsed map[string]interface{}
-	require.NoError(td.test, json.Unmarshal([]byte(out.ReadStdout()), &parsed))
+	if err := json.Unmarshal([]byte(out.ReadStdout()), &parsed); err != nil {
+		panic(err)
+	}
 
 	return parsed["ID"].(string)
 }
 
-func (td *TestDaemon) GetAddress() string {
-	out := td.RunSuccess("id")
+func (d *Daemon) GetAddress() string {
+	out, err := d.Run("id")
+	if err != nil {
+		panic(err)
+	}
 	var parsed map[string]interface{}
-	require.NoError(td.test, json.Unmarshal([]byte(out.ReadStdout()), &parsed))
+	if err := json.Unmarshal([]byte(out.ReadStdout()), &parsed); err != nil {
+		panic(err)
+	}
 
 	adders := parsed["Addresses"].([]interface{})
 	return adders[0].(string)
 }
 
-func (td *TestDaemon) ConnectSuccess(remote *TestDaemon) *Output {
+func (d *Daemon) ConnectSuccess(remote *Daemon) *Output {
 	// Connect the nodes
-	out := td.RunSuccess("swarm", "connect", remote.GetAddress())
-	peers1 := td.RunSuccess("swarm", "peers")
-	peers2 := remote.RunSuccess("swarm", "peers")
+	out, err := d.Run("swarm", "connect", remote.GetAddress())
+	if err != nil {
+		panic(err)
+	}
+	peers1, err := d.Run("swarm", "peers")
+	if err != nil {
+		panic(err)
+	}
+	peers2, err := remote.Run("swarm", "peers")
+	if err != nil {
+		panic(err)
+	}
 
-	td.test.Log("[success] 1 -> 2")
-	require.Contains(td.test, peers1.ReadStdout(), remote.GetID())
-
-	td.test.Log("[success] 2 -> 1")
-	require.Contains(td.test, peers2.ReadStdout(), td.GetID())
+	if !strings.Contains(peers1.ReadStdout(), remote.GetID()) {
+		panic("failed to connect (2->1)")
+	}
+	if !strings.Contains(peers2.ReadStdout(), d.GetID()) {
+		panic("failed to connect (1->2)")
+	}
 
 	return out
 }
 
-func (td *TestDaemon) ReadStdout() string {
-	td.lk.Lock()
-	defer td.lk.Unlock()
-	out, err := ioutil.ReadAll(td.Stdout)
+func (d *Daemon) ReadStdout() string {
+	d.lk.Lock()
+	defer d.lk.Unlock()
+	out, err := ioutil.ReadAll(d.Stdout)
 	if err != nil {
 		panic(err)
 	}
 	return string(out)
 }
 
-func (td *TestDaemon) ReadStderr() string {
-	td.lk.Lock()
-	defer td.lk.Unlock()
-	out, err := ioutil.ReadAll(td.Stderr)
+func (d *Daemon) ReadStderr() string {
+	d.lk.Lock()
+	defer d.lk.Unlock()
+	out, err := ioutil.ReadAll(d.Stderr)
 	if err != nil {
 		panic(err)
 	}
 	return string(out)
 }
 
-func (td *TestDaemon) Start() *TestDaemon {
-	require.NoError(td.test, td.process.Start())
-	require.NoError(td.test, td.WaitForAPI(), "Daemon failed to start")
-	return td
+func (d *Daemon) Start() (*Daemon, error) {
+	if err := d.process.Start(); err != nil {
+		return nil, err
+	}
+	if err := d.WaitForAPI(); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
-func (td *TestDaemon) Shutdown() {
-	if err := td.process.Process.Signal(syscall.SIGTERM); err != nil {
-		td.test.Errorf("Daemon Stderr:\n%s", td.ReadStderr())
-		td.test.Fatalf("Failed to kill daemon %s", err)
+func (d *Daemon) Shutdown() {
+	if err := d.process.Process.Signal(syscall.SIGTERM); err != nil {
+		d.Logf("Daemon Stderr:\n%s", d.ReadStderr())
+		d.Logf("Failed to kill daemon %s", err)
+		panic(err)
 	}
 
-	if td.RepoDir == "" {
+	if d.RepoDir == "" {
 		panic("testdaemon had no repodir set")
 	}
 
-	_ = os.RemoveAll(td.RepoDir)
+	_ = os.RemoveAll(d.RepoDir)
 }
 
-func (td *TestDaemon) ShutdownSuccess() {
-	err := td.process.Process.Signal(syscall.SIGTERM)
-	assert.NoError(td.test, err)
-	tdOut := td.ReadStderr()
-	assert.NoError(td.test, err, tdOut)
-	assert.NotContains(td.test, tdOut, "CRITICAL")
-	assert.NotContains(td.test, tdOut, "ERROR")
-	assert.NotContains(td.test, tdOut, "WARNING")
+func (d *Daemon) ShutdownSuccess() {
+	if err := d.process.Process.Signal(syscall.SIGTERM); err != nil {
+		panic(err)
+	}
+	dOut := d.ReadStderr()
+	if strings.Contains(dOut, "ERROR") {
+		panic("Daemon has error messages")
+	}
 }
 
-func (td *TestDaemon) ShutdownEasy() {
-	err := td.process.Process.Signal(syscall.SIGINT)
-	assert.NoError(td.test, err)
-	tdOut := td.ReadStderr()
-	assert.NoError(td.test, err, tdOut)
+func (d *Daemon) ShutdownEasy() {
+	if err := d.process.Process.Signal(syscall.SIGINT); err != nil {
+		panic(err)
+	}
+	dOut := d.ReadStderr()
+	if strings.Contains(dOut, "ERROR") {
+		d.Log("Daemon has error messages")
+	}
 }
 
-func (td *TestDaemon) WaitForAPI() error {
+func (d *Daemon) WaitForAPI() error {
 	for i := 0; i < 100; i++ {
-		err := TryAPICheck(td)
+		err := TryAPICheck(d)
 		if err == nil {
 			return nil
 		}
@@ -298,26 +326,39 @@ func (td *TestDaemon) WaitForAPI() error {
 // and returns the address of the new miner
 // equivalent to:
 //     `go-filecoin miner create --from $TEST_ACCOUNT 100000 20`
-func (td *TestDaemon) CreateMinerAddr() types.Address {
+func (d *Daemon) CreateMinerAddr() types.Address {
 	// need money
-	td.RunSuccess("mining", "once")
+	_, err := d.Run("mining", "once")
+	if err != nil {
+		panic(err)
+	}
 
-	addr := td.Config().Mining.RewardAddress
+	addr := d.Config().Mining.RewardAddress
 
 	var wg sync.WaitGroup
 	var minerAddr types.Address
 
 	wg.Add(1)
 	go func() {
-		miner := td.RunSuccess("miner", "create", "--from", addr.String(), "1000000", "1000")
+		miner, err := d.Run("miner", "create", "--from", addr.String(), "1000000", "1000")
+		if err != nil {
+			panic(err)
+		}
 		addr, err := types.NewAddressFromString(strings.Trim(miner.ReadStdout(), "\n"))
-		assert.NoError(td.test, err)
-		assert.NotEqual(td.test, addr, types.Address{})
+		if err != nil {
+			panic(err)
+		}
+		if addr.Empty() {
+			panic("got back empty address")
+		}
 		minerAddr = addr
 		wg.Done()
 	}()
 
-	td.RunSuccess("mining", "once")
+	_, err = d.Run("mining", "once")
+	if err != nil {
+		panic(err)
+	}
 
 	wg.Wait()
 	return minerAddr
@@ -327,45 +368,54 @@ func (td *TestDaemon) CreateMinerAddr() types.Address {
 // returns it.
 // equivalent to:
 //     `go-filecoin wallet addrs new`
-func (td *TestDaemon) CreateWalletAddr() string {
-	td.test.Helper()
-	outNew := td.RunSuccess("wallet", "addrs", "new")
+func (d *Daemon) CreateWalletAddr() string {
+	outNew, err := d.Run("wallet", "addrs", "new")
+	if err != nil {
+		panic(err)
+	}
 	addr := strings.Trim(outNew.ReadStdout(), "\n")
-	require.NotEmpty(td.test, addr)
+	if addr == "" {
+		panic("address is empty")
+	}
 	return addr
 }
 
 // Config is a helper to read out the config of the deamon
-func (td *TestDaemon) Config() *config.Config {
-	cfg, err := config.ReadFile(filepath.Join(td.RepoDir, "config.toml"))
-	require.NoError(td.test, err)
+func (d *Daemon) Config() *config.Config {
+	cfg, err := config.ReadFile(filepath.Join(d.RepoDir, "config.toml"))
+	if err != nil {
+		panic(err)
+	}
 	return cfg
 }
 
 // MineAndPropagate mines a block and ensure the block has propogated to all `peers`
-// by comparing the current head block of `td` with the head block of each peer in `peers`
-func (td *TestDaemon) MineAndPropagate(wait time.Duration, peers ...*TestDaemon) {
-	td.RunSuccess("mining", "once")
+// by comparing the current head block of `d` with the head block of each peer in `peers`
+func (d *Daemon) MineAndPropagate(wait time.Duration, peers ...*Daemon) {
+	_, err := d.Run("mining", "once")
+	if err != nil {
+		panic(err)
+	}
 	// short circuit
 	if peers == nil {
 		return
 	}
-	// ensure all peers have same chain head as `td`
-	td.MustHaveChainHeadBy(wait, peers)
+	// ensure all peers have same chain head as `d`
+	d.MustHaveChainHeadBy(wait, peers)
 }
 
-// MustHaveChainHeadBy ensures all `peers` have the same chain head as `td`, by
+// MustHaveChainHeadBy ensures all `peers` have the same chain head as `d`, by
 // duration `wait`
-func (td *TestDaemon) MustHaveChainHeadBy(wait time.Duration, peers []*TestDaemon) {
+func (d *Daemon) MustHaveChainHeadBy(wait time.Duration, peers []*Daemon) {
 	// will signal all nodes have completed check
 	done := make(chan struct{})
 	var wg sync.WaitGroup
 
-	expHead := td.GetChainHead()
+	expHead := d.GetChainHead()
 
 	for _, p := range peers {
 		wg.Add(1)
-		go func(p *TestDaemon) {
+		go func(p *Daemon) {
 			for {
 				actHead := p.GetChainHead()
 				if expHead.Cid().Equals(actHead.Cid()) {
@@ -386,26 +436,29 @@ func (td *TestDaemon) MustHaveChainHeadBy(wait time.Duration, peers []*TestDaemo
 	case <-done:
 		return
 	case <-time.After(wait):
-		td.test.Fatal("Timeout waiting for chains to sync")
+		panic("Timeout waiting for chains to sync")
 	}
 }
 
-// GetChainHead returns the head block from `td`
-func (td *TestDaemon) GetChainHead() types.Block {
-	out := td.RunSuccess("chain", "ls", "--enc=json")
-	bc := td.MustUnmarshalChain(out.ReadStdout())
+// GetChainHead returns the head block from `d`
+func (d *Daemon) GetChainHead() types.Block {
+	out, err := d.Run("chain", "ls", "--enc=json")
+	if err != nil {
+		panic(err)
+	}
+	bc := d.MustUnmarshalChain(out.ReadStdout())
 	return bc[0]
 }
 
 // MustUnmarshalChain unmarshals the chain from `input` into a slice of blocks
-func (td *TestDaemon) MustUnmarshalChain(input string) []types.Block {
+func (d *Daemon) MustUnmarshalChain(input string) []types.Block {
 	chain := strings.Trim(input, "\n")
 	var bs []types.Block
 
 	for _, line := range bytes.Split([]byte(chain), []byte{'\n'}) {
 		var b types.Block
 		if err := json.Unmarshal(line, &b); err != nil {
-			td.test.Fatal(err)
+			panic(err)
 		}
 		bs = append(bs, b)
 	}
@@ -414,18 +467,18 @@ func (td *TestDaemon) MustUnmarshalChain(input string) []types.Block {
 }
 
 // MakeMoney mines a block and receives the block reward
-func (td *TestDaemon) MakeMoney(rewards int) {
+func (d *Daemon) MakeMoney(rewards int) {
 	for i := 0; i < rewards; i++ {
-		td.MineAndPropagate(time.Second * 1)
+		d.MineAndPropagate(time.Second * 1)
 	}
 }
 
 // MakeDeal will make a deal with the miner `miner`, using data `dealData`.
 // MakeDeal will return the cid of `dealData`
-func (td *TestDaemon) MakeDeal(dealData string, miner *TestDaemon) string {
+func (d *Daemon) MakeDeal(dealData string, miner *Daemon) string {
 
 	// The daemons need 2 monies each.
-	td.MakeMoney(2)
+	d.MakeMoney(2)
 	miner.MakeMoney(2)
 
 	// How long to wait for miner blocks to propagate to other nodes
@@ -433,39 +486,57 @@ func (td *TestDaemon) MakeDeal(dealData string, miner *TestDaemon) string {
 
 	m := miner.CreateMinerAddr()
 
-	askO := miner.RunSuccess(
+	askO, err := miner.Run(
 		"miner", "add-ask",
 		"--from", miner.Config().Mining.RewardAddress.String(),
 		m.String(), "1200", "1",
 	)
-	miner.MineAndPropagate(propWait, td)
-	miner.RunSuccess("message", "wait", "--return", strings.TrimSpace(askO.ReadStdout()))
+	if err != nil {
+		panic(err)
+	}
+	miner.MineAndPropagate(propWait, d)
+	_, err = miner.Run("message", "wait", "--return", strings.TrimSpace(askO.ReadStdout()))
+	if err != nil {
+		panic(err)
+	}
 
-	td.RunSuccess(
+	_, err = d.Run(
 		"client", "add-bid",
-		"--from", td.Config().Mining.RewardAddress.String(),
+		"--from", d.Config().Mining.RewardAddress.String(),
 		"500", "1",
 	)
-	td.MineAndPropagate(propWait, miner)
+	if err != nil {
+		panic(err)
+	}
+	d.MineAndPropagate(propWait, miner)
 
 	buf := strings.NewReader(dealData)
-	o := td.RunWithStdin(buf, "client", "import").AssertSuccess()
+	o, err := d.RunWithStdin(buf, "client", "import")
+	if err != nil {
+		panic(err)
+	}
 	ddCid := strings.TrimSpace(o.ReadStdout())
 
-	negidO := td.RunSuccess("client", "propose-deal", "--ask=0", "--bid=0", ddCid)
+	negidO, err := d.Run("client", "propose-deal", "--ask=0", "--bid=0", ddCid)
+	if err != nil {
+		panic(err)
+	}
 	time.Sleep(time.Millisecond * 20)
 
-	miner.MineAndPropagate(propWait, td)
+	miner.MineAndPropagate(propWait, d)
 
 	negid := strings.Split(strings.Split(negidO.ReadStdout(), "\n")[1], " ")[1]
 	// ensure we have made the deal
-	td.RunSuccess("client", "query-deal", negid)
+	_, err = d.Run("client", "query-deal", negid)
+	if err != nil {
+		panic(err)
+	}
 	// return the cid for the dealData (ddCid)
 	return ddCid
 }
 
-func TryAPICheck(td *TestDaemon) error {
-	url := fmt.Sprintf("http://127.0.0.1%s/api/id", td.CmdAddr)
+func TryAPICheck(d *Daemon) error {
+	url := fmt.Sprintf("http://127.0.0.1%s/api/id", d.CmdAddr)
 	resp, err := http.Get(url)
 	if err != nil {
 		return err

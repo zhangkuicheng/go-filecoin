@@ -4,9 +4,6 @@ import (
 	"io"
 	"strings"
 	"sync"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // Output manages running, inprocess, a filecoin command.
@@ -25,8 +22,6 @@ type Output struct {
 	stdout []byte
 	Stderr io.ReadCloser
 	stderr []byte
-
-	test testing.TB
 }
 
 func (o *Output) Close(code int, err error) {
@@ -54,26 +49,4 @@ func (o *Output) ReadStdout() string {
 // ReadStdoutTrimNewlines does what it's called
 func (o *Output) ReadStdoutTrimNewlines() string {
 	return strings.Trim(o.ReadStdout(), "\n")
-}
-
-func (o *Output) AssertSuccess() *Output {
-	o.test.Helper()
-	assert.NoError(o.test, o.Error)
-	oErr := o.ReadStderr()
-
-	assert.Equal(o.test, o.Code, 0, oErr)
-	assert.NotContains(o.test, oErr, "CRITICAL")
-	assert.NotContains(o.test, oErr, "ERROR")
-	assert.NotContains(o.test, oErr, "WARNING")
-	return o
-
-}
-
-func (o *Output) AssertFail(err string) *Output {
-	o.test.Helper()
-	assert.NoError(o.test, o.Error)
-	assert.Equal(o.test, 1, o.Code)
-	assert.Empty(o.test, o.ReadStdout())
-	assert.Contains(o.test, o.ReadStderr(), err)
-	return o
 }

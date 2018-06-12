@@ -9,14 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/filecoin-project/go-filecoin/address"
-
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
 func TestMpool(t *testing.T) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
 	d.RunSuccess("message", "send",
