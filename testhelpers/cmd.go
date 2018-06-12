@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -432,4 +433,49 @@ func (d *Daemon) WaitForMessage(ctx context.Context, msg string) (out *Output, e
 	case <-done:
 		return out, err
 	}
+}
+
+func (td *Daemon) WalletBalance(addr string) (int, error) {
+	out, err := td.Run("wallet", "balance", addr)
+	if err != nil {
+		return 0, err
+	}
+
+	balance, err := strconv.Atoi(strings.Trim(out.ReadStdout(), "\n"))
+	if err != nil {
+		return balance, err
+	}
+	return balance, err
+}
+
+func (td *Daemon) MinerAddAsk(ctx context.Context, from string, size, price int) error {
+	out, err := td.Run("miner", "add-ask", from,
+		strconv.Itoa(size), strconv.Itoa(price))
+	if err != nil {
+		return err
+	}
+
+	cid, err := cid.Parse(strings.Trim(out.ReadStdout(), "\n"))
+	if err != nil {
+		return err
+	}
+
+	_, err = td.MineForMessage(ctx, cid.String())
+	return err
+}
+
+func (td *Daemon) ClientAddBid(ctx context.Context, from string, size, price int) error {
+	out, err := td.Run("client", "add-bid", fmt.Sprintf("--from=%s", from),
+		strconv.Itoa(size), strconv.Itoa(price))
+	if err != nil {
+		return err
+	}
+
+	cid, err := cid.Parse(strings.Trim(out.ReadStdout(), "\n"))
+	if err != nil {
+		return err
+	}
+
+	_, err = td.MineForMessage(ctx, cid.String())
+	return err
 }
