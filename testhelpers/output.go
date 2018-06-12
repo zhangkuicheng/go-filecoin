@@ -24,6 +24,7 @@ type Output struct {
 	stderr []byte
 }
 
+// Close will close the output
 func (o *Output) Close(code int, err error) {
 	o.lk.Lock()
 	defer o.lk.Unlock()
@@ -32,6 +33,7 @@ func (o *Output) Close(code int, err error) {
 	o.Error = err
 }
 
+// ReadStderr does that
 func (o *Output) ReadStderr() string {
 	o.lk.Lock()
 	defer o.lk.Unlock()
@@ -39,6 +41,7 @@ func (o *Output) ReadStderr() string {
 	return string(o.stderr)
 }
 
+// ReadStdout does that
 func (o *Output) ReadStdout() string {
 	o.lk.Lock()
 	defer o.lk.Unlock()

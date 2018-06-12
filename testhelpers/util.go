@@ -19,7 +19,7 @@ func GetFreePort() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer l.Close()
+	defer l.Close() // nolint: errcheck
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
@@ -38,18 +38,21 @@ func GetFilecoinBinary() (string, error) {
 	return "", err
 }
 
+// SwarmAddr sets the swarmaddr
 func SwarmAddr(addr string) func(*Daemon) {
 	return func(td *Daemon) {
 		td.SwarmAddr = addr
 	}
 }
 
+// RepoDir sets the repodir
 func RepoDir(dir string) func(*Daemon) {
 	return func(td *Daemon) {
 		td.RepoDir = dir
 	}
 }
 
+// ShouldInit sets if the daemon should run `init` before becoming a daemon
 func ShouldInit(i bool) func(*Daemon) {
 	return func(td *Daemon) {
 		td.Init = i

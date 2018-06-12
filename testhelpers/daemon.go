@@ -19,6 +19,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
+// Daemon is a daemon
 type Daemon struct {
 	CmdAddr   string
 	SwarmAddr string
@@ -34,6 +35,7 @@ type Daemon struct {
 	Stderr io.Reader
 }
 
+// NewDaemon makes a new daemon
 func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 	// Ensure we have the actual binary
 	filecoinBin, err := GetFilecoinBinary()
@@ -115,19 +117,23 @@ func runCommand(cmd string, opts ...string) ([]byte, error) {
 	return process.CombinedOutput()
 }
 
+// Logf is a daemon logger
 // TODO print the daemon api like `Log` see below
 func (d *Daemon) Logf(format string, a ...interface{}) {
 	fmt.Printf(format, a...)
 }
 
+// Log is a daemon logger
 func (d *Daemon) Log(msg ...string) {
 	fmt.Printf("[%s]\t %s", d.CmdAddr, msg)
 }
 
+// Run runs commands on the daemon
 func (d *Daemon) Run(args ...string) (*Output, error) {
 	return d.RunWithStdin(nil, args...)
 }
 
+// RunWithStdin runs things with stdin
 func (d *Daemon) RunWithStdin(stdin io.Reader, args ...string) (*Output, error) {
 	bin, err := GetFilecoinBinary()
 	if err != nil {
@@ -195,6 +201,8 @@ func (d *Daemon) RunWithStdin(stdin io.Reader, args ...string) (*Output, error) 
 	return o, nil
 }
 
+// GetID gets the peerid of the daemon
+// TODO don't panic be happy
 func (d *Daemon) GetID() string {
 	out, err := d.Run("id")
 	if err != nil {
@@ -208,6 +216,8 @@ func (d *Daemon) GetID() string {
 	return parsed["ID"].(string)
 }
 
+// GetAddress gets the libp2p address of the daemon
+// TODO don't panic be happy
 func (d *Daemon) GetAddress() string {
 	out, err := d.Run("id")
 	if err != nil {
@@ -222,6 +232,8 @@ func (d *Daemon) GetAddress() string {
 	return adders[0].(string)
 }
 
+// ConnectSuccess connects 2 daemons and pacnis if it fails
+// TODO don't panic be happy
 func (d *Daemon) ConnectSuccess(remote *Daemon) *Output {
 	// Connect the nodes
 	out, err := d.Run("swarm", "connect", remote.GetAddress())
@@ -247,6 +259,7 @@ func (d *Daemon) ConnectSuccess(remote *Daemon) *Output {
 	return out
 }
 
+// ReadStdout reads that
 func (d *Daemon) ReadStdout() string {
 	d.lk.Lock()
 	defer d.lk.Unlock()
@@ -257,6 +270,7 @@ func (d *Daemon) ReadStdout() string {
 	return string(out)
 }
 
+// ReadStderr reads that
 func (d *Daemon) ReadStderr() string {
 	d.lk.Lock()
 	defer d.lk.Unlock()
@@ -267,6 +281,7 @@ func (d *Daemon) ReadStderr() string {
 	return string(out)
 }
 
+// Start starts the daemon process
 func (d *Daemon) Start() (*Daemon, error) {
 	if err := d.process.Start(); err != nil {
 		return nil, err
@@ -277,6 +292,8 @@ func (d *Daemon) Start() (*Daemon, error) {
 	return d, nil
 }
 
+// Shutdown suts things down
+// TODO don't panic be happy
 func (d *Daemon) Shutdown() {
 	if err := d.process.Process.Signal(syscall.SIGTERM); err != nil {
 		d.Logf("Daemon Stderr:\n%s", d.ReadStderr())
@@ -291,6 +308,8 @@ func (d *Daemon) Shutdown() {
 	_ = os.RemoveAll(d.RepoDir)
 }
 
+// ShutdownSuccess needs comments
+// TODO don't panic be happy
 func (d *Daemon) ShutdownSuccess() {
 	if err := d.process.Process.Signal(syscall.SIGTERM); err != nil {
 		panic(err)
@@ -301,6 +320,8 @@ func (d *Daemon) ShutdownSuccess() {
 	}
 }
 
+// ShutdownEasy needs comments
+// TODO don't panic be happy
 func (d *Daemon) ShutdownEasy() {
 	if err := d.process.Process.Signal(syscall.SIGINT); err != nil {
 		panic(err)
@@ -311,6 +332,7 @@ func (d *Daemon) ShutdownEasy() {
 	}
 }
 
+// WaitForAPI waits for the daemon to be running by hitting the http endpoint
 func (d *Daemon) WaitForAPI() error {
 	for i := 0; i < 100; i++ {
 		err := TryAPICheck(d)
@@ -326,6 +348,7 @@ func (d *Daemon) WaitForAPI() error {
 // and returns the address of the new miner
 // equivalent to:
 //     `go-filecoin miner create --from $TEST_ACCOUNT 100000 20`
+// TODO don't panic be happy
 func (d *Daemon) CreateMinerAddr() types.Address {
 	// need money
 	_, err := d.Run("mining", "once")
@@ -368,6 +391,7 @@ func (d *Daemon) CreateMinerAddr() types.Address {
 // returns it.
 // equivalent to:
 //     `go-filecoin wallet addrs new`
+// TODO don't panic be happy
 func (d *Daemon) CreateWalletAddr() string {
 	outNew, err := d.Run("wallet", "addrs", "new")
 	if err != nil {
@@ -381,6 +405,7 @@ func (d *Daemon) CreateWalletAddr() string {
 }
 
 // Config is a helper to read out the config of the deamon
+// TODO don't panic be happy
 func (d *Daemon) Config() *config.Config {
 	cfg, err := config.ReadFile(filepath.Join(d.RepoDir, "config.toml"))
 	if err != nil {
@@ -391,6 +416,7 @@ func (d *Daemon) Config() *config.Config {
 
 // MineAndPropagate mines a block and ensure the block has propogated to all `peers`
 // by comparing the current head block of `d` with the head block of each peer in `peers`
+// TODO don't panic be happy
 func (d *Daemon) MineAndPropagate(wait time.Duration, peers ...*Daemon) {
 	_, err := d.Run("mining", "once")
 	if err != nil {
@@ -436,11 +462,13 @@ func (d *Daemon) MustHaveChainHeadBy(wait time.Duration, peers []*Daemon) {
 	case <-done:
 		return
 	case <-time.After(wait):
+		// TODO don't panic be happy
 		panic("Timeout waiting for chains to sync")
 	}
 }
 
 // GetChainHead returns the head block from `d`
+// TODO don't panic be happy
 func (d *Daemon) GetChainHead() types.Block {
 	out, err := d.Run("chain", "ls", "--enc=json")
 	if err != nil {
@@ -451,6 +479,7 @@ func (d *Daemon) GetChainHead() types.Block {
 }
 
 // MustUnmarshalChain unmarshals the chain from `input` into a slice of blocks
+// TODO don't panic be happy
 func (d *Daemon) MustUnmarshalChain(input string) []types.Block {
 	chain := strings.Trim(input, "\n")
 	var bs []types.Block
@@ -467,6 +496,7 @@ func (d *Daemon) MustUnmarshalChain(input string) []types.Block {
 }
 
 // MakeMoney mines a block and receives the block reward
+// TODO don't panic be happy
 func (d *Daemon) MakeMoney(rewards int) {
 	for i := 0; i < rewards; i++ {
 		d.MineAndPropagate(time.Second * 1)
@@ -475,6 +505,7 @@ func (d *Daemon) MakeMoney(rewards int) {
 
 // MakeDeal will make a deal with the miner `miner`, using data `dealData`.
 // MakeDeal will return the cid of `dealData`
+// TODO don't panic be happy
 func (d *Daemon) MakeDeal(dealData string, miner *Daemon) string {
 
 	// The daemons need 2 monies each.
@@ -535,6 +566,8 @@ func (d *Daemon) MakeDeal(dealData string, miner *Daemon) string {
 	return ddCid
 }
 
+// TryAPICheck will check if the daemon is ready
+// TODO don't panic be happy
 func TryAPICheck(d *Daemon) error {
 	url := fmt.Sprintf("http://127.0.0.1%s/api/id", d.CmdAddr)
 	resp, err := http.Get(url)
