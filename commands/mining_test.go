@@ -23,7 +23,9 @@ func TestMinerGenBlock(t *testing.T) {
 
 	t.Log("[success] address in local wallet")
 	// TODO: use `config` cmd once it exists
-	addr := d.Config().Mining.RewardAddress.String()
+	dCfg, err := d.Config()
+	assert.NoError(err)
+	addr := dCfg.Mining.RewardAddress.String()
 
 	s := d.RunSuccess("wallet", "balance", addr)
 	beforeBalance := parseInt(assert, s.ReadStdout())

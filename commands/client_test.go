@@ -94,19 +94,24 @@ func TestProposeDeal(t *testing.T) {
 	dmin.RunSuccess("mining", "once")
 	time.Sleep(time.Millisecond * 20)
 
-	miner := dmin.CreateMinerAddr()
+	miner, err := dmin.CreateMinerAddr()
+	assert.NoError(err)
 
+	dminCfg, err := dmin.Config()
+	assert.NoError(err)
 	askO := dmin.RunSuccess(
 		"miner", "add-ask",
-		"--from", dmin.Config().Mining.RewardAddress.String(),
+		"--from", dminCfg.Mining.RewardAddress.String(),
 		miner.String(), "1200", "1",
 	)
 	dmin.RunSuccess("mining", "once")
 	dmin.RunSuccess("message", "wait", "--return", strings.TrimSpace(askO.ReadStdout()))
 
+	dcliCfg, err := dcli.Config()
+	assert.NoError(err)
 	dcli.RunSuccess(
 		"client", "add-bid",
-		"--from", dcli.Config().Mining.RewardAddress.String(),
+		"--from", dcliCfg.Mining.RewardAddress.String(),
 		"500", "1",
 	)
 	dcli.RunSuccess("mining", "once")

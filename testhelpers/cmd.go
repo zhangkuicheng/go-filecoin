@@ -114,7 +114,11 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 		return types.Address{}, err
 	}
 
-	addr := d.Config().Mining.RewardAddress
+	nodeCfg, err := d.Config()
+	if err != nil {
+		return types.Address{}, err
+	}
+	addr := nodeCfg.Mining.RewardAddress
 
 	var wg sync.WaitGroup
 	var minerAddr types.Address
@@ -159,7 +163,6 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 // returns it.
 // equivalent to:
 //     `go-filecoin wallet addrs new`
-// TODO don't panic be happy
 func (d *Daemon) CreateWalletAddr() (string, error) {
 	outNew, err := d.Run("wallet", "addrs", "new")
 	if err != nil {
@@ -186,7 +189,7 @@ func (d *Daemon) GetMainWalletAddress() (string, error) {
 
 // MustHaveChainHeadBy ensures all `peers` have the same chain head as `d`, by
 // duration `wait`
-func (d *Daemon) MustHaveChainHeadBy(wait time.Duration, peers []*Daemon) {
+func (d *Daemon) MustHaveChainHeadBy(wait time.Duration, peers []*Daemon) error {
 	// will signal all nodes have completed check
 	done := make(chan struct{})
 	var wg sync.WaitGroup
@@ -214,10 +217,10 @@ func (d *Daemon) MustHaveChainHeadBy(wait time.Duration, peers []*Daemon) {
 
 	select {
 	case <-done:
-		return
+		return nil
 	case <-time.After(wait):
 		// TODO don't panic be happy
-		panic("Timeout waiting for chains to sync")
+		return errors.New("timeout exceeded waiting for chain head to sync")
 	}
 }
 
@@ -260,7 +263,7 @@ func (d *Daemon) MakeMoney(rewards int) {
 // MakeDeal will make a deal with the miner `miner`, using data `dealData`.
 // MakeDeal will return the cid of `dealData`
 // TODO don't panic be happy
-func (d *Daemon) MakeDeal(dealData string, miner *Daemon) string {
+func (d *Daemon) MakeDeal(dealData string, miner *Daemon) (string, error) {
 
 	// The daemons need 2 monies each.
 	d.MakeMoney(2)
@@ -271,43 +274,55 @@ func (d *Daemon) MakeDeal(dealData string, miner *Daemon) string {
 
 	m, err := miner.CreateMinerAddr()
 	if err != nil {
-		panic(err)
+		return "", err
 	}
+
+	minerCfg, err := miner.Config()
+	if err != nil {
+		return "", err
+	}
+	minerAddr := minerCfg.Mining.RewardAddress.String()
 
 	askO, err := miner.Run(
 		"miner", "add-ask",
-		"--from", miner.Config().Mining.RewardAddress.String(),
+		"--from", minerAddr,
 		m.String(), "1200", "1",
 	)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
+
 	miner.MineAndPropagate(propWait, d)
 	_, err = miner.Run("message", "wait", "--return", strings.TrimSpace(askO.ReadStdout()))
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
+	clientCfg, err := d.Config()
+	if err != nil {
+		return "", err
+	}
+	clientAddr := clientCfg.Mining.RewardAddress.String()
 	_, err = d.Run(
 		"client", "add-bid",
-		"--from", d.Config().Mining.RewardAddress.String(),
+		"--from", clientAddr,
 		"500", "1",
 	)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	d.MineAndPropagate(propWait, miner)
 
 	buf := strings.NewReader(dealData)
 	o, err := d.RunWithStdin(buf, "client", "import")
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	ddCid := strings.TrimSpace(o.ReadStdout())
 
 	negidO, err := d.Run("client", "propose-deal", "--ask=0", "--bid=0", ddCid)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	time.Sleep(time.Millisecond * 20)
 
@@ -317,10 +332,10 @@ func (d *Daemon) MakeDeal(dealData string, miner *Daemon) string {
 	// ensure we have made the deal
 	_, err = d.Run("client", "query-deal", negid)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	// return the cid for the dealData (ddCid)
-	return ddCid
+	return ddCid, nil
 }
 
 func (d *Daemon) EventLogStream() io.Reader {

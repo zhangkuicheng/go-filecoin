@@ -39,12 +39,15 @@ func TestAskList(t *testing.T) {
 	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
-	minerAddr := d.CreateMinerAddr()
+	minerAddr, err := d.CreateMinerAddr()
+	assert.NoError(err)
 
+	dcfg, err := d.Config()
+	assert.NoError(err)
 	for i := 0; i < 10; i++ {
 		d.RunSuccess(
 			"miner", "add-ask",
-			"--from", d.Config().Mining.RewardAddress.String(),
+			"--from", dcfg.Mining.RewardAddress.String(),
 			minerAddr.String(), "1", fmt.Sprintf("%d", i),
 		)
 	}
@@ -76,7 +79,8 @@ func TestDealList(t *testing.T) {
 
 	// make a deal
 	dealData := "how linked lists will change the world"
-	dealDataCid := client.MakeDeal(dealData, miner.Daemon)
+	dealDataCid, err := client.MakeDeal(dealData, miner.Daemon)
+	assert.NoError(err)
 
 	// both the miner and client can get the deal
 	// with the expected cid inside

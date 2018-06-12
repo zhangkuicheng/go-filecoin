@@ -66,7 +66,8 @@ func TestConfigDaemon(t *testing.T) {
 		assert.Equal(b.String(), tomlOut)
 
 		// validate config write
-		cfg := d.Config()
+		cfg, err := d.Config()
+		assert.NoError(err)
 		assert.Equal(cfg.Bootstrap, wrapped.Bootstrap)
 	})
 }

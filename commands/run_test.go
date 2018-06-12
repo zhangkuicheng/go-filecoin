@@ -45,6 +45,7 @@ type TestDaemon struct {
 	Test *testing.T
 }
 
+// NewTestDaemon needs a comment
 func NewTestDaemon(t *testing.T, options ...func(*th.Daemon)) *TestDaemon {
 	newDaemon, err := th.NewDaemon(options...)
 	require.NoError(t, err)
@@ -55,11 +56,34 @@ func NewTestDaemon(t *testing.T, options ...func(*th.Daemon)) *TestDaemon {
 	}
 }
 
+// Start needs a comment
 func (td *TestDaemon) Start() *TestDaemon {
 	_, err := td.Daemon.Start()
 	require.NoError(td.Test, err)
 	require.NoError(td.Test, td.WaitForAPI(), "Daemon failed to start")
 	return td
+}
+
+// ShutdownSuccess needs a comment
+func (td *TestDaemon) ShutdownSuccess() {
+	err := td.Shutdown()
+	require.NoError(td.Test, err)
+
+	tdOut := td.ReadStderr()
+	require.NoError(td.Test, err, tdOut)
+	require.NotContains(td.Test, tdOut, "CRITICAL")
+	require.NotContains(td.Test, tdOut, "ERROR")
+	require.NotContains(td.Test, tdOut, "WARNING")
+}
+
+// ShutdownEasy needs comments
+// TODO don't panic be happy
+func (td *TestDaemon) ShutdownEasy() {
+	err := td.Daemon.Shutdown()
+	assert.NoError(td.Test, err)
+	tdOut := td.ReadStderr()
+	assert.NoError(td.Test, err, tdOut)
+	os.RemoveAll(td.RepoDir)
 }
 
 func (td *TestDaemon) Run(args ...string) (*TestOutput, error) {
@@ -94,15 +118,21 @@ func (td *TestDaemon) ConfigExists(dir string) bool {
 
 func (td *TestDaemon) ConnectSuccess(remote *TestDaemon) *TestOutput {
 	// Connect the nodes
-	out := td.RunSuccess("swarm", "connect", remote.GetAddress())
+	remoteAddr, err := remote.GetAddress()
+	assert.NoError(td.Test, err)
+	out := td.RunSuccess("swarm", "connect", remoteAddr)
 	peers1 := td.RunSuccess("swarm", "peers")
 	peers2 := remote.RunSuccess("swarm", "peers")
 
+	remoteID, err := remote.GetID()
+	assert.NoError(td.Test, err)
 	td.Test.Log("[success] 1 -> 2")
-	require.Contains(td.Test, peers1.ReadStdout(), remote.GetID())
+	require.Contains(td.Test, peers1.ReadStdout(), remoteID)
 
+	daemonID, err := td.GetID()
+	assert.NoError(td.Test, err)
 	td.Test.Log("[success] 2 -> 1")
-	require.Contains(td.Test, peers2.ReadStdout(), td.GetID())
+	require.Contains(td.Test, peers2.ReadStdout(), daemonID)
 
 	return out
 }

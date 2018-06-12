@@ -51,14 +51,16 @@ func TestPersistId(t *testing.T) {
 	d1 := NewTestDaemon(t, th.RepoDir(dir)).Start()
 
 	// get the id and kill it
-	id1 := d1.GetID()
+	id1, err := d1.GetID()
+	assert.NoError(err)
 	d1.ShutdownSuccess()
 
 	// restart the daemon
-	d2 := NewTestDaemon(t, th.ShouldInit(false), th.RepoDir(dir)).Start()
+	d2 := NewTestDaemon(t, th.RepoDir(dir), th.ShouldInit(false)).Start()
 
 	// get the id and compare to previous
-	id2 := d2.GetID()
+	id2, err := d2.GetID()
+	assert.NoError(err)
 	d2.ShutdownSuccess()
 	t.Logf("d1: %s", d1.ReadStdout())
 	t.Logf("d2: %s", d2.ReadStdout())

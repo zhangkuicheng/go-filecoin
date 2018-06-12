@@ -17,9 +17,11 @@ func TestAddrsNewAndList(t *testing.T) {
 	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
 
+	var err error
 	addrs := make([]string, 10)
 	for i := 0; i < 10; i++ {
-		addrs[i] = d.CreateWalletAddr()
+		addrs[i], err = d.CreateWalletAddr()
+		assert.NoError(err)
 	}
 
 	list := d.RunSuccess("wallet", "addrs", "ls").ReadStdout()
@@ -33,7 +35,8 @@ func TestWalletBalance(t *testing.T) {
 
 	d := NewTestDaemon(t).Start()
 	defer d.ShutdownSuccess()
-	addr := d.CreateWalletAddr()
+	addr, err := d.CreateWalletAddr()
+	assert.NoError(err)
 
 	t.Log("[success] not found, zero")
 	balance := d.RunSuccess("wallet", "balance", addr)
@@ -82,6 +85,11 @@ func TestAddrsLookup(t *testing.T) {
 	isD1Id := strings.Trim(isD1IdRaw.ReadStdout(), "\n")
 	isD2Id := strings.Trim(isD2IdRaw.ReadStdout(), "\n")
 
-	assert.Equal(d1.GetID(), isD1Id)
-	assert.Equal(d2.GetID(), isD2Id)
+	d1ID, err := d1.GetID()
+	assert.NoError(err)
+	d2ID, err := d2.GetID()
+	assert.NoError(err)
+
+	assert.Equal(d1ID, isD1Id)
+	assert.Equal(d2ID, isD2Id)
 }

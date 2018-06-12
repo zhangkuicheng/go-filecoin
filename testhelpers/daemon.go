@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -73,6 +72,7 @@ func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 	if d.Init {
 		out, err := runInit(repodirFlag)
 		if err != nil {
+			panic(err)
 			d.Info(string(out))
 			return nil, err
 		}
@@ -238,44 +238,19 @@ func (d *Daemon) Start() (*Daemon, error) {
 	return d, nil
 }
 
-// Shutdown suts things down
-// TODO don't panic be happy
-func (d *Daemon) Shutdown() {
+// Shutdown shuts things down
+func (d *Daemon) Shutdown() error {
 	if err := d.process.Process.Signal(syscall.SIGTERM); err != nil {
 		d.Logf("Daemon Stderr:\n%s", d.ReadStderr())
 		d.Logf("Failed to kill daemon %s", err)
-		panic(err)
+		return err
 	}
 
 	if d.RepoDir == "" {
-		panic("testdaemon had no repodir set")
+		panic("daemon had no repodir set")
 	}
 
-	_ = os.RemoveAll(d.RepoDir)
-}
-
-// ShutdownSuccess needs comments
-// TODO don't panic be happy
-func (d *Daemon) ShutdownSuccess() {
-	if err := d.process.Process.Signal(syscall.SIGTERM); err != nil {
-		panic(err)
-	}
-	dOut := d.ReadStderr()
-	if strings.Contains(dOut, "ERROR") {
-		panic("Daemon has error messages")
-	}
-}
-
-// ShutdownEasy needs comments
-// TODO don't panic be happy
-func (d *Daemon) ShutdownEasy() {
-	if err := d.process.Process.Signal(syscall.SIGINT); err != nil {
-		panic(err)
-	}
-	dOut := d.ReadStderr()
-	if strings.Contains(dOut, "ERROR") {
-		d.Info("Daemon has error messages")
-	}
+	return nil
 }
 
 // WaitForAPI waits for the daemon to be running by hitting the http endpoint
@@ -291,33 +266,30 @@ func (d *Daemon) WaitForAPI() error {
 }
 
 // Config is a helper to read out the config of the deamon
-// TODO don't panic be happy
-func (d *Daemon) Config() *config.Config {
+func (d *Daemon) Config() (*config.Config, error) {
 	cfg, err := config.ReadFile(filepath.Join(d.RepoDir, "config.toml"))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return cfg
+	return cfg, nil
 }
 
 // MineAndPropagate mines a block and ensure the block has propogated to all `peers`
 // by comparing the current head block of `d` with the head block of each peer in `peers`
-// TODO don't panic be happy
-func (d *Daemon) MineAndPropagate(wait time.Duration, peers ...*Daemon) {
+func (d *Daemon) MineAndPropagate(wait time.Duration, peers ...*Daemon) error {
 	_, err := d.Run("mining", "once")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	// short circuit
 	if peers == nil {
-		return
+		return nil
 	}
 	// ensure all peers have same chain head as `d`
-	d.MustHaveChainHeadBy(wait, peers)
+	return d.MustHaveChainHeadBy(wait, peers)
 }
 
 // TryAPICheck will check if the daemon is ready
-// TODO don't panic be happy
 func TryAPICheck(d *Daemon) error {
 	url := fmt.Sprintf("http://127.0.0.1%s/api/id", d.CmdAddr)
 	resp, err := http.Get(url)
