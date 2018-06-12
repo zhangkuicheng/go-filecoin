@@ -27,8 +27,7 @@ jobs:
   build:
     <<: *defaults
     steps:
-      - checkout
-      - run: sudo apt-get install tar
+      # - checkout
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -38,8 +37,7 @@ jobs:
   test:
     <<: *defaults
     steps:
-      - checkout
-      - run: sudo apt-get install tar
+      # - checkout
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
@@ -51,8 +49,7 @@ jobs:
   lint:
     <<: *defaults
     steps:
-      - checkout
-      - run: sudo apt-get install tar
+      # - checkout
       - restore_cache:
           key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run:
