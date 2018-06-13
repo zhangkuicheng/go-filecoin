@@ -132,20 +132,18 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 	go func(errchan chan error) {
 		miner, err := d.Run("miner", "create", "--from", addr.String(), "1000000", "1000")
 		if err != nil {
-			panic(err)
 			errchan <- err
 			d.Error(err)
 			return
 		}
 		addr, err := types.NewAddressFromString(strings.Trim(miner.ReadStdout(), "\n"))
 		if err != nil {
-			panic(err)
+			fmt.Println(addr.String())
 			errchan <- err
 			d.Error(err)
 			return
 		}
 		if addr.Empty() {
-			panic("address is empty")
 			errchan <- err
 			d.Error(err)
 			return
@@ -156,7 +154,6 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 
 	_, err = d.Run("mining", "once")
 	if err != nil {
-		panic(err)
 		return types.Address{}, err
 	}
 	if len(errchan) > 0 {

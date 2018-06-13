@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -108,6 +109,15 @@ func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	stderrFile, err := os.Create(filepath.Join(d.RepoDir, "stderr.daemon"))
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		io.Copy(stderrFile, d.Stderr)
+	}()
 
 	return d, nil
 }
