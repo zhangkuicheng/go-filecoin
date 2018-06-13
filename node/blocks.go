@@ -61,7 +61,7 @@ func (node *Node) processBlock(ctx context.Context, pubSubMsg *floodsub.Message)
 	if err != nil {
 		return errors.Wrap(err, "got bad block data")
 	}
-	log.SetTag(ctx, "block", blk.Cid().String())
+	log.SetTag(ctx, "block", blk)
 
 	res, err := node.ChainMgr.ProcessNewBlock(ctx, blk)
 	if err != nil {
@@ -82,7 +82,6 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 	if err := unmarshaled.Unmarshal(pubSubMsg.GetData()); err != nil {
 		return err
 	}
-	log.SetTag(ctx, "message", unmarshaled)
 
 	_, err = node.MsgPool.Add(unmarshaled)
 	return err
@@ -93,10 +92,7 @@ func (node *Node) AddNewMessage(ctx context.Context, msg *types.Message) (err er
 	ctx = log.Start(ctx, "AddNewMessage")
 	//TODO(frrist) may need to add msg.CID here
 	defer func() {
-		log.SetTag(ctx, "method", msg.Method)
-		log.SetTag(ctx, "nonce", msg.Nonce)
-		log.SetTag(ctx, "from", msg.From)
-		log.SetTag(ctx, "to", msg.To)
+		log.SetTag(ctx, "message", msg)
 		log.FinishWithErr(ctx, err)
 	}()
 

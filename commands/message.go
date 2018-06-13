@@ -76,7 +76,7 @@ var msgSendCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "msg", c.String())
+		log.SetTag(req.Context, "message", msg)
 
 		re.Emit(c) // nolint: errcheck
 
@@ -119,7 +119,7 @@ var msgWaitCmd = &cmds.Command{
 		if err != nil {
 			return errors.Wrap(err, "invalid message cid")
 		}
-		log.SetTag(req.Context, "msg", msgCid)
+		log.SetTag(req.Context, "message", msgCid)
 
 		var found bool
 		err = n.ChainMgr.WaitForMessage(req.Context, msgCid, func(blk *types.Block, msg *types.Message,

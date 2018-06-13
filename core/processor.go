@@ -43,7 +43,7 @@ type Processor func(ctx context.Context, blk *types.Block, st state.Tree) ([]*Ap
 func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree) (ars []*ApplicationResult, err error) {
 	ctx = log.Start(ctx, "ProcessBlock")
 	defer func() {
-		log.SetTag(ctx, "block", blk.Cid())
+		log.SetTag(ctx, "block", blk)
 		log.FinishWithErr(ctx, err)
 	}()
 	var results []*ApplicationResult

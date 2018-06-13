@@ -146,7 +146,7 @@ var minerAddAskCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "msg", c.String())
+		log.SetTag(req.Context, "message", msg)
 
 		re.Emit(c) // nolint: errcheck
 

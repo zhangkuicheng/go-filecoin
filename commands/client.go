@@ -97,7 +97,7 @@ var clientAddBidCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
-		log.SetTag(req.Context, "msg", msgCid.String())
+		log.SetTag(req.Context, "message", msg)
 
 		re.Emit(msgCid) // nolint: errcheck
 
