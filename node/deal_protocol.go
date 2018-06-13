@@ -392,6 +392,8 @@ func addLoggingDataForDeal(ctx context.Context, propose *DealProposal) {
 func (sm *StorageMarket) finishDeal(ctx context.Context, minerOwner types.Address, propose *DealProposal) (*cid.Cid, error) {
 	ctx = log.Start(ctx, "finishDeal")
 	defer log.Finish(ctx)
+	log.SetTag(ctx, "miner", minerOwner.String())
+	log.SetTag(ctx, "deal", propose.Deal)
 
 	// TODO: better file fetching
 	if err := sm.fetchData(ctx, propose.Deal.DataRef); err != nil {
@@ -407,7 +409,7 @@ func (sm *StorageMarket) finishDeal(ctx context.Context, minerOwner types.Addres
 		// TODO: maybe wait until the deal gets finalized on the blockchain? (wait N blocks)
 		return nil, err
 	}
-
+	log.SetTag(ctx, "msgCid", msgcid.String())
 	return msgcid, nil
 }
 
@@ -417,7 +419,7 @@ func (sm *StorageMarket) stageForSealing(ctx context.Context, ref *cid.Cid) erro
 }
 
 func (sm *StorageMarket) fetchData(ctx context.Context, ref *cid.Cid) (err error) {
-	log.Start(ctx, "storageMarketFetchData")
+	log.Start(ctx, "fetchData")
 	defer func() { log.FinishWithErr(ctx, err) }()
 
 	log.SetTag(ctx, "data", ref.String())

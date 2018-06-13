@@ -118,7 +118,15 @@ var clientCatCmd = &cmds.Command{
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("cid", true, false, "cid of data to read"),
 	},
-	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) (err error) {
+		req.Context = log.Start(req.Context, "clientCatCmd")
+		defer func() {
+			log.SetTags(req.Context, map[string]interface{}{
+				"args": req.Arguments,
+				"path": req.Path,
+			})
+			log.FinishWithErr(req.Context, err)
+		}()
 		nd := GetNode(env)
 
 		// TODO: this goes back to 'how is data stored and referenced'
@@ -128,6 +136,7 @@ var clientCatCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "cid", c.String())
 
 		ds := dag.NewDAGService(nd.Blockservice)
 
@@ -135,6 +144,7 @@ var clientCatCmd = &cmds.Command{
 		if err != nil {
 			return err
 		}
+		log.SetTag(req.Context, "data", data.String())
 
 		dr, err := uio.NewDagReader(req.Context, data, ds)
 		if err != nil {

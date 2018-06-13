@@ -274,7 +274,8 @@ type NewBlockProcessor func(context.Context, *types.Block) (BlockProcessResult, 
 // better than our current best, it is accepted as our new best block.
 // Otherwise an error is returned explaining why it was not accepted
 func (s *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (bpr BlockProcessResult, err error) {
-	ctx = log.Start(ctx, "ChainManager.ProcessNewBlock")
+	ctx = log.Start(ctx, "ProcessNewBlock")
+	log.SetTag(ctx, "block", blk)
 	defer func() {
 		log.SetTag(ctx, "result", bpr.String())
 		log.FinishWithErr(ctx, err)
@@ -293,12 +294,18 @@ func (s *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (b
 
 // acceptNewBestBlock sets the given block as our current 'best chain' block.
 // CALLER MUST HOLD THE bestBlock LOCK.
-func (s *ChainManager) acceptNewBestBlock(ctx context.Context, blk *types.Block) (BlockProcessResult, error) {
+func (s *ChainManager) acceptNewBestBlock(ctx context.Context, blk *types.Block) (bpr BlockProcessResult, err error) {
+	log.Start(ctx, "acceptNewBestBlock")
+	defer func() {
+		log.SetTag(ctx, "block", blk)
+		log.FinishWithErr(ctx, err)
+	}()
 	if err := s.setBestBlock(ctx, blk); err != nil {
 		return Unknown, err
 	}
 	log.Infof("accepted new block, [s=%d, h=%s]", blk.Score(), blk.Cid())
 	log.LogKV(ctx, "acceptNewBestBlock", blk.Cid().String())
+	log.SetTag(ctx, "result", bpr.String())
 	return ChainAccepted, nil
 }
 
