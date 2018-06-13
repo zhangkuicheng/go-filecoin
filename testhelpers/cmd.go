@@ -26,7 +26,6 @@ func (d *Daemon) GetID() (string, error) {
 	}
 
 	var parsed map[string]interface{}
-	fmt.Println(out.ReadStdout())
 	err = json.Unmarshal([]byte(out.ReadStdoutTrimNewlines()), &parsed)
 	if err != nil {
 		return "", err
