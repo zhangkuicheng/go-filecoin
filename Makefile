@@ -9,3 +9,5 @@ install:
 
 test:
 	go run ./build/*.go test
+
+.PHONY: build deps install test
