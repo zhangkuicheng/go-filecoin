@@ -20,13 +20,14 @@ import (
 
 // GetID gets the peerid of the daemon
 func (d *Daemon) GetID() (string, error) {
-	out, err := d.Run("id")
+	out, err := d.Run("id", "--enc=json")
 	if err != nil {
 		return "", err
 	}
 
 	var parsed map[string]interface{}
-	err = json.Unmarshal([]byte(out.ReadStdout()), &parsed)
+	fmt.Println(out.ReadStdout())
+	err = json.Unmarshal([]byte(out.ReadStdoutTrimNewlines()), &parsed)
 	if err != nil {
 		return "", err
 	}
@@ -40,7 +41,7 @@ func (d *Daemon) GetID() (string, error) {
 
 // GetAddress gets the libp2p address of the daemon
 func (d *Daemon) GetAddress() (string, error) {
-	out, err := d.Run("id")
+	out, err := d.Run("id", "--enc=json")
 	if err != nil {
 		return "", err
 	}
