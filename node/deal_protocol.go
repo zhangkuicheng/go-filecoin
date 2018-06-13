@@ -43,8 +43,8 @@ func init() {
 // deal, add a reference to the data they want stored to the deal,  then add
 // their signature over the deal.
 type DealProposal struct {
-	Deal      *storagemarket.Deal
-	ClientSig string
+	Deal      *storagemarket.Deal `json:"deal"`
+	ClientSig string              `json:"clientsig"`
 }
 
 // DealQuery is used to query the state of a deal by its miner generated ID
@@ -164,7 +164,7 @@ func NewStorageMarket(nd *Node) *StorageMarket {
 // ProposeDeal the handler for incoming deal proposals
 func (sm *StorageMarket) ProposeDeal(propose *DealProposal) (dr *DealResponse, err error) {
 	// this is TODO for now because it's weaved into the `go sm.ProcessDeal(.)`
-	ctx := log.Start(context.TODO(), "ProposeDealHandler")
+	ctx := log.Start(context.TODO(), "ProposeDeal")
 	log.SetTag(ctx, "deal", propose.Deal)
 	defer func() {
 		log.SetTag(ctx, "deal-response", dr)
@@ -390,7 +390,7 @@ func addLoggingDataForDeal(ctx context.Context, propose *DealProposal) {
 */
 
 func (sm *StorageMarket) finishDeal(ctx context.Context, minerOwner types.Address, propose *DealProposal) (*cid.Cid, error) {
-	ctx = log.Start(ctx, "storageMarketFinishDeal")
+	ctx = log.Start(ctx, "finishDeal")
 	defer log.Finish(ctx)
 
 	// TODO: better file fetching
@@ -557,7 +557,11 @@ func (stsa *stateTreeMarketPeeker) GetMinerOwner(ctx context.Context, minerAddre
 }
 
 // AddDeal adds a deal by sending a message to the storage market actor on chain
-func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from types.Address, ask, bid uint64, sig string, data *cid.Cid) (*cid.Cid, error) {
+func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from types.Address, ask, bid uint64, sig string, data *cid.Cid) (c *cid.Cid, err error) {
+	ctx = log.Start(ctx, "AddDeal")
+	defer func() {
+		log.FinishWithErr(ctx, err)
+	}()
 	pdata, err := abi.ToEncodedValues(big.NewInt(0).SetUint64(ask), big.NewInt(0).SetUint64(bid), []byte(sig), data.Bytes())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encode abi values")
@@ -573,5 +577,6 @@ func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from types.Addre
 		return nil, errors.Wrap(err, "sending 'addDeal' message failed")
 	}
 
+	log.SetTag(ctx, "message", msg)
 	return msg.Cid()
 }
