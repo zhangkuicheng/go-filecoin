@@ -1,8 +1,14 @@
 package testhelpers
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
+	sm "github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -116,6 +122,161 @@ func TestMinerCreateAddr(t *testing.T) {
 	require.NoError(err)
 	require.NotEmpty(m2Addr)
 
+}
+
+func TestOrderbookListing(t *testing.T) {
+	require := require.New(t)
+	client := NewTestDaemon(t, SwarmAddr("/ip4/127.0.0.1/tcp/6000")).Start()
+	defer func() {
+		client.ShutdownSuccess()
+		//t.Log(client.ReadStderr())
+		//t.Log(client.ReadStdout())
+	}()
+
+	miner := NewTestDaemon(t, SwarmAddr("/ip4/127.0.0.1/tcp/6001")).Start()
+	defer func() {
+		miner.ShutdownSuccess()
+		//t.Log(miner.ReadStderr())
+		//t.Log(miner.ReadStdout())
+	}()
+
+	_, err := client.Connect(miner.Daemon)
+	require.NoError(err)
+
+	/*
+			w1Addr, err := client.CreateWalletAddr()
+			require.NoError(err)
+			require.NotEmpty(w1Addr)
+
+		w2Addr, err := miner.CreateWalletAddr()
+		require.NoError(err)
+		require.NotEmpty(w2Addr)
+	*/
+
+	require.NoError(client.MiningOnce())
+	require.NoError(miner.MiningOnce())
+
+	/*
+		m1Addr, err := client.CreateMinerAddr()
+		if err != nil {
+			client.Shutdown()
+			t.Log(client.ReadStderr())
+			t.Log(client.ReadStdout())
+		}
+		require.NoError(err)
+		require.NotEmpty(m1Addr)
+	*/
+
+	m2Addr, err := miner.CreateMinerAddr()
+	require.NoError(err)
+	require.NotEmpty(m2Addr)
+
+	// ensure they have an addr they can bid from
+	clientfrom, err := client.GetMainWalletAddress()
+	require.NoError(err)
+
+	miner.Run("mining", "start")
+	err = client.ClientAddBid(context.TODO(), clientfrom, 10, 10)
+	require.NoError(err)
+	miner.Run("mining", "stop")
+
+	miner.Run("mining", "start")
+	err = miner.MinerAddAsk(context.TODO(), m2Addr.String(), 10, 10)
+	require.NoError(err)
+	miner.Run("mining", "stop")
+
+	out, err := client.OrderbookGetAsks(context.TODO())
+	require.NoError(err)
+	asks := extractAsks(out.ReadStdout())
+
+	out, err = client.OrderbookGetBids(context.TODO())
+	require.NoError(err)
+	bids := extractUnusedBids(out.ReadStdout())
+
+	fmt.Println(asks[0].ID)
+	fmt.Println(bids[0].ID)
+	psudoData := "QmTz3oc4gdpRMKP2sdGUPZTAGRngqjsi99BPoztyP53JMM"
+
+	out, err = client.ProposeDeal(asks[0].ID, bids[0].ID, psudoData)
+	require.NoError(err)
+	fmt.Println(out.ReadStdout())
+	miner.MiningOnce()
+	client.MiningOnce()
+
+	out, err = client.OrderbookGetDeals(context.TODO())
+	require.NoError(err)
+	time.Sleep(3 * time.Minute)
+	deals := extractDeals(out.ReadStdout())
+	fmt.Println(deals)
+
+}
+
+func extractAsks(input string) []sm.Ask {
+
+	// remove last new line
+	o := strings.Trim(input, "\n")
+	// separate ndjson on new lines
+	as := strings.Split(o, "\n")
+	fmt.Println(as)
+	fmt.Println(len(as))
+
+	var asks []sm.Ask
+	for _, a := range as {
+		var ask sm.Ask
+		fmt.Println(a)
+		err := json.Unmarshal([]byte(a), &ask)
+		if err != nil {
+			panic(err)
+		}
+		asks = append(asks, ask)
+	}
+	return asks
+}
+
+func extractUnusedBids(input string) []sm.Bid {
+	// remove last new line
+	o := strings.Trim(input, "\n")
+	// separate ndjson on new lines
+	bs := strings.Split(o, "\n")
+	fmt.Println(bs)
+	fmt.Println(len(bs))
+
+	var bids []sm.Bid
+	for _, b := range bs {
+		var bid sm.Bid
+		fmt.Println(b)
+		err := json.Unmarshal([]byte(b), &bid)
+		if err != nil {
+			panic(err)
+		}
+		if bid.Used {
+			continue
+		}
+		bids = append(bids, bid)
+	}
+	return bids
+}
+
+func extractDeals(input string) []sm.Deal {
+
+	// remove last new line
+	o := strings.Trim(input, "\n")
+	// separate ndjson on new lines
+	ds := strings.Split(o, "\n")
+	fmt.Println(ds)
+	fmt.Println(len(ds))
+
+	var deals []sm.Deal
+	for _, d := range ds {
+		var deal sm.Deal
+		fmt.Println(d)
+		err := json.Unmarshal([]byte(d), &deal)
+		if err != nil {
+			panic(err)
+		}
+		deals = append(deals, deal)
+	}
+	return deals
 }
 
 // Gor debugging

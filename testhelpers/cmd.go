@@ -112,11 +112,13 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 	// need money
 	_, err := d.Run("mining", "once")
 	if err != nil {
+		panic(err)
 		return types.Address{}, err
 	}
 
 	nodeCfg, err := d.Config()
 	if err != nil {
+		panic(err)
 		return types.Address{}, err
 	}
 	addr := nodeCfg.Mining.RewardAddress
@@ -129,17 +131,20 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 	go func(errchan chan error) {
 		miner, err := d.Run("miner", "create", "--from", addr.String(), "1000000", "1000")
 		if err != nil {
+			panic(err)
 			errchan <- err
 			d.Error(err)
 			return
 		}
 		addr, err := types.NewAddressFromString(strings.Trim(miner.ReadStdout(), "\n"))
 		if err != nil {
+			panic(err)
 			errchan <- err
 			d.Error(err)
 			return
 		}
 		if addr.Empty() {
+			panic("address is empty")
 			errchan <- err
 			d.Error(err)
 			return
@@ -150,6 +155,7 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 
 	_, err = d.Run("mining", "once")
 	if err != nil {
+		panic(err)
 		return types.Address{}, err
 	}
 	if len(errchan) > 0 {
@@ -259,6 +265,15 @@ func (d *Daemon) MakeMoney(rewards int) {
 	for i := 0; i < rewards; i++ {
 		d.MineAndPropagate(time.Second * 1)
 	}
+}
+
+func (d *Daemon) ProposeDeal(askID, bidID uint64, dataRef string) (*Output, error) {
+	out, err := d.Run("client", "propose-deal",
+		fmt.Sprintf("--ask=%d", askID),
+		fmt.Sprintf("--bid=%d", bidID),
+		dataRef,
+	)
+	return out, err
 }
 
 // MakeDeal will make a deal with the miner `miner`, using data `dealData`.
@@ -478,4 +493,16 @@ func (td *Daemon) ClientAddBid(ctx context.Context, from string, size, price int
 
 	_, err = td.MineForMessage(ctx, cid.String())
 	return err
+}
+
+func (td *Daemon) OrderbookGetAsks(ctx context.Context) (*Output, error) {
+	return td.Run("orderbook", "asks", "--enc=json")
+}
+
+func (td *Daemon) OrderbookGetBids(ctx context.Context) (*Output, error) {
+	return td.Run("orderbook", "bids")
+}
+
+func (td *Daemon) OrderbookGetDeals(ctx context.Context) (*Output, error) {
+	return td.Run("orderbook", "deals")
 }
