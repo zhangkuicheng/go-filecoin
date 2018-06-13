@@ -31,6 +31,8 @@ type Daemon struct {
 	Stdin  io.Writer
 	Stdout io.Reader
 	Stderr io.Reader
+
+	insecureApi bool
 }
 
 // NewDaemon makes a new daemon
@@ -57,10 +59,11 @@ func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 	}
 
 	d := &Daemon{
-		CmdAddr:   fmt.Sprintf(":%d", cmdPort),
-		SwarmAddr: fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", swarmPort),
-		RepoDir:   dir,
-		Init:      true, // we want to init unless told otherwise
+		CmdAddr:     fmt.Sprintf(":%d", cmdPort),
+		SwarmAddr:   fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", swarmPort),
+		RepoDir:     dir,
+		Init:        true, // we want to init unless told otherwise
+		insecureApi: false,
 	}
 
 	// configure TestDaemon options
@@ -78,12 +81,19 @@ func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 		}
 	}
 
-	// define filecoin daemon process
-	d.process = exec.Command(filecoinBin, "daemon",
+	args := []string{
+		"daemon",
 		fmt.Sprintf("--repodir=%s", d.RepoDir),
 		fmt.Sprintf("--cmdapiaddr=%s", d.CmdAddr),
 		fmt.Sprintf("--swarmlisten=%s", d.SwarmAddr),
-	)
+	}
+
+	if d.insecureApi {
+		args = append(args, fmt.Sprintf("--insecureapi"))
+	}
+
+	// define filecoin daemon process
+	d.process = exec.Command(filecoinBin, args...)
 
 	// setup process pipes
 	d.Stdout, err = d.process.StdoutPipe()

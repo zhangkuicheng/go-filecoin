@@ -28,6 +28,7 @@ var daemonCmd = &cmds.Command{
 	Options: []cmdkit.Option{
 		cmdkit.StringOption(SwarmListen),
 		cmdkit.BoolOption(OfflineMode),
+		cmdkit.BoolOption(InsecureApi),
 	},
 	Run: daemonRun,
 	Encoders: cmds.EncoderMap{
@@ -59,6 +60,17 @@ func daemonRun(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment)
 			c.OfflineMode = offlineMode
 			return nil
 		})
+	}
+
+	if insecureApi, ok := req.Options[InsecureApi].(bool); ok && insecureApi {
+		config := rep.Config()
+		_, err := config.Set("api.accessControlAllowOrigin", `["*"]`)
+
+		if err != nil {
+			return err
+		}
+
+		re.Emit("Filecoin node running in insecure api mode (all origns allowed)\n") // nolint: errcheck
 	}
 
 	fcn, err := node.New(req.Context, opts...)

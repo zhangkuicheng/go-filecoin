@@ -22,6 +22,8 @@ const (
 	APIPrefix = "/api"
 	// OfflineMode tells us if we should try to connect this Filecoin node to the network
 	OfflineMode = "offline"
+	// InsecureApi
+	InsecureApi = "insecureapi"
 	// SwarmListen is the multiaddr for this Filecoin node
 	SwarmListen = "swarmlisten"
 )

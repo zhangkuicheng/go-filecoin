@@ -52,6 +52,13 @@ func RepoDir(dir string) func(*Daemon) {
 	}
 }
 
+// InsecureApi enables all origins
+func InsecureApi() func(*Daemon) {
+	return func(td *Daemon) {
+		td.insecureApi = true
+	}
+}
+
 // ShouldInit sets if the daemon should run `init` before becoming a daemon
 func ShouldInit(i bool) func(*Daemon) {
 	return func(td *Daemon) {
