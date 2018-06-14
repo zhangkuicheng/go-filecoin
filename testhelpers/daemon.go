@@ -171,7 +171,7 @@ func (d *Daemon) RunWithStdin(stdin io.Reader, args ...string) (*Output, error) 
 
 	finalArgs := append(args, "--repodir="+d.RepoDir, "--cmdapiaddr="+d.CmdAddr)
 
-	d.Logf("run: %q", strings.Join(finalArgs, " "))
+	//d.Logf("run: %q", strings.Join(finalArgs, " "))
 	cmd := exec.Command(bin, finalArgs...)
 
 	if stdin != nil {

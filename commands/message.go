@@ -63,7 +63,7 @@ var msgSendCmd = &cmds.Command{
 		}
 		log.SetTag(req.Context, "from", fromAddr)
 
-		msg, err := node.NewMessageWithNextNonce(req.Context, n, fromAddr, target, types.NewTokenAmount(uint64(val)), "", nil)
+		msg, err := node.NewMessageWithNextNonce(req.Context, n, fromAddr, target, types.NewTokenAmount(uint64(val)), "sendMessage", nil)
 		if err != nil {
 			return err
 		}

@@ -409,7 +409,7 @@ func (d *Daemon) SendFilecoin(ctx context.Context, from, to string, amt int) err
 
 func (d *Daemon) MineForMessage(ctx context.Context, msg string) (*Output, error) {
 
-	d.Info("message wait: mining for message ", msg)
+	//d.Info("message wait: mining for message ", msg)
 	var outErr error
 	var out *Output
 
@@ -434,7 +434,7 @@ func (d *Daemon) MineForMessage(ctx context.Context, msg string) (*Output, error
 }
 
 func (d *Daemon) WaitForMessage(ctx context.Context, msg string) (out *Output, err error) {
-	d.Info("message wait: waiting for message ", msg)
+	//d.Info("message wait: waiting for message ", msg)
 
 	// do it async to allow "canceling out" via context.
 	done := make(chan struct{})
