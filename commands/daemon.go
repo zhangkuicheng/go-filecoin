@@ -133,6 +133,50 @@ func runAPIAndWait(ctx context.Context, node *node.Node, config *config.Config, 
 		return errors.Wrap(err, "Could not save API address to repo")
 	}
 
+	go func() {
+		for {
+			time.Sleep(45 * time.Second)
+			log.Info("Sending Heartbeat")
+
+			ctx = log.Start(ctx, "HeartBeat")
+
+			rewardAddr := node.RewardAddress().String()
+			walletAddrs := node.Wallet.Addresses()
+			pendingMsgs := node.MsgPool.Pending()
+			bstBlk := node.ChainMgr.GetBestBlock().Cid().String()
+			asks, err := node.StorageMarket.GetMarketPeeker().GetAskSet()
+			if err != nil {
+				panic(err)
+			}
+			bids, err := node.StorageMarket.GetMarketPeeker().GetBidSet()
+			if err != nil {
+				panic(err)
+			}
+			deals, err := node.StorageMarket.GetMarketPeeker().GetDealList()
+			if err != nil {
+				panic(err)
+			}
+			var prs []string
+			for _, p := range node.Host.Peerstore().Peers() {
+				prs = append(prs, p.Pretty())
+			}
+
+			log.SetTags(ctx, map[string]interface{}{
+				"reward-address":   rewardAddr,
+				"wallet-address":   walletAddrs,
+				"pending-messages": pendingMsgs,
+				"best-block":       bstBlk,
+				"ask-list":         asks,
+				"bid-list":         bids,
+				"deal-list":        deals,
+				"peer-id":          node.Host.ID().Pretty(),
+				"peers":            prs,
+			})
+			log.Finish(ctx)
+			log.Info("Heartbeat sent")
+		}
+	}()
+
 	<-sigCh
 	fmt.Println("Got interrupt, shutting down...")
 
