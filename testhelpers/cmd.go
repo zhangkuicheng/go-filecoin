@@ -160,6 +160,7 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 	}
 
 	wg.Wait()
+	d.Logf("Created Miner Addr: %s", minerAddr.String())
 	return minerAddr, nil
 }
 
