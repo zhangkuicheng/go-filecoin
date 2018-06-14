@@ -269,8 +269,19 @@ func (d *Daemon) ProposeDeal(askID, bidID uint64, dataRef string) (*Output, erro
 		fmt.Sprintf("--ask=%d", askID),
 		fmt.Sprintf("--bid=%d", bidID),
 		dataRef,
+		"--enc=json",
 	)
 	return out, err
+}
+
+// ClientImport client imports a file and returns a Cid
+func (d *Daemon) ClientImport(path string) (*Output, error) {
+	return d.Run("client", "import", path)
+}
+
+// ClientCat meeeeeoooooowwwwww
+func (d *Daemon) ClientCat(cid string) (*Output, error) {
+	return d.Run("client", "cat", cid)
 }
 
 // MakeDeal will make a deal with the miner `miner`, using data `dealData`.
