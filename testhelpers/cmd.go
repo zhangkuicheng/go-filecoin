@@ -497,9 +497,9 @@ func (td *Daemon) OrderbookGetAsks(ctx context.Context) (*Output, error) {
 }
 
 func (td *Daemon) OrderbookGetBids(ctx context.Context) (*Output, error) {
-	return td.Run("orderbook", "bids")
+	return td.Run("orderbook", "bids", "--enc=json")
 }
 
 func (td *Daemon) OrderbookGetDeals(ctx context.Context) (*Output, error) {
-	return td.Run("orderbook", "deals")
+	return td.Run("orderbook", "deals", "--enc=json")
 }
