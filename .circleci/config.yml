@@ -2,9 +2,7 @@ version: 2
 
 defaults: &defaults
   working_directory: /go/src/github.com/filecoin-project/go-filecoin
-  build:
-    machine:
-      image: circleci/golang:1.10
+  machine: true
   # docker:
   #   - image: circleci/golang:1.10
   environment:
