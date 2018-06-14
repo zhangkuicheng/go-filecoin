@@ -13,11 +13,9 @@ import (
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	"gx/ipfs/QmceUdzxkimdYsgtX733uNgzf1DLHyBKN6ehGSp85ayppM/go-ipfs-cmdkit"
 
-	"github.com/filecoin-project/go-filecoin/actor/builtin"
 	"github.com/filecoin-project/go-filecoin/config"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/repo"
-	"github.com/filecoin-project/go-filecoin/state"
 )
 
 // exposed here, to be available during testing
@@ -142,26 +140,10 @@ func runAPIAndWait(ctx context.Context, node *node.Node, config *config.Config, 
 
 			ctx = log.Start(ctx, "HeartBeat")
 
-			var balance string
-			bstBlk := node.ChainMgr.GetBestBlock()
-			walletAddrs := node.Wallet.Addresses()
-
-			tree, err := state.LoadStateTree(ctx, node.CborStore, bstBlk.StateRoot, builtin.Actors)
-			if err != nil {
-				panic(err)
-			}
-
-			act, err := tree.GetActor(ctx, walletAddrs[0])
-			if err != nil {
-				if state.IsActorNotFoundError(err) {
-					// if the account doesn't exit, the balance should be zero
-					balance = "0"
-				}
-			}
-			balance = act.Balance.String()
-
 			rewardAddr := node.RewardAddress().String()
+			walletAddrs := node.Wallet.Addresses()
 			pendingMsgs := node.MsgPool.Pending()
+			bstBlk := node.ChainMgr.GetBestBlock().Cid().String()
 			asks, err := node.StorageMarket.GetMarketPeeker().GetAskSet()
 			if err != nil {
 				panic(err)
@@ -183,13 +165,12 @@ func runAPIAndWait(ctx context.Context, node *node.Node, config *config.Config, 
 				"reward-address":   rewardAddr,
 				"wallet-address":   walletAddrs,
 				"pending-messages": pendingMsgs,
-				"best-block":       bstBlk.Cid().String(),
+				"best-block":       bstBlk,
 				"ask-list":         asks,
 				"bid-list":         bids,
 				"deal-list":        deals,
 				"peer-id":          node.Host.ID().Pretty(),
 				"peers":            prs,
-				"balance":          balance,
 			})
 			log.Finish(ctx)
 			log.Info("Heartbeat sent")
