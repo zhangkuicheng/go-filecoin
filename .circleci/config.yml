@@ -5,8 +5,8 @@ defaults: &defaults
   machine: true
   # docker:
   #   - image: circleci/golang:1.10
-  environment:
-    GOPATH: "~/go"
+  # environment:
+  #  GOPATH: "~/go"
 
 jobs:
   fetch_deps:
