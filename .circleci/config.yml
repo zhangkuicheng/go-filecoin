@@ -2,9 +2,9 @@ version: 2
 
 defaults: &defaults
   working_directory: /go/src/github.com/filecoin-project/go-filecoin
-  machine: true
-  # docker:
-  #   - image: circleci/golang:1.10
+  # machine: true
+  docker:
+    - image: circleci/golang:1.10
   environment:
     GOPATH: /go
 
@@ -17,7 +17,7 @@ jobs:
             - "1e:73:c5:15:75:e0:e4:98:54:3c:2b:9e:e8:94:14:2e"
       - checkout
       - restore_cache:
-          key: v1-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
+          key: v2-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
       - run: go run ./build/*.go deps
       - save_cache:
           key: v2-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "package.json" }}
