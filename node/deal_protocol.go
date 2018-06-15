@@ -419,8 +419,8 @@ func (sm *StorageMarket) stageForSealing(ctx context.Context, ref *cid.Cid) erro
 }
 
 func (sm *StorageMarket) fetchData(ctx context.Context, ref *cid.Cid) (err error) {
-	log.Start(ctx, "fetchData")
-	defer func() { log.FinishWithErr(ctx, err) }()
+	ctx = log.Start(ctx, "fetchData")
+	defer log.Finish(ctx)
 
 	log.SetTag(ctx, "data", ref.String())
 	return dag.FetchGraph(ctx, ref, dag.NewDAGService(sm.nd.Blockservice))
