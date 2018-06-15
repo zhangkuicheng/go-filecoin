@@ -2,10 +2,12 @@ package storagemarket
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math/big"
 
 	cbor "gx/ipfs/QmRVSCwQtW1rjHCay9NqKXDwbtKTgDcN4iY7PrpSqfKM5D/go-ipld-cbor"
+	logging "gx/ipfs/QmcVVHfdyv15GVPk7NrxdWjh2hLVccXnoD8j2tyQShiXJb/go-log"
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/abi"
@@ -15,6 +17,8 @@ import (
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
 )
+
+var log = logging.Logger("storagemarket")
 
 // MinimumPledge is the minimum amount of space a user can pledge
 var MinimumPledge = types.NewBytesAmount(10000)
@@ -148,8 +152,12 @@ func (sma *Actor) CreateMiner(ctx exec.VMContext, pledge *types.BytesAmount, pub
 
 // AddAsk adds an ask order to the orderbook. Must be called by a miner created
 // by this storage market actor
-func (sma *Actor) AddAsk(ctx exec.VMContext, price *types.TokenAmount, size *types.BytesAmount) (*big.Int, uint8,
-	error) {
+func (sma *Actor) AddAsk(ctx exec.VMContext, price *types.TokenAmount, size *types.BytesAmount) (b *big.Int, r uint8, err error) {
+	elctx := context.TODO()
+	elctx = log.Start(elctx, "sm.AddAsk")
+	defer func() {
+		log.FinishWithErr(elctx, err)
+	}()
 	var storage Storage
 	ret, err := actor.WithStorage(ctx, &storage, func() (interface{}, error) {
 		// method must be called by a miner that was created by this storage market actor
@@ -164,12 +172,15 @@ func (sma *Actor) AddAsk(ctx exec.VMContext, price *types.TokenAmount, size *typ
 		askID := storage.Orderbook.NextAskID
 		storage.Orderbook.NextAskID++
 
-		storage.Orderbook.Asks[askID] = &Ask{
+		ask := &Ask{
 			ID:    askID,
 			Price: price,
 			Size:  size,
 			Owner: miner,
 		}
+
+		storage.Orderbook.Asks[askID] = ask
+		log.SetTag(elctx, "ask", ask)
 
 		return big.NewInt(0).SetUint64(askID), nil
 	})
@@ -188,7 +199,12 @@ func (sma *Actor) AddAsk(ctx exec.VMContext, price *types.TokenAmount, size *typ
 // AddBid adds a bid order to the orderbook. Can be called by anyone. The
 // message must contain the appropriate amount of funds to be locked up for the
 // bid.
-func (sma *Actor) AddBid(ctx exec.VMContext, price *types.TokenAmount, size *types.BytesAmount) (*big.Int, uint8, error) {
+func (sma *Actor) AddBid(ctx exec.VMContext, price *types.TokenAmount, size *types.BytesAmount) (b *big.Int, r uint8, err error) {
+	elctx := context.TODO()
+	elctx = log.Start(elctx, "sm.AddBid")
+	defer func() {
+		log.FinishWithErr(elctx, err)
+	}()
 	var storage Storage
 	ret, err := actor.WithStorage(ctx, &storage, func() (interface{}, error) {
 		lockedFunds := price.CalculatePrice(size)
@@ -201,12 +217,15 @@ func (sma *Actor) AddBid(ctx exec.VMContext, price *types.TokenAmount, size *typ
 		bidID := storage.Orderbook.NextBidID
 		storage.Orderbook.NextBidID++
 
-		storage.Orderbook.Bids[bidID] = &Bid{
+		bid := &Bid{
 			ID:    bidID,
 			Price: price,
 			Size:  size,
 			Owner: ctx.Message().From,
 		}
+
+		storage.Orderbook.Bids[bidID] = bid
+		log.SetTag(elctx, "bid", bid)
 
 		return big.NewInt(0).SetUint64(bidID), nil
 	})
