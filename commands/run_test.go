@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +23,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	DefaultDaemonTimeout = 1 * time.Minute
 )
 
 // Output manages running, inprocess, a filecoin command.
@@ -87,6 +92,12 @@ type TestDaemon struct {
 
 	init bool
 
+	// timeout for daemon lifecycle
+	// if the daemon is not shutdown before this duration the test fails
+	timeout time.Duration
+	// context used to track daemon lifecycle
+	ctx context.Context
+
 	// The filecoin daemon process
 	process *exec.Cmd
 
@@ -116,7 +127,7 @@ func (td *TestDaemon) RunWithStdin(stdin io.Reader, args ...string) *Output {
 	finalArgs := append(args, "--repodir="+td.repoDir, "--cmdapiaddr="+td.cmdAddr)
 
 	td.test.Logf("run: %q\n", strings.Join(finalArgs, " "))
-	cmd := exec.Command(bin, finalArgs...)
+	cmd := exec.CommandContext(td.ctx, bin, finalArgs...)
 
 	if stdin != nil {
 		cmd.Stdin = stdin
@@ -499,6 +510,12 @@ func ShouldInit(i bool) func(*TestDaemon) {
 	}
 }
 
+func Timeout(t time.Duration) func(*TestDaemon) {
+	return func(td *TestDaemon) {
+		td.timeout = t
+	}
+}
+
 func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	// Ensure we have the actual binary
 	filecoinBin, err := GetFilecoinBinary()
@@ -527,6 +544,7 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 		test:      t,
 		repoDir:   dir,
 		init:      true, // we want to init unless told otherwise
+		timeout:   DefaultDaemonTimeout,
 	}
 
 	// configure TestDaemon options
@@ -543,8 +561,9 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 		}
 	}
 
+	td.ctx, _ = context.WithTimeout(context.Background(), td.timeout)
 	// define filecoin daemon process
-	td.process = exec.Command(filecoinBin, "daemon",
+	td.process = exec.CommandContext(td.ctx, filecoinBin, "daemon",
 		fmt.Sprintf("--repodir=%s", td.repoDir),
 		fmt.Sprintf("--cmdapiaddr=%s", td.cmdAddr),
 		fmt.Sprintf("--swarmlisten=%s", td.swarmAddr),
