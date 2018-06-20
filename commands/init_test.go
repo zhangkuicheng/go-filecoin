@@ -11,6 +11,7 @@ import (
 )
 
 func TestInitSuccess(t *testing.T) {
+	t.Parallel()
 	t.Run("folder exists", func(t *testing.T) {
 		assert := assert.New(t)
 
@@ -43,6 +44,7 @@ func TestInitSuccess(t *testing.T) {
 }
 
 func TestInitFail(t *testing.T) {
+	t.Parallel()
 	t.Run("folder is not writable", func(t *testing.T) {
 		assert := assert.New(t)
 

@@ -7,6 +7,7 @@ import (
 )
 
 func TestPing2Nodes(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	d1 := NewDaemon(t, SwarmAddr("/ip4/127.0.0.1/tcp/6000")).Start()

@@ -17,6 +17,7 @@ import (
 )
 
 func TestConfigGet(t *testing.T) {
+	t.Parallel()
 	t.Run("emits the referenced config value", func(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
@@ -66,6 +67,7 @@ func TestConfigGet(t *testing.T) {
 }
 
 func TestConfigSet(t *testing.T) {
+	t.Parallel()
 	t.Run("sets the config value", func(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
@@ -146,6 +148,7 @@ func TestConfigSet(t *testing.T) {
 }
 
 func TestConfigMakeKey(t *testing.T) {
+	t.Parallel()
 	t.Run("all of table key printed", func(t *testing.T) {
 		var testStruct config.DatastoreConfig
 		var testStructPtr *config.DatastoreConfig

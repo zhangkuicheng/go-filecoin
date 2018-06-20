@@ -109,6 +109,7 @@ func TestMinerCreate(t *testing.T) {
 }
 
 func TestMinerAddAskSuccess(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	d := NewDaemon(t).Start()
@@ -152,6 +153,7 @@ func TestMinerAddAskSuccess(t *testing.T) {
 }
 
 func TestMinerAddAskFail(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	d := NewDaemon(t).Start()
