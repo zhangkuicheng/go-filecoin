@@ -61,7 +61,7 @@ func TestTipSet(t *testing.T) {
 	assert.Equal(ts2, ts)
 }
 
-// Test methods: String, ToSortedCidSet, ToSlice, Score, MinTicket, Height, NewTipSet, Equals
+// Test methods: String, ToSortedCidSet, ToSlice, MinTicket, Height, NewTipSet, Equals
 func TestTipSetMethods(t *testing.T) {
 	assert := assert.New(t)
 
@@ -90,10 +90,6 @@ func TestTipSetMethods(t *testing.T) {
 	// Height
 	h := ts.Height()
 	assert.Equal(uint64(43), h)
-
-	// Score
-	sc := ts.Score()
-	assert.Equal(uint64(43*103), sc)
 
 	// ToSortedCidSet
 	cidsExp := types.NewSortedCidSet(b1.Cid(), b2.Cid(), b3.Cid())

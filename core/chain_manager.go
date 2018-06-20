@@ -291,8 +291,25 @@ func (s *ChainManager) maybeAcceptBlock(ctx context.Context, blk *types.Block) (
 	if err != nil {
 		return Unknown, err
 	}
-	if ts.Score() < s.heaviestTipSet.ts.Score() ||
-		(ts.Score() == s.heaviestTipSet.ts.Score() &&
+	// Calculate weights of TipSets for comparison.
+	pSt, err := s.LoadParentStateTree(ctx, s.heaviestTipSet.ts)
+	if err != nil {
+		return Unknown, err
+	}
+	heaviestWeight, err := s.heaviestTipSet.ts.Weight(pSt)
+	if err != nil {
+		return Unknown, err
+	}
+	pSt, err = s.LoadParentStateTree(ctx, ts)
+	if err != nil {
+		return Unknown, err
+	}
+	newWeight, err := ts.Weight(pSt)
+	if err != nil {
+		return Unknown, err
+	}
+	if newWeight < heaviestWeight ||
+		(newWeight == heaviestWeight &&
 			// break ties by choosing tipset with smaller ticket
 			bytes.Compare(ts.MinTicket(), s.heaviestTipSet.ts.MinTicket()) >= 0) {
 		return ChainValid, nil
@@ -302,7 +319,7 @@ func (s *ChainManager) maybeAcceptBlock(ctx context.Context, blk *types.Block) (
 	if err := s.setHeaviestTipSet(ctx, ts); err != nil {
 		return Unknown, err
 	}
-	log.Infof("new heaviest tipset, [s=%d, hs=%s]", ts.Score(), ts.String())
+	log.Infof("new heaviest tipset, [s=%f, hs=%s]", newWeight, ts.String())
 	log.LogKV(ctx, "maybeAcceptBlock", ts.String())
 	return ChainAccepted, nil
 }
@@ -319,7 +336,7 @@ func (s *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (b
 		log.SetTag(ctx, "result", bpr.String())
 		log.FinishWithErr(ctx, err)
 	}()
-	log.Infof("processing block [s=%d, h=%s]", blk.Score(), blk.Cid())
+	log.Infof("processing block [s=%d, cid=%s]", blk.Score(), blk.Cid())
 
 	switch err := s.validateBlock(ctx, blk); err {
 	default:
@@ -533,7 +550,7 @@ func (s *ChainManager) addBlock(b *types.Block, id *cid.Cid) {
 // AggregateStateTreeComputer is the signature for a function used to get the state of a tipset.
 type AggregateStateTreeComputer func(context.Context, TipSet) (state.Tree, error)
 
-// loadParentStateTree returns the aggregate state tree of the input tipset's parent.
+// LoadParentStateTree returns the aggregate state tree of the input tipset's parent.
 // Only tipsets that are already known to be valid by the chain manager should
 // be provided as arguments.  Otherwise there is no guarantee that the returned
 // state is valid or that this function won't panic.
@@ -542,7 +559,7 @@ type AggregateStateTreeComputer func(context.Context, TipSet) (state.Tree, error
 // can be read directly from the block.  Alternatively the traversal ends if
 // the tipset's state tree has been cached by the chain manager from a previous
 // traversal.
-func (s *ChainManager) loadParentStateTree(ctx context.Context, ts TipSet) (state.Tree, error) {
+func (s *ChainManager) LoadParentStateTree(ctx context.Context, ts TipSet) (state.Tree, error) {
 	// Get base state and gather tipsets to apply.
 	var path []TipSet
 	var st state.Tree
@@ -594,7 +611,7 @@ func (s *ChainManager) LoadStateTreeTS(ctx context.Context, ts TipSet) (state.Tr
 	}
 
 	// Calculate by processing tipset on parent state
-	st, err := s.loadParentStateTree(ctx, ts)
+	st, err := s.LoadParentStateTree(ctx, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -716,7 +733,7 @@ func (s *ChainManager) receiptFromTipSet(ctx context.Context, j int, ts TipSet) 
 	}
 
 	// Apply all the tipset's messages to determine the correct receipts.
-	st, err := s.loadParentStateTree(ctx, ts)
+	st, err := s.LoadParentStateTree(ctx, ts)
 	if err != nil {
 		return nil, err
 	}

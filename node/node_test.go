@@ -157,7 +157,8 @@ func TestNodeMining(t *testing.T) {
 	assert.Equal(node.Wallet.Addresses()[0].String(), gotInput.RewardAddress.String())
 
 	// Ensure that the successive inputs (new best tipsets) are wired up properly.
-	b2 := core.MkChild([]*types.Block{b1}, newCid(), 0)
+	parentSt := state.NewEmptyStateTree(node.CborStore)
+	b2 := core.MkChild([]*types.Block{b1}, parentSt, newCid(), 0)
 	node.ChainMgr.SetHeaviestTipSetForTest(ctx, core.NewTipSet(b2))
 	gotInput = <-inCh
 	require.Equal(1, len(gotInput.TipSet))

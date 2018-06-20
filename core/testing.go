@@ -19,14 +19,13 @@ import (
 )
 
 // MkChild creates a new block with parent, blk, and supplied nonce.
-func MkChild(blks []*types.Block, stateRoot *cid.Cid, nonce uint64) *types.Block {
-	parents := types.NewSortedCidSet()
-	for _, blk := range blks {
-		parents.Add(blk.Cid())
-	}
+func MkChild(blks []*types.Block, parentState state.Tree, stateRoot *cid.Cid, nonce uint64) *types.Block {
+	parent := NewTipSet(blks...)
+	weight, _ := parent.Weight(parentState)
 	return &types.Block{
-		Parents:         parents,
-		Height:          blks[0].Height + 1,
+		Parents:         parent.ToSortedCidSet(),
+		Height:          parent.Height() + 1,
+		ParentWeight:    weight,
 		Nonce:           nonce,
 		StateRoot:       stateRoot,
 		Messages:        []*types.Message{},
@@ -47,7 +46,7 @@ func AddChain(ctx context.Context, processNewBlock NewBlockProcessor, loadStateT
 	l := uint64(length)
 	var blk *types.Block
 	for i := uint64(0); i < l; i++ {
-		blk = MkChild(blks, stateRoot, i)
+		blk = MkChild(blks, st, stateRoot, i)
 		_, err := processNewBlock(ctx, blk)
 		if err != nil {
 			return nil, err

@@ -14,9 +14,12 @@ import (
 
 var log = logging.Logger("mining")
 
-// GetStateTree is a function that gets a state tree by cid. It's
+// GetStateTree is a function that gets the aggregate state tree of a TipSet. It's
 // its own function to facilitate testing.
 type GetStateTree func(context.Context, core.TipSet) (state.Tree, error)
+
+// GetParentTree is a function that gets the parent state tree of
+type GetParentTree func(context.Context, core.TipSet) (state.Tree, error)
 
 // BlockGenerator is the primary interface for blockGenerator.
 type BlockGenerator interface {
@@ -24,10 +27,11 @@ type BlockGenerator interface {
 }
 
 // NewBlockGenerator returns a new BlockGenerator.
-func NewBlockGenerator(messagePool *core.MessagePool, getStateTree GetStateTree, applyMessages miningApplier) BlockGenerator {
+func NewBlockGenerator(messagePool *core.MessagePool, getStateTree GetStateTree, getParentTree GetParentTree, applyMessages miningApplier) BlockGenerator {
 	return &blockGenerator{
 		messagePool:   messagePool,
 		getStateTree:  getStateTree,
+		getParentTree: getParentTree,
 		applyMessages: applyMessages,
 	}
 }
@@ -38,12 +42,22 @@ type miningApplier func(ctx context.Context, messages []*types.Message, st state
 type blockGenerator struct {
 	messagePool   *core.MessagePool
 	getStateTree  GetStateTree
+	getParentTree GetParentTree
 	applyMessages miningApplier
 }
 
 // Generate returns a new block created from the messages in the pool.
 func (b blockGenerator) Generate(ctx context.Context, baseTipSet core.TipSet, ticket types.Signature, nullBlockCount uint64, rewardAddress types.Address) (*types.Block, error) {
 	stateTree, err := b.getStateTree(ctx, baseTipSet)
+	if err != nil {
+		return nil, err
+	}
+
+	parentTree, err := b.getParentTree(ctx, baseTipSet)
+	if err != nil {
+		return nil, err
+	}
+	weight, err := baseTipSet.Weight(parentTree)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +95,7 @@ func (b blockGenerator) Generate(ctx context.Context, baseTipSet core.TipSet, ti
 		Messages:        res.SuccessfulMessages,
 		MessageReceipts: receipts,
 		Parents:         baseTipSet.ToSortedCidSet(),
+		ParentWeight:    weight,
 		StateRoot:       newStateTreeCid,
 		Ticket:          ticket,
 	}

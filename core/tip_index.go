@@ -6,6 +6,7 @@ import (
 
 	//	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
+	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -59,9 +60,11 @@ func NewTipSet(blks ...*types.Block) TipSet {
 	ts := TipSet{}
 	var h uint64
 	var p types.SortedCidSet
+	var w float64
 	if len(blks) > 0 {
 		h = blks[0].Height
 		p = blks[0].Parents
+		w = blks[0].ParentWeight
 	}
 	for _, b := range blks {
 		if b.Height != h {
@@ -69,6 +72,9 @@ func NewTipSet(blks ...*types.Block) TipSet {
 		}
 		if !b.Parents.Equals(p) {
 			panic("constructing a tipset with blocks of unequal parent sets")
+		}
+		if b.ParentWeight != w {
+			panic("constructing a tipset with blocks of unequal parent weight")
 		}
 		id := b.Cid()
 		ts[id.String()] = b
@@ -81,17 +87,22 @@ func NewTipSet(blks ...*types.Block) TipSet {
 func (ts TipSet) AddBlock(b *types.Block) {
 	var h uint64
 	var p types.SortedCidSet
+	var w float64
 	if len(ts) == 0 {
 		id := b.Cid()
 		ts[id.String()] = b
 	}
 	h = b.Height
 	p = b.Parents
+	w = b.ParentWeight
 	if b.Height != h {
 		panic("constructing a tipset with blocks of different heights")
 	}
 	if !b.Parents.Equals(p) {
 		panic("constructing a tipset with blocks of unequal parent sets")
+	}
+	if b.ParentWeight != w {
+		panic("constructing a tipset with blocks of unequal parent weight")
 	}
 	id := b.Cid()
 	ts[id.String()] = b
@@ -140,15 +151,6 @@ func (ts TipSet) ToSlice() []*types.Block {
 	return sl
 }
 
-// Score returns the numeric score of a tipset.
-// TODO this is a dummy calculation, this needs to change to reflect the spec.
-func (ts TipSet) Score() uint64 {
-	if len(ts) == 0 {
-		return 0
-	}
-	return ts.Height() * (uint64(100 + len(ts)))
-}
-
 // MinTicket returns the smallest ticket of all blocks in the tipset.
 func (ts TipSet) MinTicket() types.Signature {
 	if len(ts) <= 0 {
@@ -180,6 +182,35 @@ func (ts TipSet) Parents() types.SortedCidSet {
 		p = ts.ToSlice()[0].Parents
 	}
 	return p
+}
+
+// ParentWeight returns the ParentWeight of the TipSet
+func (ts TipSet) ParentWeight() float64 {
+	var w float64
+	if len(ts) > 0 {
+		w = ts.ToSlice()[0].ParentWeight
+	}
+	return w
+}
+
+// ecV is the constant V defined in the EC spec.  TODO: the value of V needs
+//  motivation at the protocol design level
+const ecV float64 = 10.0
+
+// ecPrM is the power ratio magnitude defined in the EC spec.  TODO: the value
+// of this constant needs motivation at the protocol level
+const ecPrM float64 = 100.0
+
+// Weight returns the EC weight of this TipSet
+func (ts TipSet) Weight(pState state.Tree) (float64, error) {
+	w := ts.ParentWeight()
+	for i := 0; i < len(ts); i++ {
+		// TODO: 0.0 needs to be replaced with the block miner's power
+		// as derived from the allocation table in the aggregate parent
+		// state of this tipset. (EC pt 7)
+		w += ecV + (ecPrM * 0.0)
+	}
+	return w, nil
 }
 
 // BaseBlockFromTipSets is a likely TEMPORARY helper to extract a base block
