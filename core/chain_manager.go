@@ -295,7 +295,7 @@ func (s *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (b
 // acceptNewBestBlock sets the given block as our current 'best chain' block.
 // CALLER MUST HOLD THE bestBlock LOCK.
 func (s *ChainManager) acceptNewBestBlock(ctx context.Context, blk *types.Block) (bpr BlockProcessResult, err error) {
-	log.Start(ctx, "acceptNewBestBlock")
+	ctx = log.Start(ctx, "acceptNewBestBlock")
 	defer func() {
 		log.SetTag(ctx, "block", blk)
 		log.FinishWithErr(ctx, err)
