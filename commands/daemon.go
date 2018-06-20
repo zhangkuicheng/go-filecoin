@@ -135,7 +135,7 @@ func runAPIAndWait(ctx context.Context, node *node.Node, config *config.Config, 
 
 	go func() {
 		for {
-			time.Sleep(45 * time.Second)
+			time.Sleep(time.Second)
 			log.Info("Sending Heartbeat")
 
 			ctx = log.Start(ctx, "HeartBeat")
