@@ -552,21 +552,27 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 		option(td)
 	}
 
+	td.ctx, _ = context.WithTimeout(context.Background(), td.timeout)
+
 	repodirFlag := fmt.Sprintf("--repodir=%s", td.repoDir)
+	cmdAddrFlag := fmt.Sprintf("--cmdapiaddr=%s", td.cmdAddr)
+	swarmFlag := fmt.Sprintf("--swarmlisten=%s", td.swarmAddr)
 	if td.init {
-		out, err := RunInit(repodirFlag)
+		out, err := exec.CommandContext(td.ctx, filecoinBin, "init",
+			repodirFlag,
+			cmdAddrFlag,
+		).CombinedOutput()
 		if err != nil {
 			t.Log(string(out))
 			t.Fatal(err)
 		}
 	}
 
-	td.ctx, _ = context.WithTimeout(context.Background(), td.timeout)
 	// define filecoin daemon process
 	td.process = exec.CommandContext(td.ctx, filecoinBin, "daemon",
-		fmt.Sprintf("--repodir=%s", td.repoDir),
-		fmt.Sprintf("--cmdapiaddr=%s", td.cmdAddr),
-		fmt.Sprintf("--swarmlisten=%s", td.swarmAddr),
+		repodirFlag,
+		cmdAddrFlag,
+		swarmFlag,
 	)
 
 	// setup process pipes
