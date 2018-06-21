@@ -69,7 +69,9 @@ func getParentTipSet(store *hamt.CborIpldStore, ts TipSet) (TipSet, error) {
 		if err := store.Get(context.TODO(), it.Value(), &newBlk); err != nil {
 			return nil, err
 		}
-		newTipSet.AddBlock(&newBlk)
+		if err := newTipSet.AddBlock(&newBlk); err != nil {
+			return nil, err
+		}
 	}
 	return newTipSet, nil
 }

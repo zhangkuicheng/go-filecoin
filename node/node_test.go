@@ -148,7 +148,7 @@ func TestNodeMining(t *testing.T) {
 	b1 := &types.Block{StateRoot: newCid()}
 	var chainMgrForTest *core.ChainManagerForTest // nolint: gosimple, megacheck
 	chainMgrForTest = node.ChainMgr
-	chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.NewTipSet(b1))
+	chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b1))
 	require.NoError(node.Start())
 	require.NoError(node.StartMining())
 	gotInput := <-inCh
@@ -159,7 +159,7 @@ func TestNodeMining(t *testing.T) {
 	// Ensure that the successive inputs (new best tipsets) are wired up properly.
 	parentSt := state.NewEmptyStateTree(node.CborStore)
 	b2 := core.MkChild([]*types.Block{b1}, parentSt, newCid(), 0)
-	node.ChainMgr.SetHeaviestTipSetForTest(ctx, core.NewTipSet(b2))
+	node.ChainMgr.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b2))
 	gotInput = <-inCh
 	require.Equal(1, len(gotInput.TipSet))
 	assert.True(b2.Cid().Equals(gotInput.TipSet.ToSlice()[0].Cid()))
@@ -167,7 +167,7 @@ func TestNodeMining(t *testing.T) {
 	// Ensure we don't mine when stopped.
 	assert.Equal(mining.ChannelEmpty, mining.ReceiveInCh(inCh))
 	node.StopMining()
-	node.ChainMgr.SetHeaviestTipSetForTest(ctx, core.NewTipSet(b2))
+	node.ChainMgr.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b2))
 	time.Sleep(20 * time.Millisecond)
 	assert.Equal(mining.ChannelEmpty, mining.ReceiveInCh(inCh))
 
@@ -177,7 +177,7 @@ func TestNodeMining(t *testing.T) {
 	node = MakeNodesUnstarted(t, 1, true)[0]
 
 	chainMgrForTest = node.ChainMgr
-	chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.NewTipSet(b1))
+	chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b1))
 	assert.NoError(node.Start())
 	assert.NoError(node.StartMining())
 	workerDone := false
@@ -431,6 +431,7 @@ func TestNewMessageWithNextNonce(t *testing.T) {
 
 	t.Run("includes correct nonce", func(t *testing.T) {
 		assert := assert.New(t)
+		require := require.New(t)
 		node := MakeNodesUnstarted(t, 1, true)[0]
 		err := node.ChainMgr.Genesis(ctx, core.InitGenesis)
 		assert.NoError(err)
@@ -446,7 +447,7 @@ func TestNewMessageWithNextNonce(t *testing.T) {
 		cid := state.MustSetActor(st, address, actor)
 		bb.StateRoot = cid
 		var chainMgrForTest *core.ChainManagerForTest = node.ChainMgr // nolint: golint
-		chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.NewTipSet(bb))
+		chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, bb))
 
 		msg, err := NewMessageWithNextNonce(ctx, node, address, types.NewAddressForTestGetter()(), nil, "foo", []byte{})
 		assert.NoError(err)

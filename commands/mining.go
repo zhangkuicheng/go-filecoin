@@ -43,7 +43,10 @@ var miningOnceCmd = &cmds.Command{
 			return fcn.ChainMgr.LoadParentStateTree(ctx, ts)
 		}, core.ApplyMessages)
 		// TODO(EC): Need to read best tipsets from storage and pass in. See also Node::StartMining().
-		ts := core.NewTipSet(cur)
+		ts, err := core.NewTipSet(cur)
+		if err != nil {
+			return err
+		}
 		res := mining.MineOnce(req.Context, mining.NewWorker(blockGenerator), ts, rewardAddr)
 		if res.Err != nil {
 			return res.Err

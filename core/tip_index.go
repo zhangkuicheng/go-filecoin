@@ -1,10 +1,9 @@
 package core
 
 import (
-	//	"fmt"
 	"bytes"
 
-	//	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
+	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -13,25 +12,29 @@ import (
 // tipIndex tracks tipsets by height and parent set, mainly for use in expected consensus.
 type tipIndex map[uint64]tipSetsByParents
 
-func (ti tipIndex) addBlock(b *types.Block) {
+func (ti tipIndex) addBlock(b *types.Block) error {
 	tsbp, ok := ti[b.Height]
 	if !ok {
 		tsbp = tipSetsByParents{}
 		ti[b.Height] = tsbp
 	}
-	tsbp.addBlock(b)
+	return tsbp.addBlock(b)
 }
 
 type tipSetsByParents map[string]TipSet
 
-func (tsbp tipSetsByParents) addBlock(b *types.Block) {
+func (tsbp tipSetsByParents) addBlock(b *types.Block) error {
 	key := keyForParentSet(b.Parents)
 	ts := tsbp[key]
 	if ts == nil {
 		ts = TipSet{}
 	}
-	ts.AddBlock(b)
+	err := ts.AddBlock(b)
+	if err != nil {
+		return err
+	}
 	tsbp[key] = ts
+	return nil
 }
 
 func keyForParentSet(parents types.SortedCidSet) string {
@@ -54,9 +57,16 @@ type Tip = types.Block
 // keyed by Cid string.
 type TipSet map[string]*Tip
 
+var (
+	// ErrBadTipSetCreate is returned when there is an error creating a new tipset
+	ErrBadTipSetCreate = errors.New("tipset contains blocks of different heights, or different parent sets or weights")
+	// ErrBadTipSetAdd is returned when there is an error adding a block to a tipset
+	ErrBadTipSetAdd = errors.New("block has invalid height, parent set or parent weight to be a member of tipset")
+)
+
 // NewTipSet returns a TipSet wrapping the input blocks.
 // PRECONDITION: all blocks are the same height and have the same parent set.
-func NewTipSet(blks ...*types.Block) TipSet {
+func NewTipSet(blks ...*types.Block) (TipSet, error) {
 	ts := TipSet{}
 	var h uint64
 	var p types.SortedCidSet
@@ -67,24 +77,18 @@ func NewTipSet(blks ...*types.Block) TipSet {
 		w = blks[0].ParentWeight
 	}
 	for _, b := range blks {
-		if b.Height != h {
-			panic("constructing a tipset with blocks of different heights")
-		}
-		if !b.Parents.Equals(p) {
-			panic("constructing a tipset with blocks of unequal parent sets")
-		}
-		if b.ParentWeight != w {
-			panic("constructing a tipset with blocks of unequal parent weight")
+		if b.Height != h || !b.Parents.Equals(p) || b.ParentWeight != w {
+			return nil, ErrBadTipSetCreate
 		}
 		id := b.Cid()
 		ts[id.String()] = b
 	}
-	return ts
+	return ts, nil
 }
 
 // AddBlock adds the provided block to this tipset.
 // PRECONDITION: this block has the same height parent set as other members of ts.
-func (ts TipSet) AddBlock(b *types.Block) {
+func (ts TipSet) AddBlock(b *types.Block) error {
 	var h uint64
 	var p types.SortedCidSet
 	var w float64
@@ -95,17 +99,12 @@ func (ts TipSet) AddBlock(b *types.Block) {
 	h = b.Height
 	p = b.Parents
 	w = b.ParentWeight
-	if b.Height != h {
-		panic("constructing a tipset with blocks of different heights")
-	}
-	if !b.Parents.Equals(p) {
-		panic("constructing a tipset with blocks of unequal parent sets")
-	}
-	if b.ParentWeight != w {
-		panic("constructing a tipset with blocks of unequal parent weight")
+	if b.Height != h || !b.Parents.Equals(p) || b.ParentWeight != w {
+		return ErrBadTipSetAdd
 	}
 	id := b.Cid()
 	ts[id.String()] = b
+	return nil
 }
 
 // Clone returns a shallow copy of the TipSet.

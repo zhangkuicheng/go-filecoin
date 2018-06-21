@@ -20,11 +20,25 @@ import (
 
 // MkChild creates a new block with parent, blk, and supplied nonce.
 func MkChild(blks []*types.Block, parentState state.Tree, stateRoot *cid.Cid, nonce uint64) *types.Block {
-	parent := NewTipSet(blks...)
-	weight, _ := parent.Weight(parentState)
+	var weight float64
+	var height uint64
+	var parents types.SortedCidSet
+	parent, err := NewTipSet(blks...)
+	if err != nil {
+		weight = float64(len(blks))*10.0 + blks[0].ParentWeight
+		height = blks[0].Height + 1
+		parents = types.SortedCidSet{}
+		for _, blk := range blks {
+			(&parents).Add(blk.Cid())
+		}
+	} else {
+		weight, _ = parent.Weight(parentState)
+		height = parent.Height() + 1
+		parents = parent.ToSortedCidSet()
+	}
 	return &types.Block{
-		Parents:         parent.ToSortedCidSet(),
-		Height:          parent.Height() + 1,
+		Parents:         parents,
+		Height:          height,
 		ParentWeight:    weight,
 		Nonce:           nonce,
 		StateRoot:       stateRoot,
@@ -35,7 +49,8 @@ func MkChild(blks []*types.Block, parentState state.Tree, stateRoot *cid.Cid, no
 
 // AddChain creates and processes new, empty chain of length, beginning from blk.
 func AddChain(ctx context.Context, processNewBlock NewBlockProcessor, loadStateTreeTS AggregateStateTreeComputer, blks []*types.Block, length int) (*types.Block, error) {
-	st, err := loadStateTreeTS(ctx, NewTipSet(blks[0]))
+	ts, _ := NewTipSet(blks[0])
+	st, err := loadStateTreeTS(ctx, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +132,14 @@ func RequireRandomPeerID() peer.ID {
 	}
 
 	return pid
+}
+
+// RequireNewTipSet instantiates and returns a new tipset of the given blocks
+// and requires that the setup validation succeed.
+func RequireNewTipSet(require *require.Assertions, blks ...*types.Block) TipSet {
+	ts, err := NewTipSet(blks...)
+	require.NoError(err)
+	return ts
 }
 
 // MustGetNonce returns the next nonce for an actor at the given address or panics.

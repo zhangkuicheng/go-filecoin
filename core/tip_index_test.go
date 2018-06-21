@@ -77,7 +77,8 @@ func TestTipSetMethods(t *testing.T) {
 
 	// NewTipSet
 	tips := []*types.Block{b1, b2, b3}
-	ts := NewTipSet(tips...)
+	ts, err := NewTipSet(tips...)
+	assert.NoError(err)
 	assert.Equal(ts[b1.Cid().String()], b1)
 	assert.Equal(ts[b2.Cid().String()], b2)
 	assert.Equal(ts[b3.Cid().String()], b3)
@@ -108,7 +109,8 @@ func TestTipSetMethods(t *testing.T) {
 	assert.Equal(tips, blks)
 
 	// Equals & AddBlock
-	ts2 := NewTipSet(b1, b2)
+	ts2, err := NewTipSet(b1, b2)
+	assert.NoError(err)
 	assert.True(!ts2.Equals(ts))
 	ts2.AddBlock(b3)
 	assert.True(ts.Equals(ts2))

@@ -74,7 +74,7 @@ func TestWorker_Start(t *testing.T) {
 	// Test that multi-block tipsets are passed faithfully
 	mineCalled = false
 	ctx, cancel = context.WithCancel(context.Background())
-	tipSet = core.NewTipSet([]*types.Block{{StateRoot: newCid()}, {StateRoot: newCid()}}...)
+	tipSet = core.RequireNewTipSet(require, []*types.Block{{StateRoot: newCid()}, {StateRoot: newCid()}}...)
 	fakeMine = func(c context.Context, i Input, _ NullBlockTimerFunc, bg BlockGenerator, doSomeWork DoSomeWorkFunc, outCh chan<- Output) {
 		mineCalled = true
 		require.Equal(2, len(i.TipSet))

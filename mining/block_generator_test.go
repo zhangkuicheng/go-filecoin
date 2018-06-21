@@ -96,6 +96,7 @@ func TestApplyMessagesForSuccessTempAndPermFailures(t *testing.T) {
 
 func TestGenerateMultiBlockTipSet(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 
 	ctx := context.Background()
 	newCid := types.NewCidForTestGetter()
@@ -124,7 +125,7 @@ func TestGenerateMultiBlockTipSet(t *testing.T) {
 		StateRoot:    stateRoot,
 		Nonce:        1,
 	}
-	blk, err := generator.Generate(ctx, core.NewTipSet(&baseBlock1, &baseBlock2), nil, 0, addrs[0])
+	blk, err := generator.Generate(ctx, core.RequireNewTipSet(require, &baseBlock1, &baseBlock2), nil, 0, addrs[0])
 	assert.NoError(err)
 
 	assert.Len(blk.Messages, 1) // This is the mining reward.
@@ -135,6 +136,7 @@ func TestGenerateMultiBlockTipSet(t *testing.T) {
 // After calling Generate, do the new block and new state of the message pool conform to our expectations?
 func TestGeneratePoolBlockResults(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 
 	ctx := context.Background()
 	newCid := types.NewCidForTestGetter()
@@ -166,7 +168,7 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 		Height:    uint64(100),
 		StateRoot: newCid(),
 	}
-	blk, err := generator.Generate(ctx, core.NewTipSet(&baseBlock), nil, 0, addrs[0])
+	blk, err := generator.Generate(ctx, core.RequireNewTipSet(require, &baseBlock), nil, 0, addrs[0])
 	assert.NoError(err)
 
 	assert.Len(pool.Pending(), 1) // This is the temporary failure.
@@ -180,6 +182,7 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 
 func TestGenerateSetsBasicFields(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 
 	ctx := context.Background()
 	newCid := types.NewCidForTestGetter()
@@ -201,7 +204,7 @@ func TestGenerateSetsBasicFields(t *testing.T) {
 		ParentWeight: pw,
 		StateRoot:    newCid(),
 	}
-	baseTipSet := core.NewTipSet(&baseBlock)
+	baseTipSet := core.RequireNewTipSet(require, &baseBlock)
 	blk, err := generator.Generate(ctx, baseTipSet, nil, 0, addrs[0])
 	assert.NoError(err)
 
@@ -218,6 +221,7 @@ func TestGenerateSetsBasicFields(t *testing.T) {
 
 func TestGenerateWithoutMessages(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 
 	ctx := context.Background()
 	newCid := types.NewCidForTestGetter()
@@ -238,7 +242,7 @@ func TestGenerateWithoutMessages(t *testing.T) {
 		Height:    uint64(100),
 		StateRoot: newCid(),
 	}
-	blk, err := generator.Generate(ctx, core.NewTipSet(&baseBlock), nil, 0, addrs[0])
+	blk, err := generator.Generate(ctx, core.RequireNewTipSet(require, &baseBlock), nil, 0, addrs[0])
 	assert.NoError(err)
 
 	assert.Len(pool.Pending(), 0) // This is the temporary failure.
@@ -249,6 +253,7 @@ func TestGenerateWithoutMessages(t *testing.T) {
 // no block should be returned, and the message pool should not be pruned.
 func TestGenerateError(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	ctx := context.Background()
 	newCid := types.NewCidForTestGetter()
 
@@ -277,7 +282,7 @@ func TestGenerateError(t *testing.T) {
 		Height:    uint64(100),
 		StateRoot: newCid(),
 	}
-	baseTipSet := core.NewTipSet(&baseBlock)
+	baseTipSet := core.RequireNewTipSet(require, &baseBlock)
 	blk, err := generator.Generate(ctx, baseTipSet, nil, 0, addrs[0])
 	assert.Error(err, "boom")
 	assert.Nil(blk)

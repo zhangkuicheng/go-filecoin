@@ -157,7 +157,10 @@ func (s *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err er
 	s.heaviestTipSet.Lock()
 	defer s.heaviestTipSet.Unlock()
 	s.addBlock(genesis, s.genesisCid)
-	genTipSet := NewTipSet(genesis)
+	genTipSet, err := NewTipSet(genesis)
+	if err != nil {
+		return err
+	}
 	return s.setHeaviestTipSet(ctx, genTipSet)
 }
 
@@ -202,7 +205,10 @@ func (s *ChainManager) Load() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load block in head TipSet")
 		}
-		ts.AddBlock(blk)
+		err = ts.AddBlock(blk)
+		if err != nil {
+			return errors.Wrap(err, "failed to add validated block to TipSet")
+		}
 	}
 
 	var genesii []*types.Block
@@ -508,7 +514,10 @@ func (s *ChainManager) findKnownAncestor(ctx context.Context, tip *types.Block) 
 			return false, errors.Wrap(err, "validate tipset failed")
 		}
 
-		next := NewTipSet(tips...) // must come after validation, otherwise may panic
+		next, err := NewTipSet(tips...)
+		if err != nil {
+			return false, err
+		}
 		if known {
 			baseTipSet = next
 			return false, nil
@@ -544,7 +553,9 @@ func (s *ChainManager) addBlock(b *types.Block, id *cid.Cid) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.knownGoodBlocks.Add(id)
-	s.tips.addBlock(b)
+	if err := s.tips.addBlock(b); err != nil {
+		panic("Invalid block added to tipset.  Validation should have caught earlier")
+	}
 }
 
 // AggregateStateTreeComputer is the signature for a function used to get the state of a tipset.
@@ -564,14 +575,19 @@ func (s *ChainManager) LoadParentStateTree(ctx context.Context, ts TipSet) (stat
 	var path []TipSet
 	var st state.Tree
 	err := s.walkChain(ts.ToSlice(), func(tips []*types.Block) (cont bool, err error) {
-		if NewTipSet(tips...).Equals(ts) { // skip the head tipset
+		next, err := NewTipSet(tips...)
+		if err != nil {
+			return false, errors.Wrap(err, "error creating TipSet from already validated chain section")
+		}
+		// Skip the head tipset.
+		if next.Equals(ts) {
 			return true, nil
 		}
+
 		if len(tips) == 1 {
 			st, err = state.LoadStateTree(ctx, s.cstore, tips[0].StateRoot, builtin.Actors)
 			return false, err
 		}
-		next := NewTipSet(tips...)
 		tipsID := next.String()
 		if stateRoot, ok := s.stateCache[tipsID]; ok {
 			st, err = state.LoadStateTree(ctx, s.cstore, stateRoot, builtin.Actors)
@@ -696,10 +712,15 @@ func (s *ChainManager) BlockHistory(ctx context.Context) <-chan interface{} {
 	go func() {
 		defer close(out)
 		err := s.walkChain(tips, func(tips []*types.Block) (cont bool, err error) {
+			var raw interface{}
+			raw, err = NewTipSet(tips...)
+			if err != nil {
+				raw = err
+			}
 			select {
 			case <-ctx.Done():
 				return false, nil
-			case out <- NewTipSet(tips...):
+			case out <- raw:
 			}
 			return true, nil
 		})
