@@ -142,6 +142,13 @@ func RequireNewTipSet(require *require.Assertions, blks ...*types.Block) TipSet 
 	return ts
 }
 
+// RequireTipSetAdd adds the input block to the tipset and requires that no
+// errors occur.
+func RequireTipSetAdd(require *require.Assertions, blk *types.Block, tsPtr *TipSet) {
+	err := (*tsPtr).AddBlock(blk)
+	require.NoError(err)
+}
+
 // MustGetNonce returns the next nonce for an actor at the given address or panics.
 func MustGetNonce(st state.Tree, a types.Address) uint64 {
 	mp := NewMessagePool()
