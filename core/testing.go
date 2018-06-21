@@ -117,6 +117,7 @@ func RequireNewFakeActorWithTokens(require *require.Assertions, codeCid *cid.Cid
 	return types.NewActorWithMemory(codeCid, amt, storageBytes)
 }
 
+
 // RequireRandomPeerID returns a new libp2p peer ID or panics.
 func RequireRandomPeerID() peer.ID {
 	pid, err := testutil.RandPeerID()
@@ -141,6 +142,7 @@ func RequireTipSetAdd(require *require.Assertions, blk *types.Block, tsPtr *TipS
 	err := (*tsPtr).AddBlock(blk)
 	require.NoError(err)
 }
+
 
 // MustGetNonce returns the next nonce for an actor at the given address or panics.
 func MustGetNonce(st state.Tree, a types.Address) uint64 {

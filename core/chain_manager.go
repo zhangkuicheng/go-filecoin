@@ -154,9 +154,9 @@ func (cm *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err e
 
 	cm.genesisCid = genesis.Cid()
 
-	cm.heaviestTipSet.Lock()
-	defer cm.heaviestTipSet.Unlock()
-	cm.addBlock(genesis, cm.genesisCid)
+	s.heaviestTipSet.Lock()
+	defer s.heaviestTipSet.Unlock()
+	s.addBlock(genesis, s.genesisCid)
 	genTipSet, err := NewTipSet(genesis)
 	if err != nil {
 		return err

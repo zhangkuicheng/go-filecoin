@@ -81,6 +81,7 @@ func RequireTestBlocks(t *testing.T) (*types.Block, *types.Block, *types.Block) 
 	return b1, b2, b3
 }
 
+
 func RequireTestTipSet(t *testing.T) TipSet {
 	require := require.New(t)
 	b1, b2, b3 := RequireTestBlocks(t)

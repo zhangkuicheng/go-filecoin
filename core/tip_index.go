@@ -78,11 +78,15 @@ func NewTipSet(blks ...*types.Block) (TipSet, error) {
 // AddBlock adds the provided block to this tipset.
 // PRECONDITION: this block has the same height parent set as other members of ts.
 func (ts TipSet) AddBlock(b *types.Block) error {
+	var h uint64
+	var p types.SortedCidSet
+	var w float64
 	if len(ts) == 0 {
 		id := b.Cid()
 		ts[id.String()] = b
 		return nil
 	}
+
 	if b.Height != ts.Height() || !b.Parents.Equals(ts.Parents()) || b.ParentWeight != ts.ParentWeight() {
 		return ErrBadTipSetAdd
 	}
