@@ -336,7 +336,7 @@ func (cm *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (
 	}()
 	log.Infof("processing block [s=%d, cid=%s]", blk.Score(), blk.Cid())
 
-	switch err := cm.validateBlock(ctx, blk); err {
+	switch _, err := cm.ValidState(ctx, []*types.Block{blk}); err {
 	default:
 		return Unknown, errors.Wrap(err, "validate block failed")
 	case ErrInvalidBase:
@@ -399,6 +399,99 @@ func (cm *ChainManager) validateBlockStructure(ctx context.Context, b *types.Blo
 	}
 
 	return nil
+}
+
+
+// ValidState is an experimental function attempting to fullfill the role of both
+// validation and aggregate state retrieval all in one call
+func (s *ChainManager) ValidState(ctx context.Context, blks []*types.Block) (state.Tree, error) {
+	// Check validity of current tipset
+//	fmt.Printf("\nValidState called on: %v\n", blks[0])
+	if err := s.validateTipSetStructure(ctx, blks); err != nil {
+		return nil, errors.Wrap(err, "validate blks as tipset failed")
+	}
+	ts, err := NewTipSet(blks...)
+	if err != nil {
+		return nil, errors.Wrap(err, "create tipset failed")
+	}
+
+	// Get valid parent state.
+	var st state.Tree
+	if cachedRoot, ok := s.stateCache[ts.String()]; ok {
+		st, err = state.LoadStateTree(ctx, s.cstore, cachedRoot, builtin.Actors)
+		if err != nil {
+			return nil, errors.Wrap(err, "parent state load failed")
+		}
+	}
+	if len(ts) == 1 && s.isKnownGoodBlock(blks[0].Cid()){ // covers genesis block assuming it's never evicted
+		st, err = state.LoadStateTree(ctx, s.cstore, blks[0].StateRoot, builtin.Actors)
+		if err != nil {
+			return nil, errors.Wrap(err, "parent state load failed")
+		}		
+	}
+	if st == nil { // parent not yet validated -- recurse!
+		ids := ts.Parents()
+//		fmt.Printf("ids:%v\n", ids)
+		if ids.Empty() { // assuming genesis block is known so this will only be hit on bad chains
+			return nil, ErrInvalidBase
+		}
+		// fetch parents
+		next := blks[:0]
+		for it := ids.Iter(); !it.Complete(); it.Next() {
+			pid := it.Value()
+			p, err := s.FetchBlock(context.TODO(), pid)
+			if err != nil {
+				return nil, errors.Wrap(err, "error fetching block")
+			}
+			next = append(next, p)
+		}
+		st, err = s.ValidState(ctx, next)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Validate transitions, update caches
+	var cpySt state.Tree	
+	for _, blk := range ts {
+		// state copied so changes don't propagate between block validations
+		cpyCid, err := st.Flush(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "error validating block state")
+		}
+		cpySt, err = state.LoadStateTree(ctx, s.cstore, cpyCid, builtin.Actors)
+		if err != nil {
+			return nil, errors.Wrap(err, "error validating block state")
+		}
+		
+		receipts, err := s.blockProcessor(ctx, blk, cpySt)
+		if err != nil {
+			return nil, errors.Wrap(err, "error validating block state")
+		}
+
+		// TODO: check that the receipts actually match
+		if len(receipts) != len(blk.MessageReceipts) {
+			return nil, fmt.Errorf("found invalid message receipts: %v %v", receipts, blk.MessageReceipts)
+		}
+		s.addBlock(blk, blk.Cid())
+		if _, err := s.cstore.Put(ctx, blk); err != nil {
+			return nil, errors.Wrap(err, "failed to store block")
+		}		
+	}
+	if len(ts) == 1 { // block validation state == aggregate parent state
+		st = cpySt
+	} else { // Multiblock tipset, reapply messages to get aggregate parent state
+		_, err = s.tipSetProcessor(ctx, ts, st)
+		if err != nil {
+			return nil, errors.Wrap(err, "error validating tipset")
+		}
+	}
+	stateRoot, err := st.Flush(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to flush tree after applying state transitions")
+	}	
+	s.stateCache[ts.String()] = stateRoot
+	return st, nil
 }
 
 // TODO: this method really needs to be thought through carefully. Probably one
@@ -610,7 +703,8 @@ func (cm *ChainManager) LoadParentStateTree(ctx context.Context, ts TipSet) (sta
 // LoadStateTreeTS returns the aggregate state of the input tipset.  This should
 // only be called on tipsets that are already validated by the chain manager
 func (cm *ChainManager) LoadStateTreeTS(ctx context.Context, ts TipSet) (state.Tree, error) {
-	// Return immediately if this tipset's state can be computed directly or is cached
+	return cm.ValidState(ctx, ts.ToSlice())
+/*	// Return immediately if this tipset's state can be computed directly or is cached
 	if len(ts) == 1 {
 		return state.LoadStateTree(ctx, cm.cstore, ts.ToSlice()[0].StateRoot, builtin.Actors)
 	}
@@ -632,7 +726,7 @@ func (cm *ChainManager) LoadStateTreeTS(ctx context.Context, ts TipSet) (state.T
 		return nil, errors.Wrap(err, "failed to flush tree after applying state transitions")
 	}
 	cm.stateCache[ts.String()] = stateRoot
-	return st, nil
+	return st, nil */
 }
 
 // InformNewBlock informs the chainmanager that we learned about a potentially
