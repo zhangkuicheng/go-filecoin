@@ -32,6 +32,8 @@ type Message struct {
 
 	Method string `json:"method"`
 	Params []byte `json:"params"`
+
+	Signature []byte `json:"Signature"`
 }
 
 // Unmarshal a message from the given bytes.
@@ -53,6 +55,64 @@ func (msg *Message) Cid() (*cid.Cid, error) {
 	}
 
 	return obj.Cid(), nil
+}
+
+func (msg *Message) Sign(from Address, s Signer) error {
+	if msg.Signed() {
+		// TODO(frrist): Replace this with a real error before merge
+		panic("here")
+	}
+
+	bmsg, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	msg.Signature, err = s.SignBytes(from, bmsg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (msg *Message) RecoverAddress(r Recoverer) (Address, error) {
+	if !msg.Signed() {
+		panic("here")
+	}
+
+	// Do this because the recovered pk will be different if we include the sig
+	recSig := msg.Signature
+	recMsg := &Message{
+		To:     msg.To,
+		From:   msg.From,
+		Nonce:  msg.Nonce,
+		Value:  msg.Value,
+		Method: msg.Method,
+		Params: msg.Params,
+	}
+
+	bRecMsg, err := recMsg.Marshal()
+	if err != nil {
+		return Address{}, err
+	}
+
+	maybePk, err := r.Ecrecover(bRecMsg, recSig)
+	if err != nil {
+		return Address{}, err
+	}
+
+	maybeAddrHash, err := AddressHash(maybePk)
+	if err != nil {
+		return Address{}, err
+	}
+
+	return NewMainnetAddress(maybeAddrHash), nil
+
+}
+
+func (msg *Message) Signed() bool {
+	return len(msg.Signature) > 0
 }
 
 // NewMessage creates a new message.

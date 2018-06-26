@@ -76,7 +76,7 @@ func TestSimpleSignAndVerify(t *testing.T) {
 	// data to sign
 	dataA := []byte("THIS IS A SIGNED SLICE OF DATA")
 	t.Log("sign content")
-	sig, err := w.Sign(addr, dataA[:])
+	sig, err := w.SignBytes(addr, dataA[:])
 	assert.NoError(err)
 
 	// get the key pair for validation
@@ -151,7 +151,7 @@ func TestSignErrorCases(t *testing.T) {
 	// data to sign
 	dataA := []byte("Set tab width to '1' and make everyone happy")
 	t.Log("sign content")
-	_, err = w1.Sign(addr2, dataA[:])
+	_, err = w1.SignBytes(addr2, dataA[:])
 	assert.Error(err)
 	assert.Contains(err.Error(), "failed to sign data")
 }

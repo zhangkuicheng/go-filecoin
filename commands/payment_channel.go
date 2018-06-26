@@ -76,9 +76,12 @@ message to be mined to get the channelID.`,
 			return err
 		}
 
-		// TODO: Sign this message
 		msg, err := node.NewMessageWithNextNonce(req.Context, n, fromAddr, address.PaymentBrokerAddress, amount, "createChannel", params)
 		if err != nil {
+			return err
+		}
+
+		if err := msg.Sign(fromAddr, n.Wallet); err != nil {
 			return err
 		}
 

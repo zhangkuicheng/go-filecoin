@@ -75,6 +75,10 @@ var clientAddBidCmd = &cmds.Command{
 			return err
 		}
 
+		if err := msg.Sign(fromAddr, n.Wallet); err != nil {
+			return err
+		}
+
 		err = n.AddNewMessage(req.Context, msg)
 		if err != nil {
 			return err
@@ -162,15 +166,19 @@ var clientProposeDealCmd = &cmds.Command{
 			return err
 		}
 
+		// TODO should the reward address be the default for this?
 		defaddr := nd.RewardAddress()
 
 		propose := &node.DealProposal{
-			ClientSig: string(defaddr[:]), // TODO: actual crypto
 			Deal: &storagemarket.Deal{
 				Ask:     uint64(askID),
 				Bid:     uint64(bidID),
 				DataRef: data,
 			},
+		}
+
+		if err := propose.Sign(defaddr, nd.Wallet); err != nil {
+			return err
 		}
 
 		resp, err := nd.StorageClient.ProposeDeal(req.Context, propose)

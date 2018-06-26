@@ -91,8 +91,9 @@ func (w *Wallet) Backends(kind reflect.Type) []Backend {
 	return cpy
 }
 
-// Sign cryptographically signs `data` using the private key `priv`.
-func (w *Wallet) Sign(addr types.Address, data []byte) ([]byte, error) {
+// SignBytes cryptographically signs `data` using the private key corresponding to
+// address `addr`
+func (w *Wallet) SignBytes(addr types.Address, data []byte) (types.Signature, error) {
 	// Check that we are storing the address to sign for.
 	backend, err := w.Find(addr)
 	if err != nil {
@@ -103,7 +104,7 @@ func (w *Wallet) Sign(addr types.Address, data []byte) ([]byte, error) {
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data' with
 // the public key `pk`.
-func (w *Wallet) Verify(pk, data, sig []byte) (bool, error) {
+func (w *Wallet) Verify(pk, data []byte, sig types.Signature) (bool, error) {
 	return verify(pk, data, sig)
 }
 
@@ -111,6 +112,6 @@ func (w *Wallet) Verify(pk, data, sig []byte) (bool, error) {
 // signature from data.
 // Note: The returned public key should not be used to verify `data` is valid
 // since a public key may have N private key pairs
-func (w *Wallet) Ecrecover(data, sig []byte) ([]byte, error) {
+func (w *Wallet) Ecrecover(data []byte, sig types.Signature) ([]byte, error) {
 	return ecrecover(data, sig)
 }

@@ -464,6 +464,10 @@ func (sb *SectorBuilder) AddCommitmentToMempool(ctx context.Context, ss *SealedS
 	minerOwner := types.Address{} // TODO: get the miner owner to send this from
 	msg := types.NewMessage(minerOwner, sb.MinerAddr, 0, nil, "commitSector", args)
 
+	if err := msg.Sign(minerOwner, sb.nd.Wallet); err != nil {
+		return nil, err
+	}
+
 	if err := sb.nd.AddNewMessage(ctx, msg); err != nil {
 		return nil, errors.Wrap(err, "pushing out commitSector message failed")
 	}

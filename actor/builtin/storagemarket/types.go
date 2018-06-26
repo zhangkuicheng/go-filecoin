@@ -60,6 +60,10 @@ type Deal struct {
 	SectorID  uint64 `json:"sector"`
 }
 
+func (d *Deal) Marshal() ([]byte, error) {
+	return cbor.DumpObject(d)
+}
+
 // Filemap maps files by hash to sets of deals storing those files
 type Filemap struct {
 	// Files maps file hash to file details

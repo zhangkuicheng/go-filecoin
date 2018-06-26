@@ -44,7 +44,29 @@ func init() {
 // their signature over the deal.
 type DealProposal struct {
 	Deal      *storagemarket.Deal
-	ClientSig string
+	ClientSig []byte
+}
+
+func (dp *DealProposal) Signed() bool {
+	return len(dp.ClientSig) > 0
+}
+
+func (dp *DealProposal) Sign(from types.Address, s types.Signer) error {
+	if dp.Signed() {
+		panic("here")
+	}
+
+	bd, err := dp.Deal.Marshal()
+	if err != nil {
+		return err
+	}
+
+	dp.ClientSig, err = s.SignBytes(from, bd)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DealQuery is used to query the state of a deal by its miner generated ID
@@ -391,7 +413,7 @@ func (sm *StorageMarket) GetMarketPeeker() storageMarketPeeker { // nolint: goli
 type storageMarketPeeker interface {
 	GetAsk(uint64) (*storagemarket.Ask, error)
 	GetBid(uint64) (*storagemarket.Bid, error)
-	AddDeal(ctx context.Context, from types.Address, bid, ask uint64, sig string, data *cid.Cid) (*cid.Cid, error)
+	AddDeal(ctx context.Context, from types.Address, bid, ask uint64, sig []byte, data *cid.Cid) (*cid.Cid, error)
 
 	// more of a gape than a peek..
 	GetAskSet() (storagemarket.AskSet, error)
@@ -515,7 +537,7 @@ func (stsa *stateTreeMarketPeeker) GetMinerOwner(ctx context.Context, minerAddre
 }
 
 // AddDeal adds a deal by sending a message to the storage market actor on chain
-func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from types.Address, ask, bid uint64, sig string, data *cid.Cid) (*cid.Cid, error) {
+func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from types.Address, ask, bid uint64, sig []byte, data *cid.Cid) (*cid.Cid, error) {
 	pdata, err := abi.ToEncodedValues(big.NewInt(0).SetUint64(ask), big.NewInt(0).SetUint64(bid), []byte(sig), data.Bytes())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encode abi values")
@@ -526,8 +548,11 @@ func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from types.Addre
 		return nil, err
 	}
 
-	err = stsa.nd.AddNewMessage(ctx, msg)
-	if err != nil {
+	if err := msg.Sign(from, stsa.nd.Wallet); err != nil {
+		return nil, err
+	}
+
+	if err := stsa.nd.AddNewMessage(ctx, msg); err != nil {
 		return nil, errors.Wrap(err, "sending 'addDeal' message failed")
 	}
 

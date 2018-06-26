@@ -82,10 +82,27 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 	if err := unmarshaled.Unmarshal(pubSubMsg.GetData()); err != nil {
 		return err
 	}
+
+	// TODO we probably don't want to validate every message we process since
+	// actors don't sign messages
+	if err := node.ValidateMessage(ctx, unmarshaled); err != nil {
+		return err
+	}
 	log.SetTag(ctx, "message", unmarshaled)
 
 	_, err = node.MsgPool.Add(unmarshaled)
 	return err
+}
+
+func (node *Node) ValidateMessage(ctx context.Context, msg *types.Message) (err error) {
+	maybeAddr, err := msg.RecoverAddress(node.Wallet)
+	if err != nil {
+		return err
+	}
+	if msg.From != maybeAddr {
+		return errors.Errorf("invalid message: expected %s actual %s", msg.From, maybeAddr)
+	}
+	return nil
 }
 
 // AddNewMessage adds a new message to the pool and publishes it to the network.
