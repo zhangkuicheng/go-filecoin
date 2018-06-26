@@ -18,7 +18,8 @@ var log = logging.Logger("mining")
 // its own function to facilitate testing.
 type GetStateTree func(context.Context, core.TipSet) (state.Tree, error)
 
-// GetParentTree is a function that gets the parent state tree of
+// GetParentTree is a function that gets the parent state tree of a TipSet.  It's its
+// own function to facilitate testing.
 type GetParentTree func(context.Context, core.TipSet) (state.Tree, error)
 
 // BlockGenerator is the primary interface for blockGenerator.

@@ -68,20 +68,10 @@ var (
 // PRECONDITION: all blocks are the same height and have the same parent set.
 func NewTipSet(blks ...*types.Block) (TipSet, error) {
 	ts := TipSet{}
-	var h uint64
-	var p types.SortedCidSet
-	var w float64
-	if len(blks) > 0 {
-		h = blks[0].Height
-		p = blks[0].Parents
-		w = blks[0].ParentWeight
-	}
 	for _, b := range blks {
-		if b.Height != h || !b.Parents.Equals(p) || b.ParentWeight != w {
+		if err := ts.AddBlock(b); err != nil {
 			return nil, ErrBadTipSetCreate
 		}
-		id := b.Cid()
-		ts[id.String()] = b
 	}
 	return ts, nil
 }
