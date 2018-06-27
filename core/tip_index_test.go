@@ -4,7 +4,6 @@ import (
 	"sort"
 	"testing"
 
-	"gx/ipfs/QmcYBp5EDnJKfVN63F71rDTksvEf1cfijwCTWtw6bPG58T/go-hamt-ipld"
 	cid "gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/types"
@@ -229,26 +228,6 @@ func TestTipSetEquals(t *testing.T) {
 	assert.True(!ts2.Equals(ts))
 	ts2.AddBlock(b3)
 	assert.True(ts.Equals(ts2))
-}
-
-func TestTipSetWeight(t *testing.T) {
-	require := require.New(t)
-	assert := assert.New(t)
-	cs := hamt.NewCborStore()
-	stateRoot, st := RequireMakeStateTree(require, cs, nil)
-	b0 := &types.Block{StateRoot: types.SomeCid()}
-	b1 := MkChild([]*types.Block{b0}, st, stateRoot, 0)
-	b2A := MkChild([]*types.Block{b1}, st, stateRoot, 0)
-	b2B := MkChild([]*types.Block{b1}, st, stateRoot, 1)
-	b2C := MkChild([]*types.Block{b1}, st, stateRoot, 2)
-	b2D := MkChild([]*types.Block{b1}, st, stateRoot, 3)
-	b2E := MkChild([]*types.Block{b1}, st, stateRoot, 4)
-	b3 := MkChild([]*types.Block{b2A, b2B, b2C, b2D, b2E}, st, stateRoot, 0)
-
-	ts := RequireNewTipSet(require, b3)
-	w, err := ts.Weight(st)
-	assert.NoError(err)
-	assert.Equal(ecV*8, w)
 }
 
 func TestTipIndex(t *testing.T) {

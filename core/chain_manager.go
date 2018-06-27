@@ -298,19 +298,11 @@ func (cm *ChainManager) maybeAcceptBlock(ctx context.Context, blk *types.Block) 
 		return Unknown, err
 	}
 	// Calculate weights of TipSets for comparison.
-	pSt, err := cm.LoadParentStateTree(ctx, cm.heaviestTipSet.ts)
+	heaviestWeight, err := cm.Weight(ctx, cm.heaviestTipSet.ts)
 	if err != nil {
 		return Unknown, err
 	}
-	heaviestWeight, err := cm.heaviestTipSet.ts.Weight(pSt)
-	if err != nil {
-		return Unknown, err
-	}
-	pSt, err = cm.LoadParentStateTree(ctx, ts)
-	if err != nil {
-		return Unknown, err
-	}
-	newWeight, err := ts.Weight(pSt)
+	newWeight, err := cm.Weight(ctx, ts)
 	if err != nil {
 		return Unknown, err
 	}
@@ -805,6 +797,36 @@ func (cm *ChainManager) receiptFromTipSet(ctx context.Context, j int, ts TipSet)
 		rcpt = res.Results[j].Receipt
 	}
 	return rcpt, nil
+}
+
+// ECV is the constant V defined in the EC spec.  TODO: the value of V needs
+//  motivation at the protocol design level
+const ECV float64 = 10.0
+
+// ECPrM is the power ratio magnitude defined in the EC spec.  TODO: the value
+// of this constant needs motivation at the protocol level
+const ECPrM float64 = 100.0
+
+// Weight returns the EC weight of this TipSet
+func (cm *ChainManager) Weight(ctx context.Context, ts TipSet) (float64, error) {
+	var w float64
+	st, err := cm.LoadParentStateTree(ctx, ts)
+	if err != nil {
+		return w, err
+	}
+	_ = st // TODO: remove when we start reading power table
+	w = ts.ParentWeight()
+
+	for i := 0; i < len(ts); i++ {
+		// TODO: 0.0 needs to be replaced with the block miner's power
+		// as derived from the power table in the aggregate parent
+		// state of this tipset (EC pt 7):
+		//
+		// pT := st.GetActor(ctx, address.StorageMarketAddress).PowerTable()
+		// pwr, err := pT.PowerOf(blk.Miner)
+		w += ECV + (ECPrM * 0.0)
+	}
+	return w, nil
 }
 
 // WaitForMessage searches for a message with Cid, msgCid, then passes it, along with the containing Block and any

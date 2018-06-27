@@ -5,7 +5,6 @@ import (
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
-	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -175,26 +174,6 @@ func (ts TipSet) ParentWeight() float64 {
 		w = ts.ToSlice()[0].ParentWeight
 	}
 	return w
-}
-
-// ecV is the constant V defined in the EC spec.  TODO: the value of V needs
-//  motivation at the protocol design level
-const ecV float64 = 10.0
-
-// ecPrM is the power ratio magnitude defined in the EC spec.  TODO: the value
-// of this constant needs motivation at the protocol level
-const ecPrM float64 = 100.0
-
-// Weight returns the EC weight of this TipSet
-func (ts TipSet) Weight(pState state.Tree) (float64, error) {
-	w := ts.ParentWeight()
-	for i := 0; i < len(ts); i++ {
-		// TODO: 0.0 needs to be replaced with the block miner's power
-		// as derived from the allocation table in the aggregate parent
-		// state of this tipset. (EC pt 7)
-		w += ecV + (ecPrM * 0.0)
-	}
-	return w, nil
 }
 
 // BaseBlockFromTipSets is a likely TEMPORARY helper to extract a base block

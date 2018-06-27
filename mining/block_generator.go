@@ -18,9 +18,9 @@ var log = logging.Logger("mining")
 // its own function to facilitate testing.
 type GetStateTree func(context.Context, core.TipSet) (state.Tree, error)
 
-// GetParentTree is a function that gets the parent state tree of a TipSet.  It's its
+// GetWeight is a function that calculates the weight of a TipSet.  It's its
 // own function to facilitate testing.
-type GetParentTree func(context.Context, core.TipSet) (state.Tree, error)
+type GetWeight func(context.Context, core.TipSet) (float64, error)
 
 // BlockGenerator is the primary interface for blockGenerator.
 type BlockGenerator interface {
@@ -28,11 +28,11 @@ type BlockGenerator interface {
 }
 
 // NewBlockGenerator returns a new BlockGenerator.
-func NewBlockGenerator(messagePool *core.MessagePool, getStateTree GetStateTree, getParentTree GetParentTree, applyMessages miningApplier) BlockGenerator {
+func NewBlockGenerator(messagePool *core.MessagePool, getStateTree GetStateTree, getWeight GetWeight, applyMessages miningApplier) BlockGenerator {
 	return &blockGenerator{
 		messagePool:   messagePool,
 		getStateTree:  getStateTree,
-		getParentTree: getParentTree,
+		getWeight:     getWeight,
 		applyMessages: applyMessages,
 	}
 }
@@ -43,7 +43,7 @@ type miningApplier func(ctx context.Context, messages []*types.Message, st state
 type blockGenerator struct {
 	messagePool   *core.MessagePool
 	getStateTree  GetStateTree
-	getParentTree GetParentTree
+	getWeight     GetWeight
 	applyMessages miningApplier
 }
 
@@ -54,11 +54,7 @@ func (b blockGenerator) Generate(ctx context.Context, baseTipSet core.TipSet, ti
 		return nil, err
 	}
 
-	parentTree, err := b.getParentTree(ctx, baseTipSet)
-	if err != nil {
-		return nil, err
-	}
-	weight, err := baseTipSet.Weight(parentTree)
+	weight, err := b.getWeight(ctx, baseTipSet)
 	if err != nil {
 		return nil, err
 	}

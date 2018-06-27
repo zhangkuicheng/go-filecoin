@@ -108,8 +108,8 @@ func RunCreateMiner(t *testing.T, node *Node, from types.Address, pledge types.B
 
 	blockGenerator := mining.NewBlockGenerator(node.MsgPool, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
 		return node.ChainMgr.LoadStateTreeTS(ctx, ts)
-	}, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
-		return node.ChainMgr.LoadParentStateTree(ctx, ts)
+	}, func(ctx context.Context, ts core.TipSet) (float64, error) {
+		return node.ChainMgr.Weight(ctx, ts)
 	}, core.ApplyMessages)
 	cur := node.ChainMgr.GetHeaviestTipSet()
 	out := mining.MineOnce(ctx, mining.NewWorker(blockGenerator), cur, address.TestAddress)

@@ -105,10 +105,10 @@ func TestGenerateMultiBlockTipSet(t *testing.T) {
 	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getParentTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
-		return st, nil
+	getWeight := func(c context.Context, ts core.TipSet) (float64, error) {
+		return ts.ParentWeight() + float64(len(ts))*core.ECV, nil
 	}
-	generator := NewBlockGenerator(pool, getStateTree, getParentTree, core.ApplyMessages)
+	generator := NewBlockGenerator(pool, getStateTree, getWeight, core.ApplyMessages)
 
 	parents := types.NewSortedCidSet(newCid())
 	stateRoot := newCid()
@@ -145,10 +145,10 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getParentTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
-		return st, nil
+	getWeight := func(c context.Context, ts core.TipSet) (float64, error) {
+		return ts.ParentWeight() + float64(len(ts))*core.ECV, nil
 	}
-	generator := NewBlockGenerator(pool, getStateTree, getParentTree, core.ApplyMessages)
+	generator := NewBlockGenerator(pool, getStateTree, getWeight, core.ApplyMessages)
 
 	// addr3 doesn't correspond to an extant account, so this will trigger errAccountNotFound -- a temporary failure.
 	msg1 := types.NewMessage(addrs[2], addrs[0], 0, nil, "", nil)
@@ -192,10 +192,10 @@ func TestGenerateSetsBasicFields(t *testing.T) {
 	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getParentTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
-		return st, nil
+	getWeight := func(c context.Context, ts core.TipSet) (float64, error) {
+		return ts.ParentWeight() + float64(len(ts))*core.ECV, nil
 	}
-	generator := NewBlockGenerator(pool, getStateTree, getParentTree, core.ApplyMessages)
+	generator := NewBlockGenerator(pool, getStateTree, getWeight, core.ApplyMessages)
 
 	h := uint64(100)
 	pw := float64(1000)
@@ -231,10 +231,10 @@ func TestGenerateWithoutMessages(t *testing.T) {
 	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getParentTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
-		return st, nil
+	getWeight := func(c context.Context, ts core.TipSet) (float64, error) {
+		return ts.ParentWeight() + float64(len(ts))*core.ECV, nil
 	}
-	generator := NewBlockGenerator(pool, getStateTree, getParentTree, core.ApplyMessages)
+	generator := NewBlockGenerator(pool, getStateTree, getWeight, core.ApplyMessages)
 
 	assert.Len(pool.Pending(), 0)
 	baseBlock := types.Block{
@@ -267,10 +267,10 @@ func TestGenerateError(t *testing.T) {
 
 		return stt, nil
 	}
-	getParentTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
-		return st, nil
+	getWeight := func(c context.Context, ts core.TipSet) (float64, error) {
+		return ts.ParentWeight() + float64(len(ts))*core.ECV, nil
 	}
-	generator := NewBlockGenerator(pool, explodingGetStateTree, getParentTree, core.ApplyMessages)
+	generator := NewBlockGenerator(pool, explodingGetStateTree, getWeight, core.ApplyMessages)
 
 	// This is actually okay and should result in a receipt
 	msg := types.NewMessage(addrs[0], addrs[1], 0, nil, "", nil)

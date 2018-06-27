@@ -443,3 +443,21 @@ func TestTipSets(t *testing.T) {
 	assert.Len(stm.GetTipSetsByHeight(1), 1)
 	assert.Len(stm.GetTipSetsByHeight(2), 3) // tipsetB, {block2}, {tipsetFork}
 }
+
+func TestTipSetWeight(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	ctx, _, _, stm := newTestUtils()
+	assert.NoError(stm.Genesis(ctx, InitGenesis))
+	requireProcessBlock(ctx, t, stm, tipsetA1)
+	requireProcessBlock(ctx, t, stm, tipsetA2)
+	requireProcessBlock(ctx, t, stm, tipsetA3)
+	requireProcessBlock(ctx, t, stm, tipsetB1)
+	requireProcessBlock(ctx, t, stm, tipsetB2)
+
+	ts := RequireNewTipSet(require, tipsetB1, tipsetB2)
+	w, err := stm.Weight(ctx, ts)
+	assert.NoError(err)
+	assert.Equal(ECV*6, w)
+}

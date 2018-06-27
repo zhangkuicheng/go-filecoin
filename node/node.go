@@ -199,8 +199,8 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	// to simulate the work of generating proofs.
 	blockGenerator := mining.NewBlockGenerator(msgPool, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
 		return chainMgr.LoadStateTreeTS(ctx, ts)
-	}, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
-		return chainMgr.LoadParentStateTree(ctx, ts)
+	}, func(ctx context.Context, ts core.TipSet) (float64, error) {
+		return chainMgr.Weight(ctx, ts)
 	}, core.ApplyMessages)
 	miningWorker := mining.NewWorker(blockGenerator)
 
