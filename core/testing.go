@@ -23,18 +23,11 @@ func MkChild(blks []*types.Block, parentState state.Tree, stateRoot *cid.Cid, no
 	var weight float64
 	var height uint64
 	var parents types.SortedCidSet
-	parent, err := NewTipSet(blks...)
-	if err != nil {
-		weight = float64(len(blks))*10.0 + blks[0].ParentWeight
-		height = blks[0].Height + 1
-		parents = types.SortedCidSet{}
-		for _, blk := range blks {
-			(&parents).Add(blk.Cid())
-		}
-	} else {
-		weight, _ = parent.Weight(parentState)
-		height = parent.Height() + 1
-		parents = parent.ToSortedCidSet()
+	weight = float64(len(blks))*10.0 + blks[0].ParentWeight
+	height = blks[0].Height + 1
+	parents = types.SortedCidSet{}
+	for _, blk := range blks {
+		(&parents).Add(blk.Cid())
 	}
 	return &types.Block{
 		Parents:         parents,
