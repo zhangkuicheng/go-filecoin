@@ -29,6 +29,9 @@ type sendDeps struct {
 
 // send executes a message pass inside the VM. It exists alongside Send so that we can inject its dependencies during test.
 func send(ctx context.Context, deps sendDeps, vmCtx *Context) ([][]byte, uint8, error) {
+	// TODO: blech, we need to do something special for child messages
+	// I suppose we want to setup a nested stage or some wacky business
+
 	if vmCtx.message.Value != nil {
 		if err := deps.transfer(vmCtx.from, vmCtx.to, vmCtx.message.Value); err != nil {
 			if errors.ShouldRevert(err) {
