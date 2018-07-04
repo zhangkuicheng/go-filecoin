@@ -4,13 +4,26 @@ import (
 	"fmt"
 	"strings"
 
+	cbor "gx/ipfs/QmRiRJhn427YVuufBEHofLreKWNw7P7BWNq86Sb9kzqdbd/go-ipld-cbor"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	"gx/ipfs/QmZp3eKdYQHHAneECmeK6HhiMwTPufmjC8DuuaGKv3unvx/blake2b-simd"
+	"gx/ipfs/QmcrriCMhjb5ZWzmPNxmP53px47tSPcXBNaMtLdgcKFJYk/refmt/obj/atlas"
 )
 
 func init() {
-	// cbor.RegisterCborType(Address{})
+	cbor.RegisterCborType(AddressAtlasEntry)
 }
+
+var AddressAtlasEntry = atlas.BuildEntry(Address{}).Transform().
+	TransformMarshal(atlas.MakeMarshalTransformFunc(
+		func(a Address) (string, error) {
+			return a.String(), nil
+		})).
+	TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
+		func(x string) (Address, error) {
+			return NewAddressFromString(x)
+		})).
+	Complete()
 
 var addressHashConfig = &blake2b.Config{Size: AddressHashLength}
 
