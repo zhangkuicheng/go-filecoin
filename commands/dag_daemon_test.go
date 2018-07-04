@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	cbor "gx/ipfs/QmRiRJhn427YVuufBEHofLreKWNw7P7BWNq86Sb9kzqdbd/go-ipld-cbor"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/filecoin-project/go-filecoin/types"
@@ -37,13 +35,8 @@ func TestDagDaemon(t *testing.T) {
 		op2 := d.RunSuccess("dag", "get", expected.Cid().String(), "--enc", "json")
 		result2 := op2.readStdoutTrimNewlines()
 
-		ipldnode, err := cbor.FromJSON(bytes.NewReader([]byte(result2)), types.DefaultHashFunction, -1)
-		require.NoError(err)
-
-		// CBOR decode the IPLD node's raw data into a Filecoin block
-
 		var actual types.Block
-		err = cbor.DecodeInto(ipldnode.RawData(), &actual)
+		err := json.Unmarshal([]byte(result2), &actual)
 		require.NoError(err)
 
 		// CIDs should be equal
