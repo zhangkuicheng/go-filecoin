@@ -109,11 +109,12 @@ func (d *Daemon) Connect(remote *Daemon) (*Output, error) {
 //     `go-filecoin miner create --from $TEST_ACCOUNT 100000 20`
 // TODO don't panic be happy
 func (d *Daemon) CreateMinerAddr() (types.Address, error) {
-	// need money
-	_, err := d.Run("mining", "once")
-	if err != nil {
-		panic(err)
-		return types.Address{}, err
+	if d.WaitMining() {
+		// need money
+		_, err := d.Run("mining", "once")
+		if err != nil {
+			return types.Address{}, err
+		}
 	}
 
 	nodeCfg, err := d.Config()
@@ -123,13 +124,27 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 	}
 	addr := nodeCfg.Mining.RewardAddress
 
+	// check balance first.
+	collateralAmt := 1000
+	pledgeAmt := 1000000
+	balance, err := d.WalletBalance(addr.String())
+	if err != nil {
+		return types.Address{}, err
+	}
+	if balance < collateralAmt {
+		errstr := fmt.Sprintf("not enough money. (%d < %d)", balance, collateralAmt)
+		return types.Address{}, errors.New(errstr)
+	}
+
 	var wg sync.WaitGroup
 	var minerAddr types.Address
 
 	errchan := make(chan error)
 	wg.Add(1)
 	go func(errchan chan error) {
-		miner, err := d.Run("miner", "create", "--from", addr.String(), "1000000", "1000")
+		pledgeStr := strconv.Itoa(pledgeAmt)
+		collateralStr := strconv.Itoa(collateralAmt)
+		miner, err := d.Run("miner", "create", "--from", addr.String(), pledgeStr, collateralStr)
 		if err != nil {
 			errchan <- err
 			d.Error(err)
