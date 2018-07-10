@@ -62,7 +62,7 @@ func deps() {
 
 // smartdeps avoids fetching from the network
 func smartdeps() {
-	log.Println("Installing dependencies...")
+	log.Println("Installing dependencies....")
 
 	// commands we need to run
 	cmds := []string{
