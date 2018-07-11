@@ -2,9 +2,11 @@
 package actor
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"strings"
 
 	cbor "gx/ipfs/QmRiRJhn427YVuufBEHofLreKWNw7P7BWNq86Sb9kzqdbd/go-ipld-cbor"
@@ -13,7 +15,16 @@ import (
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
+
+	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/noms/go/hash"
+	"github.com/attic-labs/noms/go/marshal"
+	noms "github.com/attic-labs/noms/go/types"
 )
+
+func init() {
+	cbor.RegisterCborType(nomsStorage{})
+}
 
 // MakeTypedExport finds the correct method on the given actor and returns it.
 // The returned function is wrapped such that it takes care of serialization and type checks.
@@ -169,9 +180,58 @@ func MarshalStorage(in interface{}) ([]byte, error) {
 	return cbor.DumpObject(in)
 }
 
+func MarshalStorageNoms(in interface{}, vs *noms.ValueStore) ([]byte, error) {
+	newRoot := marshal.MustMarshal(vs, in)
+	vs.WriteValue(newRoot)
+	vs.Commit(newRoot.Hash(), vs.Root())
+
+	ns := nomsStorage{}
+	h := newRoot.Hash()
+	ns.Head = h[:]
+	cs := vs.ChunkStore().(*chunkStore)
+	for _, c := range cs.data {
+		ns.Values = append(ns.Values, c.Data())
+	}
+
+	// Sort because cs.data is a map and iteration is non-deterministic
+	sort.Slice(ns.Values, func(i, j int) bool {
+		return bytes.Compare(ns.Values[i], ns.Values[j]) < 0
+	})
+
+	data, err := MarshalStorage(ns)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 // UnmarshalStorage decodes the passed in bytes into the given object.
 func UnmarshalStorage(raw []byte, to interface{}) error {
 	return cbor.DecodeInto(raw, to)
+}
+
+func UnmarshalStorageNoms(raw []byte, to interface{}) (vs *noms.ValueStore, err error) {
+	// Temp hack: Read the serialized storage from the old storage system
+	var ns nomsStorage
+	if err = UnmarshalStorage(raw, &ns); err != nil {
+		return nil, err
+	}
+
+	// Populate the chunkstore
+	vs = NewValueStore()
+	for _, vb := range ns.Values {
+		vs.ChunkStore().Put(chunks.NewChunk(vb))
+	}
+	vs.Commit(hash.New(ns.Head), vs.Root())
+
+	if !vs.Root().IsEmpty() {
+		if err = marshal.Unmarshal(vs.ReadValue(vs.Root()), to); err != nil {
+			return nil, err
+		}
+	}
+
+	return vs, nil
 }
 
 // WithStorage is a helper method that makes dealing with storage serialization
@@ -208,8 +268,35 @@ func WithStorage(ctx exec.VMContext, st interface{}, f func() (interface{}, erro
 	return ret, nil
 }
 
+func WithStorageNoms(ctx exec.VMContext, st interface{}, f func(vrw noms.ValueReadWriter) (interface{}, error)) error {
+	vs, err := UnmarshalStorageNoms(ctx.ReadStorage(), st)
+	if err != nil {
+		return err
+	}
+
+	// Invoke user code
+	newRoot, err := f(vs)
+	if err != nil {
+		return err
+	}
+
+	// If return value is nil, nothing to do
+	if newRoot == nil {
+		return nil
+	}
+
+	// Otherwise write the new root to the value store
+	data, err := MarshalStorageNoms(newRoot, vs)
+	if err := ctx.WriteStorage(data); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // PresentStorage returns a representation of an actor's storage in a domain-specific form suitable for conversion to
 // JSON.
+// TODO: Can this go away with Noms?
 func PresentStorage(act exec.ExecutableActor, mem []byte) interface{} {
 	s := act.NewStorage()
 	err := UnmarshalStorage(mem, s)
@@ -217,4 +304,9 @@ func PresentStorage(act exec.ExecutableActor, mem []byte) interface{} {
 		return nil
 	}
 	return s
+}
+
+type nomsStorage struct {
+	Head   []byte
+	Values [][]byte
 }

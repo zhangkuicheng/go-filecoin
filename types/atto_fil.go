@@ -8,6 +8,9 @@ import (
 	cbor "gx/ipfs/QmRiRJhn427YVuufBEHofLreKWNw7P7BWNq86Sb9kzqdbd/go-ipld-cbor"
 	"gx/ipfs/QmSKyB5faguXT4NqbrXpnRXqaVj5DhSm7x9BtzFydBY1UK/go-leb128"
 	"gx/ipfs/QmcrriCMhjb5ZWzmPNxmP53px47tSPcXBNaMtLdgcKFJYk/refmt/obj/atlas"
+
+	"github.com/attic-labs/noms/go/marshal"
+	noms "github.com/attic-labs/noms/go/types"
 )
 
 // NOTE -- ALL *AttoFIL methods must call ensureZeroAmounts with refs to every user-supplied value before use.
@@ -68,6 +71,24 @@ func (z AttoFIL) MarshalJSON() ([]byte, error) {
 // attofilecoin (atto is metric for 10**-18). The zero value for
 // AttoFIL represents the value 0.
 type AttoFIL struct{ val *big.Int }
+
+func (z AttoFIL) MarshalNoms(vrw noms.ValueReadWriter) (noms.Value, error) {
+	return noms.NewStruct("AttoFIL", noms.StructData{
+		"val": noms.String(z.val.Bytes()),
+	}), nil
+}
+
+func (z *AttoFIL) UnmarshalNoms(v noms.Value) error {
+	tmp := struct {
+		Val string
+	}{}
+	err := marshal.Unmarshal(v, &tmp)
+	if err != nil {
+		return err
+	}
+	z.val.SetBytes([]byte(tmp.Val))
+	return nil
+}
 
 // NewAttoFIL allocates and returns a new AttoFIL set to x.
 func NewAttoFIL(x *big.Int) *AttoFIL {

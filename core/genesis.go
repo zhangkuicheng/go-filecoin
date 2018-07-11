@@ -53,10 +53,10 @@ func InitGenesis(cst *hamt.CborIpldStore) (*types.Block, error) {
 	}
 
 	pbAct, err := paymentbroker.NewPaymentBrokerActor()
-	pbAct.Balance = types.NewAttoFILFromFIL(0)
 	if err != nil {
 		return nil, err
 	}
+	pbAct.Balance = types.NewAttoFILFromFIL(0)
 	if err := st.SetActor(ctx, address.PaymentBrokerAddress, pbAct); err != nil {
 		return nil, err
 	}
