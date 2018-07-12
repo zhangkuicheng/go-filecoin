@@ -4,6 +4,7 @@ import (
 	"context"
 	hamt "gx/ipfs/QmcYBp5EDnJKfVN63F71rDTksvEf1cfijwCTWtw6bPG58T/go-hamt-ipld"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/attic-labs/noms/go/marshal"
@@ -150,7 +151,6 @@ func TestPaymentBrokerUpdate(t *testing.T) {
 	assert.Equal(target, channel.Target)
 }
 
-/*
 func TestPaymentBrokerUpdateErrorsWithIncorrectChannel(t *testing.T) {
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -414,15 +414,19 @@ func TestPaymentBrokerExtend(t *testing.T) {
 	assert.Equal(types.NewAttoFILFromFIL(900), paymentBroker.Balance) // 1000 + 1000 - 1100
 
 	var pbStorage Storage
-	assert.NoError(cbor.DecodeInto(paymentBroker.ReadStorage(), &pbStorage))
+	_, err = actor.UnmarshalStorageNoms(paymentBroker.Memory, &pbStorage)
+	assert.NoError(err)
 
-	byPayer := pbStorage.Channels[payer.String()]
-	channel := byPayer[channelID.String()]
-	assert.Equal(types.NewAttoFILFromFIL(2000), channel.Amount)
-	assert.Equal(types.NewAttoFILFromFIL(1100), channel.AmountRedeemed)
-	assert.Equal(types.NewBlockHeight(20), channel.Eol)
+	byPayer := pbStorage.Channels.Get(noms.String(payer.String())).(noms.Map)
+	v := byPayer.Get(noms.String(channelID.String()))
+	var channel PaymentChannel
+	marshal.MustUnmarshal(v, &channel)
+	assert.Equal(*types.NewAttoFILFromFIL(2000), channel.Amount)
+	assert.Equal(*types.NewAttoFILFromFIL(1100), channel.AmountRedeemed)
+	assert.Equal(*types.NewBlockHeight(20), channel.Eol)
 }
 
+/*
 func TestPaymentBrokerExtendFailsWithNonExistantChannel(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)

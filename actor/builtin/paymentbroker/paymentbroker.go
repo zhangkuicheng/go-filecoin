@@ -278,8 +278,10 @@ func (pb *Actor) Extend(ctx *vm.Context, chid *types.ChannelID, eol *types.Block
 		// increment the value
 		channel.Amount = *channel.Amount.Add(ctx.Message().Value)
 
+		insertChannel(vrw, &storage, channel, ctx.Message().From, chid)
+
 		// return funds to payer
-		return channel, err
+		return storage, err
 	})
 	if err != nil {
 		return errors.CodeError(err), err
