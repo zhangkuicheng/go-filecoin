@@ -358,7 +358,7 @@ func (pb *Actor) Voucher(ctx *vm.Context, chid *types.ChannelID, amount *types.A
 func (pb *Actor) Ls(ctx *vm.Context, payer types.Address) (ret []byte, ec uint8, err error) {
 	var storage Storage
 	err = actor.WithStorageNoms(ctx, &storage, func(vrw noms.ValueReadWriter) (interface{}, error) {
-		var byPayer = map[string]*PaymentChannel{}
+		var byPayer = map[string]PaymentChannel{}
 		v, found := storage.Channels.MaybeGet(noms.String(payer.String()))
 		if found {
 			marshal.MustUnmarshal(v, &byPayer)

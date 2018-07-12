@@ -2,6 +2,7 @@ package paymentbroker_test
 
 import (
 	"context"
+	cbor "gx/ipfs/QmRiRJhn427YVuufBEHofLreKWNw7P7BWNq86Sb9kzqdbd/go-ipld-cbor"
 	hamt "gx/ipfs/QmcYBp5EDnJKfVN63F71rDTksvEf1cfijwCTWtw6bPG58T/go-hamt-ipld"
 	"math/big"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/attic-labs/noms/go/marshal"
 	noms "github.com/attic-labs/noms/go/types"
 
+	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin"
 	. "github.com/filecoin-project/go-filecoin/actor/builtin/paymentbroker"
@@ -426,7 +428,6 @@ func TestPaymentBrokerExtend(t *testing.T) {
 	assert.Equal(*types.NewBlockHeight(20), channel.Eol)
 }
 
-/*
 func TestPaymentBrokerExtendFailsWithNonExistantChannel(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
@@ -506,16 +507,16 @@ func TestPaymentBrokerLs(t *testing.T) {
 		pc1, found := channels[channelId1.String()]
 		require.True(found)
 		assert.Equal(target1, pc1.Target)
-		assert.Equal(types.NewAttoFILFromFIL(1000), pc1.Amount)
-		assert.Equal(types.NewAttoFILFromFIL(0), pc1.AmountRedeemed)
-		assert.Equal(types.NewBlockHeight(10), pc1.Eol)
+		assert.Equal(*types.NewAttoFILFromFIL(1000), pc1.Amount)
+		assert.Equal(*types.NewAttoFILFromFIL(0), pc1.AmountRedeemed)
+		assert.Equal(*types.NewBlockHeight(10), pc1.Eol)
 
 		pc2, found := channels[channelId2.String()]
 		require.True(found)
 		assert.Equal(target2, pc2.Target)
-		assert.Equal(types.NewAttoFILFromFIL(2000), pc2.Amount)
-		assert.Equal(types.NewAttoFILFromFIL(0), pc2.AmountRedeemed)
-		assert.Equal(types.NewBlockHeight(20), pc2.Eol)
+		assert.Equal(*types.NewAttoFILFromFIL(2000), pc2.Amount)
+		assert.Equal(*types.NewAttoFILFromFIL(0), pc2.AmountRedeemed)
+		assert.Equal(*types.NewBlockHeight(20), pc2.Eol)
 	})
 
 	t.Run("Returns empty map when payer has no channels", func(t *testing.T) {
@@ -542,6 +543,7 @@ func TestPaymentBrokerLs(t *testing.T) {
 	})
 }
 
+/*
 func TestNewPaymentBrokerVoucher(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
