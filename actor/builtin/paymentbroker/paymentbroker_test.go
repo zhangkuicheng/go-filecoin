@@ -3,7 +3,11 @@ package paymentbroker_test
 import (
 	"context"
 	hamt "gx/ipfs/QmcYBp5EDnJKfVN63F71rDTksvEf1cfijwCTWtw6bPG58T/go-hamt-ipld"
+	"math/big"
 	"testing"
+
+	"github.com/attic-labs/noms/go/marshal"
+	noms "github.com/attic-labs/noms/go/types"
 
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin"
@@ -12,6 +16,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
+	"github.com/filecoin-project/go-filecoin/vm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +38,21 @@ func TestPaymentBrokerGenesis(t *testing.T) {
 	assert.True(pbStorage.Channels.Empty())
 }
 
-/*
+func TestPaymentChannelMarshalNoms(t *testing.T) {
+	expected := PaymentChannel{
+		Amount:         *types.NewAttoFILFromFIL(45),
+		AmountRedeemed: *types.NewAttoFILFromFIL(46),
+		Eol:            *types.NewBlockHeight(47),
+		Target:         types.MakeTestAddress("foo"),
+	}
+	vs := actor.NewValueStore()
+	v := marshal.MustMarshal(vs, expected)
+
+	var actual PaymentChannel
+	marshal.MustUnmarshal(v, &actual)
+	assert.Equal(t, expected, actual)
+}
+
 func TestPaymentBrokerCreateChannel(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -57,21 +76,26 @@ func TestPaymentBrokerCreateChannel(t *testing.T) {
 	assert.Equal(types.NewAttoFILFromFIL(1000), paymentBroker.Balance)
 
 	var pbStorage Storage
-	assert.NoError(cbor.DecodeInto(paymentBroker.ReadStorage(), &pbStorage))
+	_, err = actor.UnmarshalStorageNoms(paymentBroker.Memory, &pbStorage)
+	assert.NoError(err)
 
-	require.Equal(1, len(pbStorage.Channels))
-	require.Equal(1, len(pbStorage.Channels[payer.String()]))
-	byPayer := pbStorage.Channels[payer.String()]
+	require.Equal(uint64(1), pbStorage.Channels.Len())
+	byPayer := pbStorage.Channels.Get(noms.String(payer.String())).(noms.Map)
+	require.Equal(uint64(1), byPayer.Len())
 
-	channel := byPayer[channelID.String()]
-	require.NotNil(channel)
+	v := byPayer.Get(noms.String(channelID.String()))
+	require.NotNil(v)
 
-	assert.Equal(types.NewAttoFILFromFIL(1000), channel.Amount)
-	assert.Equal(types.NewAttoFILFromFIL(0), channel.AmountRedeemed)
+	var channel PaymentChannel
+	marshal.MustUnmarshal(v, &channel)
+
+	assert.Equal(types.NewAttoFILFromFIL(1000), &channel.Amount)
+	assert.Equal(types.NewAttoFILFromFIL(0), &channel.AmountRedeemed)
 	assert.Equal(target, channel.Target)
-	assert.Equal(types.NewBlockHeight(10), channel.Eol)
+	assert.Equal(types.NewBlockHeight(10), &channel.Eol)
 }
 
+/*
 func TestPaymentBrokerCreateChannelFromNonAccountActorIsAnError(t *testing.T) {
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())

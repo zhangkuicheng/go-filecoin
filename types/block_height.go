@@ -8,7 +8,6 @@ import (
 	"gx/ipfs/QmSKyB5faguXT4NqbrXpnRXqaVj5DhSm7x9BtzFydBY1UK/go-leb128"
 	"gx/ipfs/QmcrriCMhjb5ZWzmPNxmP53px47tSPcXBNaMtLdgcKFJYk/refmt/obj/atlas"
 
-	"github.com/attic-labs/noms/go/marshal"
 	noms "github.com/attic-labs/noms/go/types"
 )
 
@@ -47,20 +46,12 @@ func (z BlockHeight) MarshalJSON() ([]byte, error) {
 type BlockHeight struct{ val *big.Int }
 
 func (z BlockHeight) MarshalNoms(vrw noms.ValueReadWriter) (noms.Value, error) {
-	return noms.NewStruct("BlockHeight", noms.StructData{
-		"val": noms.String(z.val.Bytes()),
-	}), nil
+	// TODO: this is not the right way to do this
+	return noms.String(z.val.Bytes()), nil
 }
 
 func (z *BlockHeight) UnmarshalNoms(v noms.Value) error {
-	tmp := struct {
-		Val string
-	}{}
-	err := marshal.Unmarshal(v, &tmp)
-	if err != nil {
-		return err
-	}
-	z.val.SetBytes([]byte(tmp.Val))
+	z.val = (&big.Int{}).SetBytes([]byte(v.(noms.String)))
 	return nil
 }
 

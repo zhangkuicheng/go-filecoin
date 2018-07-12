@@ -8,6 +8,8 @@ import (
 	"gx/ipfs/QmSKyB5faguXT4NqbrXpnRXqaVj5DhSm7x9BtzFydBY1UK/go-leb128"
 	"gx/ipfs/QmbBhyDKsY4mbY6xsKt3qu9Y7FPvMJ6qbD8AMjYYvPRw1g/goleveldb/leveldb/errors"
 	"gx/ipfs/QmcrriCMhjb5ZWzmPNxmP53px47tSPcXBNaMtLdgcKFJYk/refmt/obj/atlas"
+
+	noms "github.com/attic-labs/noms/go/types"
 )
 
 // NOTE -- All *BytesAmount methods must call ensureBytesAmounts with refs to every user-supplied value before use.
@@ -61,6 +63,16 @@ func (z *BytesAmount) UnmarshalJSON(b []byte) error {
 // MarshalJSON converts a BytesAmount to a byte array and returns it.
 func (z BytesAmount) MarshalJSON() ([]byte, error) {
 	return json.Marshal(z.val.String())
+}
+
+func (z BytesAmount) MarshalNoms(vrw noms.ValueReadWriter) (noms.Value, error) {
+	// TODO: this is not the right way to do this
+	return noms.String(z.val.Bytes()), nil
+}
+
+func (z *BytesAmount) UnmarshalNoms(v noms.Value) error {
+	z.val = (&big.Int{}).SetBytes([]byte(v.(noms.String)))
+	return nil
 }
 
 // An BytesAmount represents a signed multi-precision integer.

@@ -7,6 +7,8 @@ import (
 	cbor "gx/ipfs/QmRiRJhn427YVuufBEHofLreKWNw7P7BWNq86Sb9kzqdbd/go-ipld-cbor"
 	"gx/ipfs/QmSKyB5faguXT4NqbrXpnRXqaVj5DhSm7x9BtzFydBY1UK/go-leb128"
 	"gx/ipfs/QmcrriCMhjb5ZWzmPNxmP53px47tSPcXBNaMtLdgcKFJYk/refmt/obj/atlas"
+
+	noms "github.com/attic-labs/noms/go/types"
 )
 
 func init() {
@@ -38,6 +40,16 @@ func (z *ChannelID) UnmarshalJSON(b []byte) error {
 // MarshalJSON converts a ChannelID to a byte array and returns it.
 func (z ChannelID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(z.val)
+}
+
+func (z ChannelID) MarshalNoms(vrw noms.ValueReadWriter) (noms.Value, error) {
+	// TODO: this is not the right way to do this
+	return noms.String(z.val.Bytes()), nil
+}
+
+func (z *ChannelID) UnmarshalNoms(v noms.Value) error {
+	z.val = (&big.Int{}).SetBytes([]byte(v.(noms.String)))
+	return nil
 }
 
 // An ChannelID is a signed multi-precision integer.

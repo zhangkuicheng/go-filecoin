@@ -61,9 +61,9 @@ type Signature = []byte
 // PaymentChannel records the intent to pay funds to a target account.
 type PaymentChannel struct {
 	Target         types.Address
-	Amount         *types.AttoFIL
-	AmountRedeemed *types.AttoFIL
-	Eol            *types.BlockHeight `noms:"eol"`
+	Amount         types.AttoFIL
+	AmountRedeemed types.AttoFIL
+	Eol            types.BlockHeight `noms:"eol"`
 }
 
 // PaymentVoucher is a voucher for a payment channel that can be transferred off-chain but guarantees a future payment.
@@ -161,17 +161,17 @@ func (pb *Actor) CreateChannel(ctx *vm.Context, target types.Address, eol *types
 			byPayer = noms.NewMap(vrw)
 		}
 
-		channelID := types.NewChannelID(uint64(ctx.Message().Nonce))
+		channelID = types.NewChannelID(uint64(ctx.Message().Nonce))
 
 		if byPayer.Has(noms.String(channelID.String())) {
 			return nil, Errors[ErrDuplicateChannel]
 		}
 
-		paymentChannel := &PaymentChannel{
+		paymentChannel := PaymentChannel{
 			Target:         target,
-			Amount:         ctx.Message().Value,
-			AmountRedeemed: types.NewAttoFILFromFIL(0),
-			Eol:            eol,
+			Amount:         *ctx.Message().Value,
+			AmountRedeemed: *types.NewAttoFILFromFIL(0),
+			Eol:            *eol,
 		}
 
 		byPayer = byPayer.Edit().Set(
@@ -265,10 +265,10 @@ func (pb *Actor) Extend(ctx *vm.Context, chid *types.ChannelID, eol *types.Block
 		}
 
 		// set new eol
-		channel.Eol = eol
+		channel.Eol = *eol
 
 		// increment the value
-		channel.Amount = channel.Amount.Add(ctx.Message().Value)
+		channel.Amount = *channel.Amount.Add(ctx.Message().Value)
 
 		// return funds to payer
 		return channel, err
@@ -291,7 +291,7 @@ func (pb *Actor) Reclaim(ctx *vm.Context, chid *types.ChannelID) (uint8, error) 
 		}
 
 		// reclaim may only be called at or after Eol
-		if ctx.BlockHeight().LessThan(channel.Eol) {
+		if ctx.BlockHeight().LessThan(&channel.Eol) {
 			return nil, Errors[ErrReclaimBeforeEol]
 		}
 
@@ -386,33 +386,33 @@ func updateChannel(ctx *vm.Context, target types.Address, channel *PaymentChanne
 		return Errors[ErrWrongTarget]
 	}
 
-	if ctx.BlockHeight().GreaterEqual(channel.Eol) {
+	if ctx.BlockHeight().GreaterEqual(&channel.Eol) {
 		return Errors[ErrExpired]
 	}
 
-	if amt.GreaterThan(channel.Amount) {
+	if amt.GreaterThan(&channel.Amount) {
 		return Errors[ErrInsufficientChannelFunds]
 	}
 
-	if amt.LessEqual(channel.AmountRedeemed) {
+	if amt.LessEqual(&channel.AmountRedeemed) {
 		return Errors[ErrAlreadyWithdrawn]
 	}
 
 	// transfer funds to sender
-	updateAmount := amt.Sub(channel.AmountRedeemed)
+	updateAmount := amt.Sub(&channel.AmountRedeemed)
 	_, _, err := ctx.Send(ctx.Message().From, "", updateAmount, nil)
 	if err != nil {
 		return err
 	}
 
 	// update amount redeemed from this channel
-	channel.AmountRedeemed = amt
+	channel.AmountRedeemed = *amt
 
 	return nil
 }
 
 func reclaim(ctx *vm.Context, storage *Storage, payer types.Address, chid *types.ChannelID, channel *PaymentChannel) error {
-	amt := channel.Amount.Sub(channel.AmountRedeemed)
+	amt := channel.Amount.Sub(&channel.AmountRedeemed)
 	if amt.LessEqual(types.ZeroAttoFIL) {
 		return nil
 	}
