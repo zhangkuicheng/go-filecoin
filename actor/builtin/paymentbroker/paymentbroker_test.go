@@ -2,6 +2,7 @@ package paymentbroker_test
 
 import (
 	"context"
+	"fmt"
 	cbor "gx/ipfs/QmRiRJhn427YVuufBEHofLreKWNw7P7BWNq86Sb9kzqdbd/go-ipld-cbor"
 	hamt "gx/ipfs/QmcYBp5EDnJKfVN63F71rDTksvEf1cfijwCTWtw6bPG58T/go-hamt-ipld"
 	"math/big"
@@ -543,7 +544,6 @@ func TestPaymentBrokerLs(t *testing.T) {
 	})
 }
 
-/*
 func TestNewPaymentBrokerVoucher(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
@@ -615,7 +615,6 @@ func TestNewPaymentBrokerVoucher(t *testing.T) {
 		assert.Contains(fmt.Sprintf("%v", err), "exceeds amount")
 	})
 }
-*/
 
 func establishChannel(ctx context.Context, st state.Tree, from types.Address, target types.Address, nonce uint64, amt *types.AttoFIL, eol *types.BlockHeight) *types.ChannelID {
 	pdata := core.MustConvertParams(target, eol)
