@@ -154,17 +154,13 @@ func (pb *Actor) CreateChannel(ctx *vm.Context, target types.Address, eol *types
 			return nil, Errors[ErrNonAccountActor]
 		}
 
-		var byPayer noms.Map
-		if v, found := storage.Channels.MaybeGet(noms.String(ctx.Message().From.String())); found {
-			byPayer = v.(noms.Map)
-		} else {
-			byPayer = noms.NewMap(vrw)
-		}
-
+		payer := ctx.Message().From
 		channelID = types.NewChannelID(uint64(ctx.Message().Nonce))
-
-		if byPayer.Has(noms.String(channelID.String())) {
+		_, err := findChannel(storage, payer, channelID)
+		if err == nil {
 			return nil, Errors[ErrDuplicateChannel]
+		} else if err != Errors[ErrUnknownChannel] {
+			return nil, err
 		}
 
 		paymentChannel := PaymentChannel{
@@ -174,12 +170,7 @@ func (pb *Actor) CreateChannel(ctx *vm.Context, target types.Address, eol *types
 			Eol:            *eol,
 		}
 
-		byPayer = byPayer.Edit().Set(
-			noms.String(channelID.String()),
-			marshal.MustMarshal(vrw, paymentChannel)).Map()
-		storage.Channels = storage.Channels.Edit().Set(
-			noms.String(ctx.Message().From.String()), byPayer).Map()
-
+		insertChannel(vrw, &storage, paymentChannel, payer, channelID)
 		return storage, nil
 	})
 	if err != nil {
@@ -212,13 +203,30 @@ func (pb *Actor) Update(ctx *vm.Context, payer types.Address, chid *types.Channe
 		}
 
 		err = updateChannel(ctx, ctx.Message().From, &channel, amt)
-		return channel, err
+		insertChannel(vrw, &storage, channel, payer, chid)
+		return storage, err
 	})
 	if err != nil {
 		return errors.CodeError(err), err
 	}
 
 	return 0, nil
+}
+
+func insertChannel(vrw noms.ValueReadWriter, storage *Storage, channel PaymentChannel, payer types.Address, chid *types.ChannelID) {
+	var payerChannels noms.Map
+	if v, ok := storage.Channels.MaybeGet(noms.String(payer.String())); ok {
+		payerChannels = v.(noms.Map)
+	} else {
+		payerChannels = noms.NewMap(vrw)
+	}
+
+	payerChannels = payerChannels.Edit().Set(
+		noms.String(chid.String()),
+		marshal.MustMarshal(vrw, channel)).Map()
+	storage.Channels = storage.Channels.Edit().Set(
+		noms.String(payer.String()),
+		payerChannels).Map()
 }
 
 // Close first executes the logic performed in the the Update method, then returns all

@@ -95,7 +95,6 @@ func TestPaymentBrokerCreateChannel(t *testing.T) {
 	assert.Equal(types.NewBlockHeight(10), &channel.Eol)
 }
 
-/*
 func TestPaymentBrokerCreateChannelFromNonAccountActorIsAnError(t *testing.T) {
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -146,11 +145,12 @@ func TestPaymentBrokerUpdate(t *testing.T) {
 
 	channel := retrieveChannel(t, paymentBroker, payer, channelID)
 
-	assert.Equal(types.NewAttoFILFromFIL(1000), channel.Amount)
-	assert.Equal(types.NewAttoFILFromFIL(100), channel.AmountRedeemed)
+	assert.Equal(*types.NewAttoFILFromFIL(1000), channel.Amount)
+	assert.Equal(*types.NewAttoFILFromFIL(100), channel.AmountRedeemed)
 	assert.Equal(target, channel.Target)
 }
 
+/*
 func TestPaymentBrokerUpdateErrorsWithIncorrectChannel(t *testing.T) {
 	require := require.New(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -609,6 +609,7 @@ func TestNewPaymentBrokerVoucher(t *testing.T) {
 		assert.Contains(fmt.Sprintf("%v", err), "exceeds amount")
 	})
 }
+*/
 
 func establishChannel(ctx context.Context, st state.Tree, from types.Address, target types.Address, nonce uint64, amt *types.AttoFIL, eol *types.BlockHeight) *types.ChannelID {
 	pdata := core.MustConvertParams(target, eol)
@@ -625,17 +626,20 @@ func establishChannel(ctx context.Context, st state.Tree, from types.Address, ta
 func retrieveChannel(t *testing.T, paymentBroker *types.Actor, payer types.Address, channelID *types.ChannelID) *PaymentChannel {
 	require := require.New(t)
 	var pbStorage Storage
-	require.NoError(cbor.DecodeInto(paymentBroker.ReadStorage(), &pbStorage))
+	_, err := actor.UnmarshalStorageNoms(paymentBroker.Memory, &pbStorage)
+	require.NoError(err)
 
-	require.Equal(1, len(pbStorage.Channels))
-	require.Equal(1, len(pbStorage.Channels[payer.String()]))
-	byPayer := pbStorage.Channels[payer.String()]
+	require.Equal(uint64(1), pbStorage.Channels.Len())
+	byPayer := pbStorage.Channels.Get(noms.String(payer.String())).(noms.Map)
+	require.Equal(uint64(1), byPayer.Len())
 
-	channel := byPayer[channelID.String()]
-	require.NotNil(channel)
-	return channel
+	v := byPayer.Get(noms.String(channelID.String()))
+	require.NotNil(v)
+
+	var channel PaymentChannel
+	marshal.MustUnmarshal(v, &channel)
+	return &channel
 }
-*/
 
 func requireGenesis(ctx context.Context, t *testing.T, targetAddress types.Address) (*hamt.CborIpldStore, state.Tree) {
 	require := require.New(t)
