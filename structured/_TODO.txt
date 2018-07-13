@@ -1,0 +1,15 @@
+this pr:
+x implement noms/cid support
+- depify noms
+x tests
+
+subsequent prs:
+- randomize iteration of set/map
+- subset of numeric types needed for our actors
+- off-chain refs
+- marshaling support
+- add noms tooling support (cli inspection + viz)
+
+later, in parallel with rest of dev:
+- maybe replace rolling sums with cryptographic hashes
+- maybe replace prolly trees with something else
