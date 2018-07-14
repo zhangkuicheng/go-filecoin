@@ -21,6 +21,10 @@ const AddressVersion byte = 0
 // Base32Charset is the character set used for base32 encoding in addresses.
 const Base32Charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
+// NomsMulticodec is the multicodec identifier for Noms.
+// TODO: Register this at https://github.com/multiformats/multicodec before shipping Filecoin v1.
+const NomsMulticodec = 0x64
+
 // Base32CharsetReverse is the reverse character set. It maps ASCII byte -> Base32Charset index on [0,31].
 var Base32CharsetReverse = [128]int8{
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,

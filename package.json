@@ -200,6 +200,12 @@
       "hash": "QmSKyB5faguXT4NqbrXpnRXqaVj5DhSm7x9BtzFydBY1UK",
       "name": "go-leb128",
       "version": "0.0.0"
+    },
+    {
+      "author": "aa",
+      "hash": "QmdiJeCpVznoeWgQjZ2N8n5ngN3GzzVABaa7Rv9vosSPUw",
+      "name": "noms",
+      "version": "7.18.0"
     }
   ],
   "gxVersion": "0.12.1",
