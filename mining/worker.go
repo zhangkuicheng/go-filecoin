@@ -102,9 +102,9 @@ func MineOnce(ctx context.Context, w Worker, tipSets []core.TipSet, rewardAddres
 	subCtx, subCtxCancel := context.WithCancel(ctx)
 	defer subCtxCancel()
 
-	inCh, outCh, _ := w.Start(subCtx)
-	go func() { inCh <- NewInput(subCtx, tipSets, rewardAddress) }()
-	return <-outCh
+	i := NewInput(subCtx, tipSets, rewardAddress)
+	aw := w.(*AsyncWorker)
+	return forceMine(subCtx, i, aw.blockGenerator, aw.createPoST)
 }
 
 // Start is the main entrypoint for Worker. Call it to start mining. It returns
@@ -229,6 +229,27 @@ func Mine(ctx context.Context, input Input, nullBlockTimer NullBlockTimerFunc, b
 		nullBlockTimer()
 	}
 }
+
+// forceMine is a function used by mining once to always mine a block, regardless of power
+// this is used in the simulator & viz
+func forceMine(ctx context.Context, input Input, blockGenerator BlockGenerator, createPoST DoSomeWorkFunc) Output {
+	ctx = log.Start(ctx, "forceMine")
+	defer log.Finish(ctx)
+
+	parents := selectParents(input)
+	challenge := createChallenge(parents, 0)
+	proof := createProof(challenge, createPoST)
+	ticket := createTicket(proof)
+
+	// TODO(EC): Generate should take parents, not a single block
+	baseBlock := core.BaseBlockFromTipSets(input.TipSets)
+	next, err := blockGenerator.Generate(ctx, baseBlock, ticket, 0, input.RewardAddress)
+	if err == nil {
+		log.SetTag(ctx, "block", next)
+	}
+	return NewOutput(next, err)
+}
+
 
 func selectParents(input Input) core.TipSet {
 	if len(input.TipSets) != 1 {
