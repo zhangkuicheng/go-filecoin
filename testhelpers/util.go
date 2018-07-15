@@ -65,3 +65,10 @@ func ShouldInit(i bool) func(*Daemon) {
 		td.Init = i
 	}
 }
+
+// ShouldStartMining sets whether the daemon should start mining automatically
+func ShouldStartMining(m bool) func(*Daemon) {
+	return func(td *Daemon) {
+		td.startMining = m
+	}
+}

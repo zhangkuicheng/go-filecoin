@@ -166,9 +166,11 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 		wg.Done()
 	}(errchan)
 
-	_, err = d.Run("mining", "once")
-	if err != nil {
-		return types.Address{}, err
+	if d.WaitMining() {
+		_, err = d.Run("mining", "once")
+		if err != nil {
+			return types.Address{}, err
+		}
 	}
 	if len(errchan) > 0 {
 		return types.Address{}, errors.Errorf("%d errors happened during miner create", len(errchan))
@@ -398,6 +400,16 @@ func (d *Daemon) EventLogStream() io.Reader {
 
 func (td *Daemon) MiningOnce() error {
 	_, err := td.Run("mining", "once")
+	return err
+}
+
+func (td *Daemon) MiningStart() error {
+	_, err := td.Run("mining", "start")
+	return err
+}
+
+func (td *Daemon) MiningStop() error {
+	_, err := td.Run("mining", "stop")
 	return err
 }
 

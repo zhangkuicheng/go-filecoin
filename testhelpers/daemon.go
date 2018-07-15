@@ -24,7 +24,9 @@ type Daemon struct {
 	SwarmAddr  string
 	RepoDir    string
 	Init       bool
-	waitMining bool
+
+	waitMining  bool
+	startMining bool
 
 	// The filecoin daemon process
 	process *exec.Cmd
@@ -77,7 +79,6 @@ func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 	if d.Init {
 		out, err := runInit(repodirFlag)
 		if err != nil {
-			panic(err)
 			d.Info(string(out))
 			return nil, err
 		}
@@ -120,7 +121,13 @@ func NewDaemon(options ...func(*Daemon)) (*Daemon, error) {
 		io.Copy(stderrFile, d.Stderr)
 	}()
 
-	return d, nil
+	if d.startMining {
+		err = d.MiningStart()
+	} else {
+		err = d.MiningStop()
+	}
+
+	return d, err
 }
 
 func runInit(opts ...string) ([]byte, error) {
