@@ -108,7 +108,7 @@ func (d *Daemon) Connect(remote *Daemon) (*Output, error) {
 // equivalent to:
 //     `go-filecoin miner create --from $TEST_ACCOUNT 100000 20`
 // TODO don't panic be happy
-func (d *Daemon) CreateMinerAddr() (types.Address, error) {
+func (d *Daemon) CreateMinerAddr(mineForAddr bool) (types.Address, error) {
 	if d.WaitMining() {
 		// need money
 		_, err := d.Run("mining", "once")
@@ -136,49 +136,65 @@ func (d *Daemon) CreateMinerAddr() (types.Address, error) {
 		return types.Address{}, errors.New(errstr)
 	}
 
-	var wg sync.WaitGroup
-	var minerAddr types.Address
 
-	errchan := make(chan error)
-	wg.Add(1)
-	go func(errchan chan error) {
+	minerAddrCh := make(chan types.Address)
+	errCh := make(chan error)
+
+	go func(errCh chan error) {
 		pledgeStr := strconv.Itoa(pledgeAmt)
 		collateralStr := strconv.Itoa(collateralAmt)
 		miner, err := d.Run("miner", "create", "--from", addr.String(), pledgeStr, collateralStr)
 		if err != nil {
-			errchan <- err
+			errCh <- err
 			d.Error(err)
 			return
 		}
 		addr, err := types.NewAddressFromString(strings.Trim(miner.ReadStdout(), "\n"))
 		if err != nil {
 			fmt.Println(addr.String())
-			errchan <- err
+			errCh <- err
 			d.Error(err)
 			return
 		}
 		if addr.Empty() {
-			errchan <- err
+			errCh <- err
 			d.Error(err)
 			return
 		}
-		minerAddr = addr
-		wg.Done()
-	}(errchan)
+		minerAddrCh<- addr
+	}(errCh)
 
-	if d.WaitMining() {
-		_, err = d.Run("mining", "once")
-		if err != nil {
-			return types.Address{}, err
+	maxTimesToMine := 10
+	for {
+		select {
+
+		// this delay is awfully hacky. we should be waiting until the message is in the mempool
+		// but really, the command above should have a --wait=false opt to do things sequentially.
+		// here, we keep mining every 500ms until the message goes through.
+		// doing it once kept failing.
+		case <-time.After(time.Millisecond * 500):
+			if !d.WaitMining() && !mineForAddr {
+				continue
+			}
+
+			// wait until message is in mining
+			_, err = d.Run("mining", "once")
+			if err != nil {
+				return types.Address{}, err
+			}
+			maxTimesToMine--
+			if maxTimesToMine <= 0 {
+				return types.Address{}, errors.Errorf("stuck during mining create")
+			}
+
+		case a := <-minerAddrCh:
+			d.Logf("Created Miner Addr: %s", a.String())
+			return a, nil
+
+		case err := <-errCh:
+			return types.Address{}, errors.Errorf("errors during miner create: %s", err)
 		}
 	}
-	if len(errchan) > 0 {
-		return types.Address{}, errors.Errorf("%d errors happened during miner create", len(errchan))
-	}
-
-	wg.Wait()
-	d.Logf("Created Miner Addr: %s", minerAddr.String())
-	return minerAddr, nil
 }
 
 // CreateWalletAddr adds a new address to the daemons wallet and
@@ -314,7 +330,7 @@ func (d *Daemon) MakeDeal(dealData string, miner *Daemon) (string, error) {
 	// How long to wait for miner blocks to propagate to other nodes
 	propWait := time.Second * 3
 
-	m, err := miner.CreateMinerAddr()
+	m, err := miner.CreateMinerAddr(true)
 	if err != nil {
 		return "", err
 	}
