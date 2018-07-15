@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"io"
+	"bytes"
 
 	cbor "gx/ipfs/QmRVSCwQtW1rjHCay9NqKXDwbtKTgDcN4iY7PrpSqfKM5D/go-ipld-cbor"
 	"gx/ipfs/QmUf5GFfV2Be3UtSAPKDVkoRd1TwEBTmx9TSSCFGGjNgdQ/go-ipfs-cmds"
@@ -31,6 +32,7 @@ var paymentChannelCmd = &cmds.Command{
 		"reclaim": reclaimCmd,
 		"redeem":  redeemCmd,
 		"voucher": voucherCmd,
+		"validate": voucherValidateCmd,
 	},
 }
 
@@ -305,6 +307,51 @@ var redeemCmd = &cmds.Command{
 		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, c *cid.Cid) error {
 			return PrintString(w, c)
 		}),
+	},
+}
+
+
+var voucherValidateCmd = &cmds.Command{
+	Helptext: cmdkit.HelpText{
+		Tagline: "Validate a payment voucher against a payment channel",
+	},
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("voucher", true, false, "base58 encoded signed voucher"),
+	},
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("from", "address of the channel target"),
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
+		n := GetNode(env)
+
+		_, err := fromAddress(req.Options, n)
+		if err != nil {
+			return err
+		}
+
+		_, cborVoucher, err := multibase.Decode(req.Arguments[0])
+		if err != nil {
+			return err
+		}
+
+		var voucher paymentbroker.PaymentVoucher
+		err = cbor.DecodeInto(cborVoucher, &voucher)
+		if err != nil {
+			return err
+		}
+
+		_, err = abi.ToEncodedValues(voucher.Payer, &voucher.Channel, &voucher.Amount, voucher.Signature)
+		if err != nil {
+			return err
+		}
+
+		// TODO: really sign this thing...
+		if !bytes.Equal(voucher.Signature, voucher.Payer.Bytes()) {
+			return fmt.Errorf("invalid signature")
+		}
+
+		// TODO: actually check the voucher...
+		return nil
 	},
 }
 
