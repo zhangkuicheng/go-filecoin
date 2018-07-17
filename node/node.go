@@ -596,6 +596,10 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr types.Address, pl
 		return nil, err
 	}
 
+	if err := msg.Sign(accountAddr, node.Wallet); err != nil {
+		return nil, err
+	}
+
 	if err := node.AddNewMessage(ctx, msg); err != nil {
 		return nil, err
 	}
