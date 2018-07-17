@@ -69,7 +69,7 @@ func TestDealProtocolClient(t *testing.T) {
 			Bid:     0,
 			DataRef: data.Cid(),
 		},
-		ClientSig: clientAddr.String(),
+		ClientSig: clientAddr.Bytes(),
 	}
 
 	resp, err := client.ProposeDeal(ctx, propose)
