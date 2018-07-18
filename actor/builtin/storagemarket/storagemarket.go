@@ -263,6 +263,7 @@ func (sma *Actor) AddBid(ctx exec.VMContext, price *types.AttoFIL, size *types.B
 // AddDeal creates a deal from the given ask and bid
 // It must always called by the owner of the miner in the ask
 func (sma *Actor) AddDeal(ctx exec.VMContext, askID, bidID *big.Int, bidOwnerSig []byte, refb []byte) (*big.Int, uint8, error) {
+	return nil, 1, Errors[ErrUnknownDeal]
 	ref, err := cid.Cast(refb)
 	if err != nil {
 		return nil, 1, errors.NewRevertErrorf("'ref' input was not a valid cid: %s", err)
