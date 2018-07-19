@@ -9,9 +9,13 @@ import (
 	"gx/ipfs/QmZoWKhxUmZ2seW4BzX6fJkNR8hh9PsGModr7q171yq2SS/go-libp2p-peer"
 	"gx/ipfs/QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY/go-cid"
 
+	// TODO remove once an interface is decided on
+	"gx/ipfs/QmZp3eKdYQHHAneECmeK6HhiMwTPufmjC8DuuaGKv3unvx/blake2b-simd"
+
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
@@ -260,6 +264,40 @@ func (sma *Actor) AddBid(ctx exec.VMContext, price *types.AttoFIL, size *types.B
 	return bidID, 0, nil
 }
 
+func RecoverAddress(askID, bidID *big.Int, dataRef, sig []byte) (types.Address, error) {
+	data, err := cid.Cast(dataRef)
+	if err != nil {
+		return types.Address{}, err
+	}
+	// recreate the deal
+	deal := &Deal{
+		Ask:     askID.Uint64(),
+		Bid:     bidID.Uint64(),
+		DataRef: data,
+	}
+
+	// as bytes
+	bd, err := deal.Marshal()
+	if err != nil {
+		return types.Address{}, err
+	}
+	// TODO this should be handled by a utility
+	dealHash := blake2b.Sum256(bd)
+
+	// get a public key
+	maybePk, err := crypto.Ecrecover(dealHash[:], sig)
+	if err != nil {
+		return types.Address{}, err
+	}
+
+	maybeAddrHash, err := types.AddressHash(maybePk)
+	if err != nil {
+		return types.Address{}, err
+	}
+	// return address associated with public key
+	return types.NewMainnetAddress(maybeAddrHash), nil
+}
+
 // AddDeal creates a deal from the given ask and bid
 // It must always called by the owner of the miner in the ask
 func (sma *Actor) AddDeal(ctx exec.VMContext, askID, bidID *big.Int, bidOwnerSig []byte, refb []byte) (*big.Int, uint8, error) {
@@ -297,8 +335,13 @@ func (sma *Actor) AddDeal(ctx exec.VMContext, askID, bidID *big.Int, bidOwnerSig
 			return nil, Errors[ErrInsufficientSpace]
 		}
 
+		maybeBidOwner, err := RecoverAddress(askID, bidID, refb, bidOwnerSig)
+		if err != nil {
+			panic(err)
+			return nil, Errors[ErrInvalidSignature]
+		}
 		// TODO: real signature check and stuff
-		if !bytes.Equal(bid.Owner.Bytes(), bidOwnerSig) {
+		if !bytes.Equal(bid.Owner.Bytes(), maybeBidOwner.Bytes()) {
 			return nil, Errors[ErrInvalidSignature]
 		}
 
