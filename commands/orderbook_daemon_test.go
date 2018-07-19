@@ -60,6 +60,8 @@ func TestAskList(t *testing.T) {
 
 }
 
+// TODO(frrist): This will fail until the TODO in storagemarket.go AddDeal method is addressed,
+// need to add thd correct signature validation check on the deal
 func TestDealList(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)

@@ -151,6 +151,11 @@ var clientProposeDealCmd = &cmds.Command{
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 		nd := GetNode(env)
 
+		fromAddr, err := fromAddress(req.Options, nd)
+		if err != nil {
+			return err
+		}
+
 		askID, ok := req.Options["ask"].(int)
 		if !ok {
 			return fmt.Errorf("must specify an ask")
@@ -166,9 +171,6 @@ var clientProposeDealCmd = &cmds.Command{
 			return err
 		}
 
-		// TODO should the reward address be the default for this?
-		defaddr := nd.RewardAddress()
-
 		propose := &node.DealProposal{
 			Deal: &storagemarket.Deal{
 				Ask:     uint64(askID),
@@ -177,7 +179,7 @@ var clientProposeDealCmd = &cmds.Command{
 			},
 		}
 
-		if err := propose.Sign(defaddr, nd.Wallet); err != nil {
+		if err := propose.Sign(fromAddr, nd.Wallet); err != nil {
 			return err
 		}
 

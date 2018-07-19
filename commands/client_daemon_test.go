@@ -79,16 +79,16 @@ func TestClientAddBidFail(t *testing.T) {
 	)
 }
 
+// TODO(frrist): This will fail until the TODO in storagemerke.go AddDeal method is addressed,
+// need to add thd correct signature validation check on the deal
 func TestProposeDeal(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
 	dcli := NewDaemon(t).Start()
-	defer func() { t.Log(dcli.ReadStderr()) }()
 	defer dcli.ShutdownSuccess()
 
 	dmin := NewDaemon(t).Start()
-	defer func() { t.Log(dmin.ReadStderr()) }()
 	defer dmin.ShutdownSuccess()
 
 	dcli.ConnectSuccess(dmin)

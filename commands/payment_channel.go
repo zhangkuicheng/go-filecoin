@@ -279,9 +279,12 @@ var redeemCmd = &cmds.Command{
 			return err
 		}
 
-		// TODO: Sign this message
 		msg, err := node.NewMessageWithNextNonce(req.Context, n, fromAddr, address.PaymentBrokerAddress, types.NewAttoFILFromFIL(0), "update", params)
 		if err != nil {
+			return err
+		}
+
+		if err := msg.Sign(fromAddr, n.Wallet); err != nil {
 			return err
 		}
 
@@ -333,9 +336,12 @@ var reclaimCmd = &cmds.Command{
 			return err
 		}
 
-		// TODO: Sign this message
 		msg, err := node.NewMessageWithNextNonce(req.Context, n, fromAddr, address.PaymentBrokerAddress, types.NewAttoFILFromFIL(0), "reclaim", params)
 		if err != nil {
+			return err
+		}
+
+		if err := msg.Sign(fromAddr, n.Wallet); err != nil {
 			return err
 		}
 
@@ -393,9 +399,12 @@ var closeCmd = &cmds.Command{
 			return err
 		}
 
-		// TODO: Sign this message
 		msg, err := node.NewMessageWithNextNonce(req.Context, n, fromAddr, address.PaymentBrokerAddress, types.NewAttoFILFromFIL(0), "close", params)
 		if err != nil {
+			return err
+		}
+
+		if err := msg.Sign(fromAddr, n.Wallet); err != nil {
 			return err
 		}
 
@@ -459,9 +468,12 @@ var extendCmd = &cmds.Command{
 			return err
 		}
 
-		// TODO: Sign this message
 		msg, err := node.NewMessageWithNextNonce(req.Context, n, fromAddr, address.PaymentBrokerAddress, amount, "extend", params)
 		if err != nil {
+			return err
+		}
+
+		if err := msg.Sign(fromAddr, n.Wallet); err != nil {
 			return err
 		}
 

@@ -33,7 +33,7 @@ type Message struct {
 	Method string `json:"method"`
 	Params []byte `json:"params"`
 
-	Signature []byte `json:"Signature"`
+	Signature []byte `json:"signature"`
 }
 
 // Unmarshal a message from the given bytes.

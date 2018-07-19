@@ -140,6 +140,9 @@ func TestDecodeBlock(t *testing.T) {
 		m1 := NewMessage(addrGetter(), addrGetter(), 0, NewAttoFILFromFIL(10), "hello", []byte("cat"))
 		m2 := NewMessage(addrGetter(), addrGetter(), 0, NewAttoFILFromFIL(2), "yes", []byte("dog"))
 
+		m1.Signature = []byte("sig1")
+		m2.Signature = []byte("sig2")
+
 		c1, err := cidFromString("a")
 		assert.NoError(err)
 		c2, err := cidFromString("b")

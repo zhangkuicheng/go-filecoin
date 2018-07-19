@@ -117,6 +117,10 @@ var minerUpdatePeerIDCmd = &cmds.Command{
 			return err
 		}
 
+		if err := msg.Sign(fromAddr, n.Wallet); err != nil {
+			return err
+		}
+
 		if err := n.AddNewMessage(req.Context, msg); err != nil {
 			return err
 		}

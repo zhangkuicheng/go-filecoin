@@ -85,6 +85,16 @@
     "Message": {
       "additionalProperties": false,
       "properties": {
+        "signature": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
         "from": {
           "type": "string"
         },

@@ -5,7 +5,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/filecoin-project/go-filecoin/address"
 	tf "github.com/filecoin-project/go-filecoin/testhelpers/testfiles"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,16 +21,16 @@ func TestMessageSend(t *testing.T) {
 	d.RunFail(
 		"invalid checksum",
 		"message", "send",
-		"--from", address.NetworkAddress.String(),
+		"--from", testAddress1,
 		"--value=10", "xyz",
 	)
 
 	t.Log("[success] default from")
-	d.RunSuccess("message", "send", testAddress1)
+	d.RunSuccess("message", "send", testAddress2)
 
 	t.Log("[success] with from")
 	d.RunSuccess("message", "send",
-		"--from", address.NetworkAddress.String(), testAddress1,
+		"--from", testAddress1, testAddress2,
 	)
 
 	t.Log("[success] with from and value")

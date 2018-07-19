@@ -151,15 +151,21 @@ func TestPaymentChannelRedeemSuccess(t *testing.T) {
 	target, err := types.NewAddressFromString(testAddress2)
 	require.NoError(err)
 
+	wtf := tf.WalletFilePath()
+	targetDaemon := NewDaemon(t, WalletFile(wtf), WalletAddr(target.String())).Start()
+	defer targetDaemon.ShutdownSuccess()
+
 	eol := types.NewBlockHeight(20)
 	amt := types.NewAttoFILFromFIL(10000)
 
 	daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *TestDaemon, channelID *types.ChannelID) {
 		assert := assert.New(t)
 
+		d.ConnectSuccess(targetDaemon)
+
 		voucher := mustCreateVoucher(t, d, channelID, types.NewAttoFILFromFIL(111), &payer)
 
-		mustRedeemVoucher(t, d, voucher, &target)
+		mustRedeemVoucher(t, targetDaemon, voucher, &target)
 
 		ls := listChannelsAsStrs(d, &payer)[0]
 		assert.Equal(fmt.Sprintf("%v: target: %s, amt: 10000, amt redeemed: 111, eol: 20", channelID, target.String()), ls)
@@ -170,12 +176,14 @@ func TestPaymentChannelReclaimSuccess(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	// Initial Balance 10,000,000
 	payer, err := types.NewAddressFromString(testAddress1)
 	require.NoError(err)
-	// Initial Balance 10,000,000
 	target, err := types.NewAddressFromString(testAddress2)
 	require.NoError(err)
+
+	wtf := tf.WalletFilePath()
+	targetDaemon := NewDaemon(t, WalletFile(wtf), WalletAddr(target.String())).Start()
+	defer targetDaemon.ShutdownSuccess()
 
 	// Not used in logic
 	eol := types.NewBlockHeight(20)
@@ -184,11 +192,13 @@ func TestPaymentChannelReclaimSuccess(t *testing.T) {
 	daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *TestDaemon, channelID *types.ChannelID) {
 		assert := assert.New(t)
 
+		d.ConnectSuccess(targetDaemon)
+
 		// payer creates a voucher to be redeemed by target (off-chain)
 		voucher := mustCreateVoucher(t, d, channelID, types.NewAttoFILFromFIL(10), &payer)
 
 		// target redeems the voucher (on-chain)
-		mustRedeemVoucher(t, d, voucher, &target)
+		mustRedeemVoucher(t, targetDaemon, voucher, &target)
 
 		lsStr := listChannelsAsStrs(d, &payer)[0]
 		assert.Equal(fmt.Sprintf("%v: target: %s, amt: 10000, amt redeemed: 10, eol: %s", channelID, target.String(), eol.String()), lsStr)
@@ -214,28 +224,31 @@ func TestPaymentChannelReclaimSuccess(t *testing.T) {
 func TestPaymentChannelCloseSuccess(t *testing.T) {
 	require := require.New(t)
 
-	// Initial Balance 10,000,000
-	payerA, err := types.NewAddressFromString(testAddress1)
+	payer, err := types.NewAddressFromString(testAddress1)
 	require.NoError(err)
-	// Initial Balance 10,000,000
-	targetA, err := types.NewAddressFromString(testAddress2)
+	target, err := types.NewAddressFromString(testAddress2)
 	require.NoError(err)
-	payer := &payerA
-	target := &targetA
+
+	wtf := tf.WalletFilePath()
+	targetDaemon := NewDaemon(t, WalletFile(wtf), WalletAddr(target.String())).Start()
+	defer targetDaemon.ShutdownSuccess()
+
 	eol := types.NewBlockHeight(100)
 	amt := types.NewAttoFILFromFIL(10000)
 
-	daemonTestWithPaymentChannel(t, payer, target, amt, eol, func(d *TestDaemon, channelID *types.ChannelID) {
+	daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *TestDaemon, channelID *types.ChannelID) {
 		assert := assert.New(t)
 
+		d.ConnectSuccess(targetDaemon)
+
 		// payer creates a voucher to be redeemed by target (off-chain)
-		voucher := mustCreateVoucher(t, d, channelID, types.NewAttoFILFromFIL(10), payer)
+		voucher := mustCreateVoucher(t, d, channelID, types.NewAttoFILFromFIL(10), &payer)
 
 		// target redeems the voucher (on-chain) and simultaneously closes the channel
-		mustCloseChannel(t, d, voucher, target)
+		mustCloseChannel(t, targetDaemon, voucher, &target)
 
 		// channel has been closed
-		lsStr := listChannelsAsStrs(d, payer)[0]
+		lsStr := listChannelsAsStrs(d, &payer)[0]
 		assert.Contains(lsStr, "no channels")
 
 		// channel's original locked funds minus the redeemed voucher amount
