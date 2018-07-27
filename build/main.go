@@ -43,12 +43,12 @@ func runParts(args ...string) {
 
 	go func() {
 		if _, err = io.Copy(os.Stderr, stderr); err != nil {
-			panic(err)
+			log.Printf("warning: failed to pipe stderr: %s\n", err)
 		}
 	}()
 	go func() {
 		if _, err = io.Copy(os.Stdout, stdout); err != nil {
-			panic(err)
+			log.Printf("warning: failed to pipe stdout: %s\n", err)
 		}
 	}()
 
