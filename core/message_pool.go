@@ -62,8 +62,8 @@ func NewMessagePool() *MessagePool {
 }
 
 // getParentTips returns the parent tipset of the provided tipset
-func getParentTipSet(store *hamt.CborIpldStore, ts TipSet) (TipSet, error) {
-	newTipSet := TipSet{}
+func getParentTipSet(store *hamt.CborIpldStore, ts types.TipSet) (types.TipSet, error) {
+	newTipSet := types.TipSet{}
 	parents, err := ts.Parents()
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func getParentTipSet(store *hamt.CborIpldStore, ts TipSet) (TipSet, error) {
 // height `height`.  This function returns the messages collected along with
 // the tipset at the final height.
 // TODO ripe for optimizing away lots of allocations
-func collectChainsMessagesToHeight(store *hamt.CborIpldStore, curTipSet TipSet, height uint64) ([]*types.SignedMessage, TipSet, error) {
+func collectChainsMessagesToHeight(store *hamt.CborIpldStore, curTipSet types.TipSet, height uint64) ([]*types.SignedMessage, types.TipSet, error) {
 	var msgs []*types.SignedMessage
 	h, err := curTipSet.Height()
 	if err != nil {
@@ -105,7 +105,7 @@ func collectChainsMessagesToHeight(store *hamt.CborIpldStore, curTipSet TipSet, 
 		default:
 			nextTipSet, err := getParentTipSet(store, curTipSet)
 			if err != nil {
-				return []*types.SignedMessage{}, TipSet{}, err
+				return []*types.SignedMessage{}, types.TipSet{}, err
 			}
 			curTipSet = nextTipSet
 			h, err = curTipSet.Height()
@@ -127,7 +127,7 @@ func collectChainsMessagesToHeight(store *hamt.CborIpldStore, curTipSet TipSet, 
 // TODO there is considerable functionality missing here: don't add
 //      messages that have expired, respect nonce, do this efficiently,
 //      etc.
-func UpdateMessagePool(ctx context.Context, pool *MessagePool, store *hamt.CborIpldStore, old, new TipSet) error {
+func UpdateMessagePool(ctx context.Context, pool *MessagePool, store *hamt.CborIpldStore, old, new types.TipSet) error {
 	// Strategy: walk head-of-chain pointers old and new back until they are at the same
 	// height, then walk back in lockstep to find the common ancesetor.
 

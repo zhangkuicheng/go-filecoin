@@ -9,6 +9,7 @@ import (
 	"gx/ipfs/QmSPD4WJu73TE4eJgzbZQTpmfyT5hsh3SEsZnpBAXpaBDA/go-libp2p-floodsub"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	"gx/ipfs/QmXJkSRxXHeAGmQJENct16anrKZHNECbmUoC7hMuCjLni6/go-hamt-ipld"
+	"gx/ipfs/QmYVNvtQkeZ6AKSwDrjQTs432QtL6umrrK41EBq3cu7iSP/go-cid"
 	"gx/ipfs/QmZ86eLPtXkQ1Dfa992Q8NpXArUoWWh3y728JDcWvzRrvC/go-libp2p"
 	"gx/ipfs/QmZ86eLPtXkQ1Dfa992Q8NpXArUoWWh3y728JDcWvzRrvC/go-libp2p/p2p/protocol/ping"
 	bstore "gx/ipfs/QmadMhXJLHMFjpRmh85XjpmVDkEtQpNYEZNRpWRvYVLrvb/go-ipfs-blockstore"
@@ -35,7 +36,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/types"
 	vmErrors "github.com/filecoin-project/go-filecoin/vm/errors"
 	"github.com/filecoin-project/go-filecoin/wallet"
-	cid "github.com/ipfs/go-cid"
 )
 
 var log = logging.Logger("node") // nolint: deadcode
@@ -55,9 +55,9 @@ var (
 type Node struct {
 	Host host.Host
 
-	Consensus      consensus.Consensus
-	StateProcessor state.Processor
-	Chain          chain.Chain
+	Consensus consensus.Algorithm
+	Chain     chain.Store
+	Syncer    chain.Syncer
 
 	// HeavyTipSetCh is a subscription to the heaviest tipset topic on the chain.
 	HeaviestTipSetCh chan interface{}
@@ -201,13 +201,11 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	cstOffline := hamt.CborIpldStore{Blocks: bserv.New(bs, nil)}
 
 	chainStore := chain.NewDefaultStore(cstOffline, nc.Repo.Datastore())
-	consensus := consensus.NewExpected(&chainStore)
+	consensus := consensus.NewExpected(&chainStore, cstOffline)
 	if nc.MockMineMode {
 		// TODO:
-		// consensus = consensus.NewMock(&chainStore)
+		// consensus = consensus.NewMock(&chainStore, cstOffline)
 	}
-
-	stateProcessor := state.NewDefaultProcessor(&consensus, cstOffline, &chainStore)
 
 	// only the syncer gets the storage which is online connected
 	chainSyncer := chain.NewDefaultSyncer(cstOnline)
@@ -217,7 +215,7 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	// Set up but don't start a mining.Worker. It sleeps mineSleepTime
 	// to simulate the work of generating proofs.
 	blockGenerator := mining.NewBlockGenerator(msgPool, func(ctx context.Context, ts types.TipSet) (state.Tree, error) {
-		return stateProcessor.State(ctx, ts.ToSlice())
+		return consensus.State(ctx, ts.ToSlice())
 	}, consensus.Weight, core.ApplyMessages)
 	miningWorker := mining.NewWorker(blockGenerator)
 
@@ -236,8 +234,8 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 		Blockservice:   bserv,
 		CborStore:      cstOffline,
 		Consensus:      consensus,
-		StateProcessor: stateProcessor,
 		Chain:          chainStore,
+		Syncer:         chainSyncer,
 		Exchange:       bswap,
 		Host:           host,
 		MiningWorker:   miningWorker,
@@ -264,7 +262,7 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to obtain a default from-address")
 	}
-	nd.Lookup = lookup.NewChainLookupService(chainMgr, addr)
+	nd.Lookup = lookup.NewChainLookupService(nd.Consensus, addr)
 
 	return nd, nil
 }
@@ -277,7 +275,7 @@ func (node *Node) Start() error {
 
 	// Start up 'hello' handshake service
 	// TODO: use chain syncer instead of mgr
-	node.HelloSvc = core.NewHello(node.Host, node.Chain.GenesisCid(), node.ChainMgr.InformNewTipSet, node.Chain.Head)
+	node.HelloSvc = core.NewHello(node.Host, node.Chain.GenesisCid(), node.Syncer.HandleNewBlocksFromNetwork, node.Chain.Head)
 
 	node.StorageClient = NewStorageClient(node)
 	node.StorageMarket = NewStorageMarket(node)
@@ -506,7 +504,7 @@ func (node *Node) StopMining() {
 
 // GetSignature fetches the signature for the given method on the appropriate actor.
 func (node *Node) GetSignature(ctx context.Context, actorAddr types.Address, method string) (*exec.FunctionSignature, error) {
-	st, err := node.StateProcessor.State(ctx, node.Chain.Head().ToSlice())
+	st, err := node.StateProcessor.LatestState(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load state tree")
 	}
@@ -538,7 +536,7 @@ func (node *Node) GetSignature(ctx context.Context, actorAddr types.Address, met
 // the actor's memory and also scans the message pool for any pending
 // messages.
 func NextNonce(ctx context.Context, node *Node, address types.Address) (uint64, error) {
-	st, err := node.StateProcessor.State(ctx, node.Chain.Head().ToSlice())
+	st, err := node.StateProcessor.LatestState(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -771,7 +769,7 @@ func (node *Node) receiptFromTipSet(ctx context.Context, msgCid *cid.Cid, ts typ
 	if err != nil {
 		return nil, err
 	}
-	st, err := node.stateProcessor.StateForBlockIDs(ctx, ids)
+	st, err := node.StateProcessor.StateForBlockIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}

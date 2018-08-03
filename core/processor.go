@@ -15,7 +15,7 @@ import (
 type Processor func(ctx context.Context, blk *types.Block, st state.Tree) ([]*ApplicationResult, error)
 
 // TipSetProcessor is the signature of a function used to process tipsets
-type TipSetProcessor func(ctx context.Context, ts TipSet, st state.Tree) (*ProcessTipSetResponse, error)
+type TipSetProcessor func(ctx context.Context, ts types.TipSet, st state.Tree) (*ProcessTipSetResponse, error)
 
 // ProcessBlock is the entrypoint for validating the state transitions
 // of the messages in a block. When we receive a new block from the
@@ -87,7 +87,7 @@ type ProcessTipSetResponse struct {
 // coming from calls to ApplyMessage can be traced to different blocks in the
 // TipSet containing conflicting messages and are ignored.  Blocks are applied
 // in the sorted order of their tickets.
-func ProcessTipSet(ctx context.Context, ts TipSet, st state.Tree) (*ProcessTipSetResponse, error) {
+func ProcessTipSet(ctx context.Context, ts types.TipSet, st state.Tree) (*ProcessTipSetResponse, error) {
 	var res ProcessTipSetResponse
 	var emptyRes ProcessTipSetResponse
 	h, err := ts.Height()

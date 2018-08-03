@@ -21,14 +21,15 @@ type Store interface {
 	// Put persists a block to disk.
 	Put(ctx context.Context, block *types.Block) error
 	// Get gets a block by cid. In the future there is caching here.
-	Get(ctx context.Context, c *cid.Cid) (types.Block, error)
+	Get(ctx context.Context, c *cid.Cid) (*types.Block, error)
 	// Has indicates whether the block is in the store.
 	Has(ctx context.Context, c *cid.Cid) bool
 	// GetForIDs returns the blocks in the input cid set.
 	GetForIDs(ctx context.Context, ids types.SortedCidSet) ([]*types.Block, error)
+	GetParents(ctx context.Context, ts types.TipSet) ([]*types.Block, error)
 
 	HeadEvents() *pubsub.PubSub
-	SetHead(s types.TipSet) error
+	SetHead(ctx context.Context, s types.TipSet) error
 	Head() types.TipSet
 
 	BlockHistory(ctx context.Context) <-chan interface{}

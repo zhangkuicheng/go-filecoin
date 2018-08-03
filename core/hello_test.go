@@ -1,4 +1,4 @@
-package core
+package core_test
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/filecoin-project/go-filecoin/testhelpers"
 	types "github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -25,10 +26,10 @@ func (msb *mockSyncCallback) SyncCallback(p peer.ID, cids []*cid.Cid, h uint64) 
 }
 
 type mockHeaviestGetter struct {
-	heaviest TipSet
+	heaviest types.TipSet
 }
 
-func (mhg *mockHeaviestGetter) getHeaviestTipSet() TipSet {
+func (mhg *mockHeaviestGetter) getHeaviestTipSet() types.TipSet {
 	return mhg.heaviest
 }
 
@@ -45,8 +46,8 @@ func TestHelloHandshake(t *testing.T) {
 
 	genesisA := &types.Block{Nonce: 451}
 
-	heavy1 := RequireNewTipSet(require, &types.Block{Nonce: 1000, Height: 2})
-	heavy2 := RequireNewTipSet(require, &types.Block{Nonce: 1001, Height: 3})
+	heavy1 := testhelpers.RequireNewTipSet(require, &types.Block{Nonce: 1000, Height: 2})
+	heavy2 := testhelpers.RequireNewTipSet(require, &types.Block{Nonce: 1001, Height: 3})
 
 	msc1, msc2 := new(mockSyncCallback), new(mockSyncCallback)
 	hg1, hg2 := &mockHeaviestGetter{heavy1}, &mockHeaviestGetter{heavy2}

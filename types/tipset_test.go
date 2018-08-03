@@ -262,8 +262,8 @@ func TestTipIndex(t *testing.T) {
 	contains := func(b *Block, expectedHeightEntries, expectedParentSetEntries, expectedBlocks int) {
 		assert.Equal(expectedHeightEntries, len(idx))
 		assert.Equal(expectedParentSetEntries, len(idx[uint64(b.Height)]))
-		assert.Equal(expectedBlocks, len(idx[uint64(b.Height)][keyForParentSet(b.Parents)]))
-		assert.True(b.Cid().Equals(idx[uint64(b.Height)][keyForParentSet(b.Parents)][b.Cid().String()].Cid()))
+		assert.Equal(expectedBlocks, len(idx[uint64(b.Height)][KeyForParentSet(b.Parents)]))
+		assert.True(b.Cid().Equals(idx[uint64(b.Height)][KeyForParentSet(b.Parents)][b.Cid().String()].Cid()))
 	}
 
 	cidGetter := NewCidForTestGetter()

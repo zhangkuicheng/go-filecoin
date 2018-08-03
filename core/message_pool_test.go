@@ -1,4 +1,4 @@
-package core
+package core_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -122,7 +123,7 @@ func assertPoolEquals(assert *assert.Assertions, p *MessagePool, expMsgs ...*typ
 	}
 }
 
-func headOf(chain []TipSet) TipSet {
+func headOf(chain []types.TipSet) types.TipSet {
 	return chain[len(chain)-1]
 }
 
@@ -140,7 +141,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		p := NewMessagePool()
 
 		m := types.NewSignedMsgs(2, mockSigner)
-		MustAdd(p, m[0], m[1])
+		testhelpers.MustAdd(p, m[0], m[1])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{})
 		oldTipSet := headOf(oldChain)

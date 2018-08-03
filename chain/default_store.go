@@ -13,7 +13,6 @@ import (
 	"gx/ipfs/QmdbxjQWogRCHRaxhhGnYdT1oQJzL9GdqSKzCdqWr85AP2/pubsub"
 	"gx/ipfs/QmeiCcJfDW1GJnWUArudsv5rQsihpi4oyddPhdqo3CfX6i/go-datastore"
 
-	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -52,7 +51,7 @@ type DefaultStore struct {
 	knownGoodBlocks *cid.Set
 
 	// Tracks tipsets by height/parentset for use by expected consensus.
-	tips tipIndex
+	tips types.TipIndex
 }
 
 // Ensure DefaultStore satisfies the Store interface at compile time.
@@ -60,12 +59,12 @@ var _ Store = (*DefaultStore)(nil)
 
 // NewDefaultStore constructs a new default store.
 func NewDefaultStore(blockstore *hamt.CborIpldStore, ds datastore.Datastore) Store {
-	return DefaultStore{
+	return &DefaultStore{
 		blockstore:      blockstore,
 		headEvents:      pubsub.New(128),
 		ds:              ds,
 		knownGoodBlocks: cid.NewSet(),
-		tips:            tipIndex{},
+		tips:            types.TipIndex{},
 	}
 }
 
@@ -77,7 +76,7 @@ func (store *DefaultStore) Load(ctx context.Context) error {
 	ts := types.TipSet{}
 	// traverse starting from one TipSet to begin loading the chain
 	for it := tipCids.Iter(); !it.Complete(); it.Next() {
-		blk, err := cm.Get(ctx, it.Value())
+		blk, err := store.Get(ctx, it.Value())
 		if err != nil {
 			return errors.Wrap(err, "failed to load block in head TipSet")
 		}
@@ -88,10 +87,12 @@ func (store *DefaultStore) Load(ctx context.Context) error {
 	}
 
 	var genesii []*types.Block
-	err = store.WalkChain(ts.ToSlice(), func(tips []*types.Block) (cont bool, err error) {
+	err = store.WalkChain(ctx, ts.ToSlice(), func(tips []*types.Block) (cont bool, err error) {
 		for _, t := range tips {
+			// TODO: add block
 			id := t.Cid()
-			cm.addBlock(t, id)
+			_ = id
+			// cm.addBlock(t, id)
 		}
 		genesii = tips
 		return true, nil
@@ -117,17 +118,17 @@ func (store *DefaultStore) Load(ctx context.Context) error {
 func (store *DefaultStore) loadHead() (types.SortedCidSet, error) {
 	bbi, err := store.ds.Get(headKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read headKey")
+		return types.SortedCidSet{}, errors.Wrap(err, "failed to read headKey")
 	}
 	bb, ok := bbi.([]byte)
 	if !ok {
-		return nil, fmt.Errorf("stored headCids not []byte")
+		return types.SortedCidSet{}, fmt.Errorf("stored headCids not []byte")
 	}
 
 	var cids types.SortedCidSet
 	err = json.Unmarshal(bb, &cids)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to cast headCids")
+		return types.SortedCidSet{}, errors.Wrap(err, "failed to cast headCids")
 	}
 
 	return cids, nil
@@ -142,13 +143,13 @@ func (store *DefaultStore) Put(ctx context.Context, block *types.Block) error {
 }
 
 // Get retrieves a block by cid.
-func (store *DefaultStore) Get(ctx context.Context, c *cid.Cid) (types.Block, error) {
+func (store *DefaultStore) Get(ctx context.Context, c *cid.Cid) (*types.Block, error) {
 	var blk types.Block
 	if err := store.blockstore.Get(ctx, c, &blk); err != nil {
 		return nil, errors.Wrap(err, "failed to get block")
 	}
 
-	return blk, nil
+	return &blk, nil
 }
 
 // Has indicates whether the block is in the store.
@@ -159,12 +160,21 @@ func (store *DefaultStore) Has(ctx context.Context, c *cid.Cid) bool {
 	return blk != nil && err == nil
 }
 
+// GetParents returns the blocks in the parent set of the input tipset.
+func (store *DefaultStore) GetParents(ctx context.Context, ts types.TipSet) ([]*types.Block, error) {
+	ids, err := ts.Parents()
+	if err != nil {
+		return nil, err
+	}
+	return store.GetForIDs(ctx, ids)
+}
+
 func (store *DefaultStore) HeadEvents() *pubsub.PubSub {
 	return store.headEvents
 }
 
 // SetHead sets the passed in tipset as the new head of this chain.
-func (store *DefaultStore) SetHead(ts types.TipSet) error {
+func (store *DefaultStore) SetHead(ctx context.Context, ts types.TipSet) error {
 	log.LogKV(ctx, "SetHead", ts.String())
 
 	store.head.Lock()
@@ -176,11 +186,11 @@ func (store *DefaultStore) SetHead(ts types.TipSet) error {
 	}
 
 	// Publish an event that we have a new head.
-	store.HeadEvents.Pub(ts, NewHeadTopic)
+	store.HeadEvents().Pub(ts, NewHeadTopic)
 
 	// The heaviest tipset should not pick up changes from adding new blocks to the index.
 	// It only changes explicitly when set through this function.
-	store.head = ts.Clone()
+	store.head.ts = ts.Clone()
 
 	// If there is no genesis block set yet, this means we have our genesis block here.
 	if store.genesis == nil {
@@ -188,10 +198,7 @@ func (store *DefaultStore) SetHead(ts types.TipSet) error {
 			return errors.Errorf("genesis tip set must be a single block, got %d blocks", len(ts))
 		}
 
-		// we know this will only be one iteration
-		for c := range ts {
-			store.genesis = c
-		}
+		store.genesis = ts.ToSlice()[0].Cid()
 	}
 
 	return nil
@@ -213,7 +220,7 @@ func (store *DefaultStore) Head() types.TipSet {
 	store.head.Lock()
 	defer store.head.Unlock()
 
-	store.head.ts
+	return store.head.ts
 }
 
 // BlockHistory returns a channel of block pointers (or errors), starting with the current best tipset's blocks
@@ -225,9 +232,9 @@ func (store *DefaultStore) BlockHistory(ctx context.Context) <-chan interface{} 
 
 	go func() {
 		defer close(out)
-		err := store.WalkChain(tips, func(tips []*types.Block) (cont bool, err error) {
+		err := store.WalkChain(ctx, tips, func(tips []*types.Block) (cont bool, err error) {
 			var raw interface{}
-			raw, err = core.NewTipSet(tips...)
+			raw, err = types.NewTipSet(tips...)
 			if err != nil {
 				raw = err
 			}
@@ -255,9 +262,9 @@ func (store *DefaultStore) GetTipSetByBlock(blk *types.Block) (types.TipSet, err
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	ts, ok := store.tips[uint64(blk.Height)][keyForParentSet(blk.Parents)]
+	ts, ok := store.tips[uint64(blk.Height)][types.KeyForParentSet(blk.Parents)]
 	if !ok {
-		return TipSet{}, errors.New("block's tipset not indexed by chain_mgr")
+		return types.TipSet{}, errors.New("block's tipset not indexed by chain_mgr")
 	}
 	return ts.Clone(), nil
 }
@@ -269,6 +276,7 @@ func (store *DefaultStore) GetTipSetsByHeight(height uint64) []types.TipSet {
 	defer store.mu.Unlock()
 
 	tsbp, ok := store.tips[height]
+	var tips []types.TipSet
 	if ok {
 		for _, ts := range tsbp {
 			// Assumption here that the blocks contained in `ts` are never mutated.
@@ -309,7 +317,7 @@ func (store *DefaultStore) WalkChain(ctx context.Context, tips []*types.Block, c
 
 func (store *DefaultStore) GenesisCid() *cid.Cid {
 	// TODO: think about locking
-	store.genesis
+	return store.genesis
 }
 
 // GetForIDs returns the blocks in the input cid set.
