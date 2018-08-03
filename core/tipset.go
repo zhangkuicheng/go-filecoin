@@ -52,6 +52,7 @@ func (ts TipSet) AddBlock(b *types.Block) error {
 		ts[id.String()] = b
 		return nil
 	}
+
 	h, err := ts.Height()
 	if err != nil {
 		return err
@@ -80,6 +81,7 @@ func (ts TipSet) Clone() TipSet {
 	for k, v := range ts {
 		r[k] = v
 	}
+
 	return r
 }
 
