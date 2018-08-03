@@ -21,7 +21,7 @@ func TestMineOnce(t *testing.T) {
 	require := require.New(t)
 	mockBg := &MockBlockGenerator{}
 	baseBlock := &types.Block{StateRoot: types.SomeCid()}
-	tipSet := core.TipSet{baseBlock.Cid().String(): baseBlock}
+	tipSet := types.TipSet{baseBlock.Cid().String(): baseBlock}
 	rewardAddr := types.NewAddressForTestGetter()()
 
 	var mineCtx context.Context
@@ -44,7 +44,7 @@ func TestWorker_Start(t *testing.T) {
 	require := require.New(t)
 	newCid := types.NewCidForTestGetter()
 	baseBlock := &types.Block{StateRoot: newCid()}
-	tipSet := core.TipSet{baseBlock.Cid().String(): baseBlock}
+	tipSet := types.TipSet{baseBlock.Cid().String(): baseBlock}
 	mockBg := &MockBlockGenerator{}
 	rewardAddr := types.NewAddressForTestGetter()()
 
@@ -148,7 +148,7 @@ func TestWorker_Start(t *testing.T) {
 func Test_mine(t *testing.T) {
 	assert := assert.New(t)
 	baseBlock := &types.Block{Height: 2}
-	tipSet := core.TipSet{baseBlock.Cid().String(): baseBlock}
+	tipSet := types.TipSet{baseBlock.Cid().String(): baseBlock}
 	addr := types.NewAddressForTestGetter()()
 	next := &types.Block{Height: 3}
 	ctx := context.Background()
@@ -247,7 +247,7 @@ func TestCreateChallenge(t *testing.T) {
 		decoded, err := hex.DecodeString(c.challenge)
 		assert.NoError(err)
 
-		parents := core.TipSet{}
+		parents := types.TipSet{}
 		for _, t := range c.parentTickets {
 			b := types.Block{Ticket: t}
 			parents[b.Cid().String()] = &b

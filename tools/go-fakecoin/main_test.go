@@ -37,7 +37,7 @@ func TestAddFakeChain(t *testing.T) {
 	var gbbCount, pbCount int
 	ctx := context.Background()
 
-	getHeaviestTipSet := func() core.TipSet {
+	getHeaviestTipSet := func() types.TipSet {
 		gbbCount++
 		return core.RequireNewTipSet(require, new(types.Block))
 	}
@@ -45,7 +45,7 @@ func TestAddFakeChain(t *testing.T) {
 		pbCount++
 		return 0, nil
 	}
-	loadState := func(context context.Context, ts core.TipSet) (state.Tree, error) {
+	loadState := func(context context.Context, ts types.TipSet) (state.Tree, error) {
 		return state.NewEmptyStateTree(hamt.NewCborStore()), nil
 
 	}

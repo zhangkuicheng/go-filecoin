@@ -16,15 +16,15 @@ var log = logging.Logger("mining")
 
 // GetStateTree is a function that gets the aggregate state tree of a TipSet. It's
 // its own function to facilitate testing.
-type GetStateTree func(context.Context, core.TipSet) (state.Tree, error)
+type GetStateTree func(context.Context, types.TipSet) (state.Tree, error)
 
 // GetWeight is a function that calculates the weight of a TipSet.  Weight is
 // expressed as two uint64s comprising a rational number.
-type GetWeight func(context.Context, core.TipSet) (uint64, uint64, error)
+type GetWeight func(context.Context, types.TipSet) (uint64, uint64, error)
 
 // BlockGenerator is the primary interface for blockGenerator.
 type BlockGenerator interface {
-	Generate(context.Context, core.TipSet, types.Signature, uint64, types.Address) (*types.Block, error)
+	Generate(context.Context, types.TipSet, types.Signature, uint64, types.Address) (*types.Block, error)
 }
 
 // NewBlockGenerator returns a new BlockGenerator.
@@ -48,7 +48,7 @@ type blockGenerator struct {
 }
 
 // Generate returns a new block created from the messages in the pool.
-func (b blockGenerator) Generate(ctx context.Context, baseTipSet core.TipSet, ticket types.Signature, nullBlockCount uint64, rewardAddress types.Address) (*types.Block, error) {
+func (b blockGenerator) Generate(ctx context.Context, baseTipSet types.TipSet, ticket types.Signature, nullBlockCount uint64, rewardAddress types.Address) (*types.Block, error) {
 	stateTree, err := b.getStateTree(ctx, baseTipSet)
 	if err != nil {
 		return nil, err

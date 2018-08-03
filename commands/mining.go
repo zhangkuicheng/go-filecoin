@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/mining"
 	"github.com/filecoin-project/go-filecoin/state"
+	"github.com/filecoin-project/go-filecoin/types"
 )
 
 var miningCmd = &cmds.Command{
@@ -35,7 +36,7 @@ var miningOnceCmd = &cmds.Command{
 			return
 		}
 
-		blockGenerator := mining.NewBlockGenerator(fcn.MsgPool, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
+		blockGenerator := mining.NewBlockGenerator(fcn.MsgPool, func(ctx context.Context, ts types.TipSet) (state.Tree, error) {
 			return fcn.ChainMgr.State(ctx, ts.ToSlice())
 		}, fcn.ChainMgr.Weight, core.ApplyMessages)
 		// TODO(EC): Need to read best tipsets from storage and pass in. See also Node::StartMining().

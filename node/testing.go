@@ -116,7 +116,7 @@ func RunCreateMiner(t *testing.T, node *Node, from types.Address, pledge types.B
 	_, err = subscription.Next(ctx)
 	require.NoError(err)
 
-	blockGenerator := mining.NewBlockGenerator(node.MsgPool, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
+	blockGenerator := mining.NewBlockGenerator(node.MsgPool, func(ctx context.Context, ts types.TipSet) (state.Tree, error) {
 		return node.ChainMgr.State(ctx, ts.ToSlice())
 	}, node.ChainMgr.Weight, core.ApplyMessages)
 	cur := node.ChainMgr.GetHeaviestTipSet()

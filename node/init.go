@@ -11,6 +11,8 @@ import (
 
 	bserv "gx/ipfs/QmSLaAYBSKmPLxKUUh4twAGBCVXuYYriPTZ7FH24MsxSfs/go-blockservice"
 
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/consensus"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/repo"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -28,8 +30,10 @@ func Init(ctx context.Context, r repo.Repo, gen core.GenesisInitFunc) error {
 	bs := bstore.NewBlockstore(r.Datastore())
 	cst := &hamt.CborIpldStore{Blocks: bserv.New(bs, offline.Exchange(bs))}
 
-	cm := core.NewChainManager(r.Datastore(), cst)
-	if err := cm.Genesis(ctx, gen); err != nil {
+	consensus := consensus.NewExpected()
+	chainStore := chain.NewDefaultStore(cst)
+	// cm := core.NewChainManager(r.Datastore(), cst)
+	if err := consensus.Genesis(ctx, gen); err != nil {
 		return errors.Wrap(err, "failed to initialize genesis")
 	}
 

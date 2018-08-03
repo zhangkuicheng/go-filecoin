@@ -2,6 +2,7 @@ package chain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -10,12 +11,15 @@ import (
 	"gx/ipfs/QmYVNvtQkeZ6AKSwDrjQTs432QtL6umrrK41EBq3cu7iSP/go-cid"
 	logging "gx/ipfs/QmcVVHfdyv15GVPk7NrxdWjh2hLVccXnoD8j2tyQShiXJb/go-log"
 	"gx/ipfs/QmdbxjQWogRCHRaxhhGnYdT1oQJzL9GdqSKzCdqWr85AP2/pubsub"
+	"gx/ipfs/QmeiCcJfDW1GJnWUArudsv5rQsihpi4oyddPhdqo3CfX6i/go-datastore"
 
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
 var log = logging.Logger("chain.default_store")
+
+var headKey = datastore.NewKey("/chain/heaviestTipSet")
 
 // DefaultStore is a generic implementation of the Store interface.
 // It works(tm) for now.
@@ -25,7 +29,7 @@ type DefaultStore struct {
 	// head is the set of blocks at the head of the best known chain.
 	head struct {
 		sync.Mutex
-		ts core.TipSet
+		ts types.TipSet
 	}
 	// genesis is the CID of the genesis block.
 	genesis *cid.Cid
@@ -34,21 +38,99 @@ type DefaultStore struct {
 	// will always be queued and delivered to subscribers in the order discovered.
 	// Successive published tipsets may be supersets of previously published tipsets.
 	headEvents *pubsub.PubSub
+	// ds is the datastore the hold meta information about the chain, like the current head.
+	ds datastore.Datastore
+	// Protects knownGoodBlocks and tipsIndex.
+	mu sync.Mutex
+
+	// knownGoodBlocks is a cache of 'good blocks'. It is a cache to prevent us
+	// from having to rescan parts of the blockchain when determining the
+	// validity of a given chain.
+	// In the future we will need a more sophisticated mechanism here.
+	// TODO: this should probably be an LRU, needs more consideration.
+	// For example, the genesis block should always be considered a "good" block.
+	knownGoodBlocks *cid.Set
+
+	// Tracks tipsets by height/parentset for use by expected consensus.
+	tips tipIndex
 }
 
 // Ensure DefaultStore satisfies the Store interface at compile time.
 var _ Store = (*DefaultStore)(nil)
 
 // NewDefaultStore constructs a new default store.
-func NewDefaultStore(blockstore *hamt.CborIpldStore) Store {
+func NewDefaultStore(blockstore *hamt.CborIpldStore, ds datastore.Datastore) Store {
 	return DefaultStore{
-		blockstore: blockstore,
-		headEvents: pubsub.New(128),
+		blockstore:      blockstore,
+		headEvents:      pubsub.New(128),
+		ds:              ds,
+		knownGoodBlocks: cid.NewSet(),
+		tips:            tipIndex{},
 	}
 }
 
-func (store *DefaultStore) HeadEvents() *pubsub.PubSub {
-	return store.headEvents
+func (store *DefaultStore) Load(ctx context.Context) error {
+	tipCids, err := store.loadHead()
+	if err != nil {
+		return err
+	}
+	ts := types.TipSet{}
+	// traverse starting from one TipSet to begin loading the chain
+	for it := tipCids.Iter(); !it.Complete(); it.Next() {
+		blk, err := cm.Get(ctx, it.Value())
+		if err != nil {
+			return errors.Wrap(err, "failed to load block in head TipSet")
+		}
+		err = ts.AddBlock(blk)
+		if err != nil {
+			return errors.Wrap(err, "failed to add validated block to TipSet")
+		}
+	}
+
+	var genesii []*types.Block
+	err = store.WalkChain(ts.ToSlice(), func(tips []*types.Block) (cont bool, err error) {
+		for _, t := range tips {
+			id := t.Cid()
+			cm.addBlock(t, id)
+		}
+		genesii = tips
+		return true, nil
+	})
+	if err != nil {
+		return err
+	}
+	switch len(genesii) {
+	case 1:
+		// TODO: probably want to load the expected genesis block and assert it here?
+		store.genesis = genesii[0].Cid()
+		store.head.ts = ts
+	case 0:
+		panic("unreached")
+	default:
+		panic("invalid chain - more than one genesis block found")
+	}
+
+	return nil
+}
+
+// loadHead loads the latest known head from disk.
+func (store *DefaultStore) loadHead() (types.SortedCidSet, error) {
+	bbi, err := store.ds.Get(headKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read headKey")
+	}
+	bb, ok := bbi.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("stored headCids not []byte")
+	}
+
+	var cids types.SortedCidSet
+	err = json.Unmarshal(bb, &cids)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to cast headCids")
+	}
+
+	return cids, nil
 }
 
 // Put persists a block to disk.
@@ -77,9 +159,24 @@ func (store *DefaultStore) Has(ctx context.Context, c *cid.Cid) bool {
 	return blk != nil && err == nil
 }
 
-func (store *DefaultStore) SetHead(ts core.TipSet) error {
+func (store *DefaultStore) HeadEvents() *pubsub.PubSub {
+	return store.headEvents
+}
+
+// SetHead sets the passed in tipset as the new head of this chain.
+func (store *DefaultStore) SetHead(ts types.TipSet) error {
+	log.LogKV(ctx, "SetHead", ts.String())
+
 	store.head.Lock()
 	defer store.head.Unlock()
+
+	// Ensure consistency by storing this new head on disk.
+	if err := store.writeHead(ctx, ts.ToSortedCidSet()); err != nil {
+		return err
+	}
+
+	// Publish an event that we have a new head.
+	store.HeadEvents.Pub(ts, NewHeadTopic)
 
 	// The heaviest tipset should not pick up changes from adding new blocks to the index.
 	// It only changes explicitly when set through this function.
@@ -100,7 +197,19 @@ func (store *DefaultStore) SetHead(ts core.TipSet) error {
 	return nil
 }
 
-func (store *DefaultStore) Head() core.TipSet {
+// writeHead writes the given cid set as head to disk.
+func (store *DefaultStore) writeHead(ctx context.Context, cids types.SortedCidSet) error {
+	log.LogKV(ctx, "writeHEad", cids.String())
+	val, err := json.Marshal(cids)
+	if err != nil {
+		return err
+	}
+
+	return store.ds.Put(headKey, val)
+}
+
+// Head returns the current head.
+func (store *DefaultStore) Head() types.TipSet {
 	store.head.Lock()
 	defer store.head.Unlock()
 
@@ -139,164 +248,85 @@ func (store *DefaultStore) BlockHistory(ctx context.Context) <-chan interface{} 
 	return out
 }
 
-// WaitForMessage searches for a message with Cid, msgCid, then passes it, along with the containing Block and any
-// MessageRecipt, to the supplied callback, cb. If an error is encountered, it is returned. Note that it is logically
-// possible that an error is returned and the success callback is called. In that case, the error can be safely ignored.
-// TODO: This implementation will become prohibitively expensive since it involves traversing the entire blockchain.
-//       We should replace with an index later.
-func (store *DefaultStore) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb func(*types.Block, *types.SignedMessage, *types.MessageReceipt) error) error {
-	ctx = log.Start(ctx, "WaitForMessage")
-	log.Info("Calling WaitForMessage")
-	// Ch will contain a stream of blocks to check for message (or errors).
-	// Blocks are either in new heaviest tipsets, or next oldest historical blocks.
-	ch := make(chan (interface{}))
+// GetTipSetByBlock returns the tipset associated with a given block by
+// performing a lookup on its parent set. The tipset returned is a
+// cloned shallow copy of the version stored in the index
+func (store *DefaultStore) GetTipSetByBlock(blk *types.Block) (types.TipSet, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
-	// New blocks
-	newHeadCh := store.HeadEvents().Sub(NewHeadTopic)
-	defer store.HeadEvents.Unsub(newHeadCh, NewHeadTopic)
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Historical blocks
-	historyCh := store.BlockHistory(ctx)
-
-	// Merge historical and new block Channels.
-	go func() {
-		// TODO: accommodate a new chain being added, as opposed to just a single block.
-		for raw := range newHeadCh {
-			ch <- raw
-		}
-	}()
-	go func() {
-		// TODO make history serve up tipsets
-		for raw := range historyCh {
-			ch <- raw
-		}
-	}()
-
-	for raw := range ch {
-		switch ts := raw.(type) {
-		case error:
-			log.Errorf("WaitForMessage: %s", ts)
-			return ts
-		case TipSet:
-			for _, blk := range ts {
-				for _, msg := range blk.Messages {
-					c, err := msg.Cid()
-					if err != nil {
-						log.Errorf("WaitForMessage: %s", err)
-						return err
-					}
-					if c.Equals(msgCid) {
-						recpt, err := store.receiptFromTipSet(ctx, msgCid, ts)
-						if err != nil {
-							return errors.Wrap(err, "error retrieving receipt from tipset")
-						}
-						return cb(blk, msg, recpt)
-					}
-				}
-			}
-		}
+	ts, ok := store.tips[uint64(blk.Height)][keyForParentSet(blk.Parents)]
+	if !ok {
+		return TipSet{}, errors.New("block's tipset not indexed by chain_mgr")
 	}
-
-	return retErr
+	return ts.Clone(), nil
 }
 
-// receiptFromTipSet finds the receipt for the message with msgCid in the input
-// input tipset.  This can differ from the message's receipt as stored in its
-// parent block in the case that the message is in conflict with another
-// message of the tipset.
-// TODO: find a better home for this method
-func (store *DefaultStore) receiptFromTipSet(ctx context.Context, msgCid *cid.Cid, ts core.TipSet) (*types.MessageReceipt, error) {
-	// Receipts always match block if tipset has only 1 member.
-	var rcpt *types.MessageReceipt
-	blks := ts.ToSlice()
-	if len(ts) == 1 {
-		b := blks[0]
-		// TODO: this should return an error if a receipt doesn't exist.
-		// Right now doing so breaks tests because our test helpers
-		// don't correctly apply messages when making test chains.
-		j, err := msgIndexOfTipSet(msgCid, ts, types.SortedCidSet{})
+// GetTipSetsByHeight returns all tipsets at the given height. Neither the returned
+// slice nor its members will be mutated by the ChainManager once returned.
+func (store *DefaultStore) GetTipSetsByHeight(height uint64) []types.TipSet {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	tsbp, ok := store.tips[height]
+	if ok {
+		for _, ts := range tsbp {
+			// Assumption here that the blocks contained in `ts` are never mutated.
+			tips = append(tips, ts.Clone())
+		}
+	}
+	return tips
+}
+
+// WalkChain walks backward through the chain, starting at tips, invoking cb() at each height.
+func (store *DefaultStore) WalkChain(ctx context.Context, tips []*types.Block, cb func(tips []*types.Block) (cont bool, err error)) error {
+	for {
+		cont, err := cb(tips)
 		if err != nil {
-			return nil, err
+			return errors.Wrap(err, "error processing block")
 		}
-		if j < len(b.MessageReceipts) {
-			rcpt = b.MessageReceipts[j]
+		if !cont {
+			return nil
 		}
-		return rcpt, nil
-	}
+		ids := tips[0].Parents
+		if ids.Empty() {
+			break
+		}
 
-	// Apply all the tipset's messages to determine the correct receipts.
-	ids, err := ts.Parents()
-	if err != nil {
-		return nil, err
-	}
-	st, err := cm.stateForBlockIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	res, err := cm.tipSetProcessor(ctx, ts, st)
-	if err != nil {
-		return nil, err
-	}
-
-	// If this is a failing conflict message there is no application receipt.
-	if res.Failures.Has(msgCid) {
-		return nil, nil
-	}
-
-	j, err := msgIndexOfTipSet(msgCid, ts, res.Failures)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: and of bounds receipt index should return an error.
-	if j < len(res.Results) {
-		rcpt = res.Results[j].Receipt
-	}
-	return rcpt, nil
-}
-
-// msgIndexOfTipSet returns the order in which msgCid apperas in the canonical
-// message ordering of the given tipset, or an error if it is not in the
-// tipset.
-// TODO: find a better home for this method
-func msgIndexOfTipSet(msgCid *cid.Cid, ts core.TipSet, fails types.SortedCidSet) (int, error) {
-	blks := ts.ToSlice()
-	types.SortBlocks(blks)
-	var duplicates types.SortedCidSet
-	var msgCnt int
-	for _, b := range blks {
-		for _, msg := range b.Messages {
-			c, err := msg.Cid()
+		tips = tips[:0]
+		for it := ids.Iter(); !it.Complete(); it.Next() {
+			pid := it.Value()
+			p, err := store.Get(ctx, pid)
 			if err != nil {
-				return -1, err
+				return errors.Wrap(err, "error fetching block")
 			}
-			if fails.Has(c) {
-				continue
-			}
-			if duplicates.Has(c) {
-				continue
-			}
-			(&duplicates).Add(c)
-			if c.Equals(msgCid) {
-				return msgCnt, nil
-			}
-			msgCnt++
+			tips = append(tips, p)
 		}
 	}
 
-	return -1, fmt.Errorf("message cid %s not in tipset", msgCid.String())
-}
-
-func (store *DefaultStore) GetTipSetByBlock(blk *types.Block) (core.TipSet, error) {}
-
-func (store *DefaultStore) GetTipSetsByHeight(height uint64) []core.TipSet {}
-
-func (store *DefaultStore) WalkChain(tips []*types.Block, cb func(tips []*types.Block) (cont bool, err error)) error {
+	return nil
 }
 
 func (store *DefaultStore) GenesisCid() *cid.Cid {
 	// TODO: think about locking
 	store.genesis
+}
+
+// GetForIDs returns the blocks in the input cid set.
+func (store *DefaultStore) GetForIDs(ctx context.Context, ids types.SortedCidSet) ([]*types.Block, error) {
+	var pBlks []*types.Block
+	for it := ids.Iter(); !it.Complete(); it.Next() {
+		pid := it.Value()
+		p, err := store.Get(ctx, pid)
+		if err != nil {
+			return nil, errors.Wrap(err, "error fetching block")
+		}
+		pBlks = append(pBlks, p)
+	}
+	return pBlks, nil
+}
+
+// Stop stops all activities and cleans up.
+func (store *DefaultStore) Stop() {
+	store.headEvents.Shutdown()
 }

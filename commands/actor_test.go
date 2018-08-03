@@ -49,7 +49,7 @@ func TestActorLs(t *testing.T) {
 		})
 		nd := node.MakeNodesUnstarted(t, 1, true, true)[0]
 		// TODO fix #543: Improve UX for multiblock tipset
-		nd.ChainMgr.GetHeaviestTipSet = func() core.TipSet {
+		nd.ChainMgr.GetHeaviestTipSet = func() types.TipSet {
 			return nil
 		}
 

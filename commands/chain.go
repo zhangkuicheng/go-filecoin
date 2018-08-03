@@ -6,7 +6,6 @@ import (
 	"gx/ipfs/QmYVNvtQkeZ6AKSwDrjQTs432QtL6umrrK41EBq3cu7iSP/go-cid"
 	"gx/ipfs/QmdE4gMduCKCGAcczM2F5ioYDfdeKuPix138wrES1YSr7f/go-ipfs-cmdkit"
 
-	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -49,7 +48,7 @@ var chainLsCmd = &cmds.Command{
 			case error:
 				re.SetError(v, cmdkit.ErrNormal)
 				return
-			case core.TipSet:
+			case types.TipSet:
 				if len(v) == 0 {
 					panic("tipsets from this channel should have at least one member")
 				}

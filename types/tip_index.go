@@ -1,13 +1,9 @@
-package core
-
-import (
-	"github.com/filecoin-project/go-filecoin/types"
-)
+package types
 
 // tipIndex tracks tipsets by height and parent set, mainly for use in expected consensus.
 type tipIndex map[uint64]tipSetsByParents
 
-func (ti tipIndex) addBlock(b *types.Block) error {
+func (ti tipIndex) addBlock(b *Block) error {
 	tsbp, ok := ti[uint64(b.Height)]
 	if !ok {
 		tsbp = tipSetsByParents{}
@@ -18,7 +14,7 @@ func (ti tipIndex) addBlock(b *types.Block) error {
 
 type tipSetsByParents map[string]TipSet
 
-func (tsbp tipSetsByParents) addBlock(b *types.Block) error {
+func (tsbp tipSetsByParents) addBlock(b *Block) error {
 	key := keyForParentSet(b.Parents)
 	ts := tsbp[key]
 	if ts == nil {
@@ -32,7 +28,7 @@ func (tsbp tipSetsByParents) addBlock(b *types.Block) error {
 	return nil
 }
 
-func keyForParentSet(parents types.SortedCidSet) string {
+func keyForParentSet(parents SortedCidSet) string {
 	var k string
 	for it := parents.Iter(); !it.Complete(); it.Next() {
 		k += it.Value().String()

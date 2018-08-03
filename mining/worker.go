@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/types"
 
 	sha256 "gx/ipfs/QmXTpwq2AkzQsPjKqFQDNY2bMdsAT53hUBETeyj8QRHTZU/sha256-simd"
@@ -29,13 +28,13 @@ func init() {
 // to cancel this mining run.
 type Input struct {
 	Ctx    context.Context
-	TipSet core.TipSet
+	TipSet types.TipSet
 	// TODO This should apparently be a miner actor address.
 	RewardAddress types.Address
 }
 
 // NewInput instantiates a new Input.
-func NewInput(ctx context.Context, ts core.TipSet, a types.Address) Input {
+func NewInput(ctx context.Context, ts types.TipSet, a types.Address) Input {
 	return Input{Ctx: ctx, TipSet: ts, RewardAddress: a}
 }
 
@@ -93,7 +92,7 @@ func NewWorkerWithDeps(blockGenerator BlockGenerator, mine mineFunc, createPoST 
 
 // MineOnce is a convenience function that presents a synchronous blocking
 // interface to the worker.
-func MineOnce(ctx context.Context, w Worker, ts core.TipSet, rewardAddress types.Address) Output {
+func MineOnce(ctx context.Context, w Worker, ts types.TipSet, rewardAddress types.Address) Output {
 	subCtx, subCtxCancel := context.WithCancel(ctx)
 	defer subCtxCancel()
 
@@ -204,7 +203,7 @@ func Mine(ctx context.Context, input Input, nullBlockTimer NullBlockTimerFunc, b
 	}
 }
 
-func createChallenge(parents core.TipSet, nullBlockCount uint64) []byte {
+func createChallenge(parents types.TipSet, nullBlockCount uint64) []byte {
 	// Find the smallest ticket from parent set
 	var smallest types.Signature
 	for _, v := range parents {

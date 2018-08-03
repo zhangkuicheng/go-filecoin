@@ -14,7 +14,7 @@ import (
 	"github.com/protocol/coinlist-server/chain"
 )
 
-type Default struct {
+type DefaultProcessor struct {
 	consensus consensus.Algorithm
 	store     *hamt.CborIpldStore
 	chain     chain.Chain
@@ -24,10 +24,10 @@ type Default struct {
 }
 
 // Ensure Default satisfies the Processor interface at compile time.
-var _ Default = (*Processor)(nil)
+var _ DefaultProcessor = (*Processor)(nil)
 
-func NewDefault(consensus consensus.Algorithm, store *hamt.CborIpldStore, chain chain.Chain) Processor {
-	return Default{
+func NewDefaultProcessor(consensus consensus.Algorithm, store *hamt.CborIpldStore, chain chain.Chain) Processor {
+	return DefaultProcessor{
 		consensus:  consensus,
 		store:      store,
 		chain:      chain,
@@ -37,7 +37,7 @@ func NewDefault(consensus consensus.Algorithm, store *hamt.CborIpldStore, chain 
 
 // State returns the aggregate state tree for the blocks or an error if the
 // blocks are not a valid tipset or are not part of a valid chain.
-func (p *Default) State(ctx context.Context, blks []*types.Block) (Tree, error) {
+func (p *DefaultProcessor) State(ctx context.Context, blks []*types.Block) (Tree, error) {
 	ts, err := p.consensus.NewValidTipSet(ctx, blks)
 	if err != nil {
 		return nil, errors.Wrapf(err, "blks do not form a valid tipset: %s", pp.StringFromBlocks(blks))
@@ -83,7 +83,7 @@ func (p *Default) State(ctx context.Context, blks []*types.Block) (Tree, error) 
 // An error is returned if individual blocks contain messages that do not
 // lead to successful state transitions.  An error is also returned if the node
 // faults while running aggregate state computation.
-func (p *Default) runMessages(ctx context.Context, st Tree, ts TipSet) (Tree, error) {
+func (p *DefaultProcessor) runMessages(ctx context.Context, st Tree, ts TipSet) (Tree, error) {
 	var cpySt Tree
 	for _, blk := range ts {
 		cpyCid, err := st.Flush(ctx)
@@ -129,7 +129,7 @@ func (p *Default) runMessages(ctx context.Context, st Tree, ts TipSet) (Tree, er
 
 // flushAndCache flushes and caches the input tipset's state. It also persists
 // the tipset's blocks in the ChainManager's data store.
-func (p *Default) flushAndCache(ctx context.Context, st statetree.Tree, ts TipSet) error {
+func (p *DefaultProcessor) flushAndCache(ctx context.Context, st statetree.Tree, ts TipSet) error {
 	for _, blk := range ts {
 		if err := p.chain.Put(ctx, blk); err != nil {
 			return errors.Wrap(err, "failed to store block")
@@ -143,4 +143,16 @@ func (p *Default) flushAndCache(ctx context.Context, st statetree.Tree, ts TipSe
 
 	p.stateCache[ts.String()] = root
 	return nil
+}
+
+// StateForBlockIDs returns the state of the tipset consisting of the input blockIDs.
+func (p *DefaultProcessor) StateForBlockIDs(ctx context.Context, ids types.SortedCidSet) (Tree, error) {
+	blks, err := p.chain.GetForIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	if len(blks) == 0 { // no ids
+		return nil, errors.New("cannot get state of tipset with no members")
+	}
+	return p.State(ctx, blks)
 }

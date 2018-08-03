@@ -115,10 +115,10 @@ func TestGenerateMultiBlockTipSet(t *testing.T) {
 	newCid := types.NewCidForTestGetter()
 	st, pool, addrs := sharedSetup(t)
 
-	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
+	getStateTree := func(c context.Context, ts types.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getWeight := func(c context.Context, ts core.TipSet) (uint64, uint64, error) {
+	getWeight := func(c context.Context, ts types.TipSet) (uint64, uint64, error) {
 		num, den, err := ts.ParentWeight()
 		if err != nil {
 			return uint64(0), uint64(0), err
@@ -159,10 +159,10 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 	newCid := types.NewCidForTestGetter()
 	st, pool, addrs := sharedSetup(t)
 
-	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
+	getStateTree := func(c context.Context, ts types.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getWeight := func(c context.Context, ts core.TipSet) (uint64, uint64, error) {
+	getWeight := func(c context.Context, ts types.TipSet) (uint64, uint64, error) {
 		num, den, err := ts.ParentWeight()
 		if err != nil {
 			return uint64(0), uint64(0), err
@@ -222,10 +222,10 @@ func TestGenerateSetsBasicFields(t *testing.T) {
 
 	st, pool, addrs := sharedSetup(t)
 
-	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
+	getStateTree := func(c context.Context, ts types.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getWeight := func(c context.Context, ts core.TipSet) (uint64, uint64, error) {
+	getWeight := func(c context.Context, ts types.TipSet) (uint64, uint64, error) {
 		num, den, err := ts.ParentWeight()
 		if err != nil {
 			return uint64(0), uint64(0), err
@@ -268,10 +268,10 @@ func TestGenerateWithoutMessages(t *testing.T) {
 
 	st, pool, addrs := sharedSetup(t)
 
-	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
+	getStateTree := func(c context.Context, ts types.TipSet) (state.Tree, error) {
 		return st, nil
 	}
-	getWeight := func(c context.Context, ts core.TipSet) (uint64, uint64, error) {
+	getWeight := func(c context.Context, ts types.TipSet) (uint64, uint64, error) {
 		num, den, err := ts.ParentWeight()
 		if err != nil {
 			return uint64(0), uint64(0), err
@@ -303,7 +303,7 @@ func TestGenerateError(t *testing.T) {
 
 	st, pool, addrs := sharedSetup(t)
 
-	explodingGetStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
+	explodingGetStateTree := func(c context.Context, ts types.TipSet) (state.Tree, error) {
 		stt := WrapStateTreeForTest(st)
 		stt.TestFlush = func(ctx context.Context) (*cid.Cid, error) {
 			return nil, errors.New("boom no flush")
@@ -311,7 +311,7 @@ func TestGenerateError(t *testing.T) {
 
 		return stt, nil
 	}
-	getWeight := func(c context.Context, ts core.TipSet) (uint64, uint64, error) {
+	getWeight := func(c context.Context, ts types.TipSet) (uint64, uint64, error) {
 		num, den, err := ts.ParentWeight()
 		if err != nil {
 			return uint64(0), uint64(0), err

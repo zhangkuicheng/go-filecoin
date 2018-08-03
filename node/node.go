@@ -23,6 +23,8 @@ import (
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/consensus"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/filnet"
@@ -33,6 +35,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/types"
 	vmErrors "github.com/filecoin-project/go-filecoin/vm/errors"
 	"github.com/filecoin-project/go-filecoin/wallet"
+	cid "github.com/ipfs/go-cid"
 )
 
 var log = logging.Logger("node") // nolint: deadcode
@@ -52,8 +55,11 @@ var (
 type Node struct {
 	Host host.Host
 
-	ChainMgr *core.ChainManager
-	// HeavyTipSetCh is a subscription to the heaviest tipset topic on the chainmgr.
+	Consensus      consensus.Consensus
+	StateProcessor state.Processor
+	Chain          chain.Chain
+
+	// HeavyTipSetCh is a subscription to the heaviest tipset topic on the chain.
 	HeaviestTipSetCh chan interface{}
 	// HeavyTipSetHandled is a hook for tests because pubsub notifications
 	// arrive async. It's called after handling a new heaviest tipset.
@@ -190,22 +196,29 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	// set up bitswap
 	nwork := bsnet.NewFromIpfsHost(host, routing)
 	bswap := bitswap.New(ctx, nwork, bs)
-	bserv := bserv.New(bs, bswap)
 
-	cst := &hamt.CborIpldStore{Blocks: bserv}
+	cstOnline := hamt.CborIpldStore{Blocks: bserv.New(bs, bswap)}
+	cstOffline := hamt.CborIpldStore{Blocks: bserv.New(bs, nil)}
 
-	chainMgr := core.NewChainManager(nc.Repo.Datastore(), cst)
+	chainStore := chain.NewDefaultStore(cstOffline, nc.Repo.Datastore())
+	consensus := consensus.NewExpected(&chainStore)
 	if nc.MockMineMode {
-		chainMgr.PwrTableView = &core.TestView{}
+		// TODO:
+		// consensus = consensus.NewMock(&chainStore)
 	}
+
+	stateProcessor := state.NewDefaultProcessor(&consensus, cstOffline, &chainStore)
+
+	// only the syncer gets the storage which is online connected
+	chainSyncer := chain.NewDefaultSyncer(cstOnline)
 
 	msgPool := core.NewMessagePool()
 
 	// Set up but don't start a mining.Worker. It sleeps mineSleepTime
 	// to simulate the work of generating proofs.
-	blockGenerator := mining.NewBlockGenerator(msgPool, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
-		return chainMgr.State(ctx, ts.ToSlice())
-	}, chainMgr.Weight, core.ApplyMessages)
+	blockGenerator := mining.NewBlockGenerator(msgPool, func(ctx context.Context, ts types.TipSet) (state.Tree, error) {
+		return stateProcessor.State(ctx, ts.ToSlice())
+	}, consensus.Weight, core.ApplyMessages)
 	miningWorker := mining.NewWorker(blockGenerator)
 
 	// Set up libp2p pubsub
@@ -221,8 +234,10 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 
 	nd := &Node{
 		Blockservice:   bserv,
-		CborStore:      cst,
-		ChainMgr:       chainMgr,
+		CborStore:      cstOffline,
+		Consensus:      consensus,
+		StateProcessor: stateProcessor,
+		Chain:          chainStore,
 		Exchange:       bswap,
 		Host:           host,
 		MiningWorker:   miningWorker,
@@ -256,12 +271,13 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 
 // Start boots up the node.
 func (node *Node) Start() error {
-	if err := node.ChainMgr.Load(); err != nil {
+	if err := node.Chain.Load(context.TODO()); err != nil {
 		return err
 	}
 
 	// Start up 'hello' handshake service
-	node.HelloSvc = core.NewHello(node.Host, node.ChainMgr.GetGenesisCid(), node.ChainMgr.InformNewTipSet, node.ChainMgr.GetHeaviestTipSet)
+	// TODO: use chain syncer instead of mgr
+	node.HelloSvc = core.NewHello(node.Host, node.Chain.GenesisCid(), node.ChainMgr.InformNewTipSet, node.Chain.Head)
 
 	node.StorageClient = NewStorageClient(node)
 	node.StorageMarket = NewStorageMarket(node)
@@ -297,8 +313,8 @@ func (node *Node) Start() error {
 	go node.handleNewMiningOutput(outCh)
 
 	node.HeaviestTipSetHandled = func() {}
-	node.HeaviestTipSetCh = node.ChainMgr.HeaviestTipSetPubSub.Sub(core.HeaviestTipSetTopic)
-	go node.handleNewHeaviestTipSet(ctx, node.ChainMgr.GetHeaviestTipSet())
+	node.HeaviestTipSetCh = node.Chain.HeadEvents.Sub(chain.NewHeadTopic)
+	go node.handleNewHeaviestTipSet(ctx, node.Chain.Head())
 
 	if !node.OfflineMode {
 		node.Bootstrapper.Start(context.Background())
@@ -352,9 +368,9 @@ func (node *Node) handleNewMiningOutput(miningOutCh <-chan mining.Output) {
 
 }
 
-func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head core.TipSet) {
+func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head types.TipSet) {
 	for ts := range node.HeaviestTipSetCh {
-		newHead := ts.(core.TipSet)
+		newHead := ts.(types.TipSet)
 		if len(newHead) == 0 {
 			log.Error("TipSet of size 0 published on HeaviestTipSetCh:")
 			log.Error("ignoring and waiting for a new Heaviest TipSet.")
@@ -403,7 +419,7 @@ func (node *Node) cancelSubscriptions() {
 
 // Stop initiates the shutdown of the node.
 func (node *Node) Stop() {
-	node.ChainMgr.HeaviestTipSetPubSub.Unsub(node.HeaviestTipSetCh)
+	node.Chain.HeadEvents.Unsub(chain.NewHeadTopic)
 	if node.cancelMining != nil {
 		node.cancelMining()
 	}
@@ -414,7 +430,7 @@ func (node *Node) Stop() {
 		close(node.miningInCh)
 	}
 	node.cancelSubscriptions()
-	node.ChainMgr.Stop()
+	node.Chain.Stop()
 
 	if err := node.Host.Close(); err != nil {
 		fmt.Printf("error closing host: %s\n", err)
@@ -459,7 +475,7 @@ func (node *Node) StartMining() error {
 		defer func() { node.miningDoneWg.Done() }()
 		// TODO(EC): Here is where we kick mining off when we start off. Will
 		// need to change to pass in best tipsets, of which there can be multiple.
-		hts := node.ChainMgr.GetHeaviestTipSet()
+		hts := node.Chain.Head()
 		select {
 		case <-node.miningCtx.Done():
 			return
@@ -490,7 +506,7 @@ func (node *Node) StopMining() {
 
 // GetSignature fetches the signature for the given method on the appropriate actor.
 func (node *Node) GetSignature(ctx context.Context, actorAddr types.Address, method string) (*exec.FunctionSignature, error) {
-	st, err := node.ChainMgr.State(ctx, node.ChainMgr.GetHeaviestTipSet().ToSlice())
+	st, err := node.StateProcessor.State(ctx, node.Chain.Head().ToSlice())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load state tree")
 	}
@@ -522,7 +538,7 @@ func (node *Node) GetSignature(ctx context.Context, actorAddr types.Address, met
 // the actor's memory and also scans the message pool for any pending
 // messages.
 func NextNonce(ctx context.Context, node *Node, address types.Address) (uint64, error) {
-	st, err := node.ChainMgr.State(ctx, node.ChainMgr.GetHeaviestTipSet().ToSlice())
+	st, err := node.StateProcessor.State(ctx, node.Chain.Head().ToSlice())
 	if err != nil {
 		return 0, err
 	}
@@ -561,8 +577,8 @@ func (node *Node) NewAddress() (types.Address, error) {
 // provided, an address will be chosen from the node's wallet.
 func (node *Node) CallQueryMethod(to types.Address, method string, args []byte, optFrom *types.Address) ([][]byte, uint8, error) {
 	ctx := context.Background()
-	bts := node.ChainMgr.GetHeaviestTipSet()
-	st, err := node.ChainMgr.State(ctx, bts.ToSlice())
+	bts := node.Chain.Head()
+	st, err := node.StateProcessor.State(ctx, bts.ToSlice())
 	if err != nil {
 		return nil, 1, err
 	}
@@ -613,7 +629,7 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr types.Address, pl
 	}
 
 	var minerAddress types.Address
-	err = node.ChainMgr.WaitForMessage(ctx, smsgCid, func(blk *types.Block, smsg *types.SignedMessage,
+	err = node.WaitForMessage(ctx, smsgCid, func(blk *types.Block, smsg *types.SignedMessage,
 		receipt *types.MessageReceipt) error {
 		if receipt.ExitCode != uint8(0) {
 			return vmErrors.VMExitCodeToError(receipt.ExitCode, storagemarket.Errors)
@@ -661,4 +677,153 @@ func (node *Node) defaultWalletAddress() (types.Address, error) {
 		return types.Address{}, err
 	}
 	return addr.(types.Address), nil
+}
+
+// WaitForMessage searches for a message with Cid, msgCid, then passes it, along with the containing Block and any
+// MessageRecipt, to the supplied callback, cb. If an error is encountered, it is returned. Note that it is logically
+// possible that an error is returned and the success callback is called. In that case, the error can be safely ignored.
+// TODO: This implementation will become prohibitively expensive since it involves traversing the entire blockchain.
+//       We should replace with an index later.
+func (node *Node) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb func(*types.Block, *types.SignedMessage, *types.MessageReceipt) error) error {
+	ctx = log.Start(ctx, "WaitForMessage")
+	log.Info("Calling WaitForMessage")
+	// Ch will contain a stream of blocks to check for message (or errors).
+	// Blocks are either in new heaviest tipsets, or next oldest historical blocks.
+	ch := make(chan (interface{}))
+
+	// New blocks
+	newHeadCh := node.Chain.HeadEvents().Sub(chain.NewHeadTopic)
+	defer node.Chain.HeadEvents.Unsub(newHeadCh, chain.NewHeadTopic)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Historical blocks
+	historyCh := node.Chain.BlockHistory(ctx)
+
+	// Merge historical and new block Channels.
+	go func() {
+		// TODO: accommodate a new chain being added, as opposed to just a single block.
+		for raw := range newHeadCh {
+			ch <- raw
+		}
+	}()
+	go func() {
+		// TODO make history serve up tipsets
+		for raw := range historyCh {
+			ch <- raw
+		}
+	}()
+
+	for raw := range ch {
+		switch ts := raw.(type) {
+		case error:
+			log.Errorf("WaitForMessage: %s", ts)
+			return ts
+		case TipSet:
+			for _, blk := range ts {
+				for _, msg := range blk.Messages {
+					c, err := msg.Cid()
+					if err != nil {
+						log.Errorf("WaitForMessage: %s", err)
+						return err
+					}
+					if c.Equals(msgCid) {
+						recpt, err := node.receiptFromTipSet(ctx, msgCid, ts)
+						if err != nil {
+							return errors.Wrap(err, "error retrieving receipt from tipset")
+						}
+						return cb(blk, msg, recpt)
+					}
+				}
+			}
+		}
+	}
+
+	return retErr
+}
+
+// receiptFromTipSet finds the receipt for the message with msgCid in the input
+// input tipset.  This can differ from the message's receipt as stored in its
+// parent block in the case that the message is in conflict with another
+// message of the tipset.
+func (node *Node) receiptFromTipSet(ctx context.Context, msgCid *cid.Cid, ts types.TipSet) (*types.MessageReceipt, error) {
+	// Receipts always match block if tipset has only 1 member.
+	var rcpt *types.MessageReceipt
+	blks := ts.ToSlice()
+	if len(ts) == 1 {
+		b := blks[0]
+		// TODO: this should return an error if a receipt doesn't exist.
+		// Right now doing so breaks tests because our test helpers
+		// don't correctly apply messages when making test chains.
+		j, err := msgIndexOfTipSet(msgCid, ts, types.SortedCidSet{})
+		if err != nil {
+			return nil, err
+		}
+		if j < len(b.MessageReceipts) {
+			rcpt = b.MessageReceipts[j]
+		}
+		return rcpt, nil
+	}
+
+	// Apply all the tipset's messages to determine the correct receipts.
+	ids, err := ts.Parents()
+	if err != nil {
+		return nil, err
+	}
+	st, err := node.stateProcessor.StateForBlockIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	res, err := core.ProcessTipSet(ctx, ts, st)
+	if err != nil {
+		return nil, err
+	}
+
+	// If this is a failing conflict message there is no application receipt.
+	if res.Failures.Has(msgCid) {
+		return nil, nil
+	}
+
+	j, err := msgIndexOfTipSet(msgCid, ts, res.Failures)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: and of bounds receipt index should return an error.
+	if j < len(res.Results) {
+		rcpt = res.Results[j].Receipt
+	}
+	return rcpt, nil
+}
+
+// msgIndexOfTipSet returns the order in which msgCid apperas in the canonical
+// message ordering of the given tipset, or an error if it is not in the
+// tipset.
+// TODO: find a better home for this method
+func msgIndexOfTipSet(msgCid *cid.Cid, ts types.TipSet, fails types.SortedCidSet) (int, error) {
+	blks := ts.ToSlice()
+	types.SortBlocks(blks)
+	var duplicates types.SortedCidSet
+	var msgCnt int
+	for _, b := range blks {
+		for _, msg := range b.Messages {
+			c, err := msg.Cid()
+			if err != nil {
+				return -1, err
+			}
+			if fails.Has(c) {
+				continue
+			}
+			if duplicates.Has(c) {
+				continue
+			}
+			(&duplicates).Add(c)
+			if c.Equals(msgCid) {
+				return msgCnt, nil
+			}
+			msgCnt++
+		}
+	}
+
+	return -1, fmt.Errorf("message cid %s not in tipset", msgCid.String())
 }

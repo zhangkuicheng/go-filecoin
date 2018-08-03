@@ -64,7 +64,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		aggregateState := func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
+		aggregateState := func(ctx context.Context, ts types.TipSet) (state.Tree, error) {
 			return cm.State(ctx, ts.ToSlice())
 		}
 		err = fake(ctx, length, binom, cm.GetHeaviestTipSet, cm.ProcessNewBlock, aggregateState)
@@ -108,12 +108,12 @@ func getChainManager(d repo.Datastore) (*core.ChainManager, *hamt.CborIpldStore)
 }
 
 func getBlockGenerator(msgPool *core.MessagePool, cm *core.ChainManager, cst *hamt.CborIpldStore) mining.BlockGenerator {
-	return mining.NewBlockGenerator(msgPool, func(ctx context.Context, ts core.TipSet) (state.Tree, error) {
+	return mining.NewBlockGenerator(msgPool, func(ctx context.Context, ts types.TipSet) (state.Tree, error) {
 		return cm.State(ctx, ts.ToSlice())
 	}, cm.Weight, core.ApplyMessages)
 }
 
-func getStateTree(ctx context.Context, d repo.Datastore) (state.Tree, *hamt.CborIpldStore, *core.ChainManager, core.TipSet, error) {
+func getStateTree(ctx context.Context, d repo.Datastore) (state.Tree, *hamt.CborIpldStore, *core.ChainManager, types.TipSet, error) {
 	cm, cst := getChainManager(d)
 	err := cm.Load()
 	if err != nil {
@@ -151,7 +151,7 @@ func fake(ctx context.Context, length int, binom bool, getHeaviestTipSet core.He
 // fakeActors adds a block ensuring that the StateTree contains at least one of each extant Actor type, along with
 // well-formed data in its memory. For now, this exists primarily to exercise the Filecoin Explorer, though it may
 // be used for testing in the future.
-func fakeActors(ctx context.Context, cst *hamt.CborIpldStore, cm *core.ChainManager, bts core.TipSet) (err error) {
+func fakeActors(ctx context.Context, cst *hamt.CborIpldStore, cm *core.ChainManager, bts types.TipSet) (err error) {
 	msgPool := core.NewMessagePool()
 
 	//// Have the storage market actor create a new miner
