@@ -22,6 +22,12 @@ func TestFILToAttoFIL(t *testing.T) {
 	assert.True(NewAttoFIL(v).Equal(x))
 }
 
+func TestString(t *testing.T) {
+	assert := assert.New(t)
+
+	assert.Equal("9.123372036854775800", NewAttoFIL(big.NewInt(9123372036854775800.0)).String())
+}
+
 func TestAttoFILCreation(t *testing.T) {
 	assert := assert.New(t)
 

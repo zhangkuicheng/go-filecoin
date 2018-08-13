@@ -192,8 +192,7 @@ func (z *AttoFIL) Bytes() []byte {
 // https://github.com/filecoin-project/go-filecoin/issues/559
 func (z *AttoFIL) String() string {
 	ensureZeroAmounts(&z)
-	v := big.NewInt(0).Div(z.val, tenToTheEighteen)
-	return v.String()
+	return big.NewFloat(0).Quo(new(big.Float).SetInt(z.val), new(big.Float).SetFloat64(1e18)).String()
 }
 
 // CalculatePrice treats z as a price in AttoFIL/Byte and applies it to numBytes to calculate a total price.
