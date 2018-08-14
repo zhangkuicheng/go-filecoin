@@ -193,10 +193,15 @@ func (z *AttoFIL) String() string {
 }
 
 func (z *AttoFIL) PrettyString() string {
-	ensureZeroAmounts(&z)
-	paddedStr := fmt.Sprintf("%019d", z.val)
-	decimaledStr := fmt.Sprintf("%s.%s", paddedStr[:len(paddedStr)-18], paddedStr[len(paddedStr)-18:])
-	noTrailZeroStr := strings.TrimRight(decimaledStr, "0")
+	x := new(big.Float)
+	y := new(big.Float)
+	x.SetMode(x.Mode())
+	x.SetPrec(big.MaxPrec)
+	x.SetString(z.val.String())
+	y, _ = y.SetString("1000000000000000000")
+	x.Quo(x, y)
+	unstrippedStr := fmt.Sprintf("%.18f", x)
+	noTrailZeroStr := strings.TrimRight(unstrippedStr, "0")
 	return strings.TrimRight(noTrailZeroStr, ".")
 }
 
