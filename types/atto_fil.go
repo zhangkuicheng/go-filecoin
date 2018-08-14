@@ -9,6 +9,7 @@ import (
 	cbor "gx/ipfs/QmSyK1ZiAP98YvnxsTfQpb669V2xeTHRbG4Y6fgKS3vVSd/go-ipld-cbor"
 	"gx/ipfs/QmcrriCMhjb5ZWzmPNxmP53px47tSPcXBNaMtLdgcKFJYk/refmt/obj/atlas"
 	"fmt"
+	"strings"
 )
 
 // NOTE -- ALL *AttoFIL methods must call ensureZeroAmounts with refs to every user-supplied value before use.
@@ -193,7 +194,10 @@ func (z *AttoFIL) Bytes() []byte {
 // https://github.com/filecoin-project/go-filecoin/issues/559
 func (z *AttoFIL) String() string {
 	ensureZeroAmounts(&z)
-	return fmt.Sprintf("%.20f", big.NewFloat(0).Quo(new(big.Float).SetInt(z.val), new(big.Float).SetFloat64(1e18)))
+	paddedStr := fmt.Sprintf("%019d", z.val)
+	decimaledStr := fmt.Sprintf("%s.%s", paddedStr[:len(paddedStr)-18], paddedStr[len(paddedStr)-18:])
+	noTrailZeroStr := strings.TrimRight(decimaledStr, "0")
+	return strings.TrimRight(noTrailZeroStr, ".")
 }
 
 // CalculatePrice treats z as a price in AttoFIL/Byte and applies it to numBytes to calculate a total price.
