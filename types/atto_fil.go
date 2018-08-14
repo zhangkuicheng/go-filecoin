@@ -188,11 +188,11 @@ func (z *AttoFIL) Bytes() []byte {
 	return leb128.FromBigInt(z.val)
 }
 
-// String prints the quantity of *FILECOIN* -- *NOT* attofilecoin -- that
-// z represents. This is lossy. We don't yet print to or parse from
-// attofilecoin in commands.
-// https://github.com/filecoin-project/go-filecoin/issues/559
 func (z *AttoFIL) String() string {
+	return fmt.Sprintf("%d", z.val)
+}
+
+func (z *AttoFIL) PrettyString() string {
 	ensureZeroAmounts(&z)
 	paddedStr := fmt.Sprintf("%019d", z.val)
 	decimaledStr := fmt.Sprintf("%s.%s", paddedStr[:len(paddedStr)-18], paddedStr[len(paddedStr)-18:])
