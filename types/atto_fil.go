@@ -189,10 +189,6 @@ func (z *AttoFIL) Bytes() []byte {
 }
 
 func (z *AttoFIL) String() string {
-	return fmt.Sprintf("%d", z.val)
-}
-
-func (z *AttoFIL) PrettyString() string {
 	x := new(big.Float)
 	y := new(big.Float)
 	x.SetMode(x.Mode())

@@ -22,29 +22,28 @@ func TestFILToAttoFIL(t *testing.T) {
 	assert.True(NewAttoFIL(v).Equal(x))
 }
 
-func TestPrettyString(t *testing.T) {
+func TestString(t *testing.T) {
 	assert := assert.New(t)
 
 	// A very large number of attoFIL
 	attoFIL, _ := new(big.Int).SetString("912129289198393313372036854775878", 10)
-	assert.Equal("912129289198393.313372036854775878", NewAttoFIL(attoFIL).PrettyString())
+	assert.Equal("912129289198393.313372036854775878", NewAttoFIL(attoFIL).String())
 
 	// A multiple of 1000 attoFIL
 	attoFIL, _ = new(big.Int).SetString("9123372036854775000", 10)
-	assert.Equal("9.123372036854775", NewAttoFIL(attoFIL).PrettyString())
+	assert.Equal("9.123372036854775", NewAttoFIL(attoFIL).String())
 
 	// Less than 10^18 attoFIL
 	attoFIL, _ = new(big.Int).SetString("36854775878", 10)
-	assert.Equal("0.000000036854775878", NewAttoFIL(attoFIL).PrettyString())
+	assert.Equal("0.000000036854775878", NewAttoFIL(attoFIL).String())
 
 	// A multiple of 100 attFIL that is less than 10^18
 	attoFIL, _ = new(big.Int).SetString("36854775800", 10)
-	assert.Equal("0.0000000368547758", NewAttoFIL(attoFIL).PrettyString())
+	assert.Equal("0.0000000368547758", NewAttoFIL(attoFIL).String())
 
 	// A number of attFIL that is an integer number of FIL
 	attoFIL, _ = new(big.Int).SetString("123000000000000000000", 10)
-	assert.Equal("123", NewAttoFIL(attoFIL).PrettyString())
-
+	assert.Equal("123", NewAttoFIL(attoFIL).String())
 }
 
 func TestAttoFILCreation(t *testing.T) {
