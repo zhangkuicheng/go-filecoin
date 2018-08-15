@@ -99,18 +99,11 @@ func (ns *nodeSwarm) Connect(ctx context.Context, addrs []string) ([]api.SwarmCo
 	return output, nil
 }
 
-func (ns *nodeSwarm) Addrs(ctx context.Context) (map[string][]string, error) {
+func (ns *nodeSwarm) Addrs(ctx context.Context) ([]string, error) {
 	nd := ns.api.node
-
-	_, ok := nd.Host.Network().(*swarm.Swarm)
-	if !ok {
-		return nil, fmt.Errorf("peerhost network was not a swarm")
-	}
-
-	addrs := make(map[string][]string)
-	peerId := nd.Host.ID().Pretty()
+	addrs := make([]string, len(nd.Host.Addrs()))
 	for _, a := range nd.Host.Addrs() {
-		addrs[peerId] = append(addrs[peerId], a.String())
+		addrs = append(addrs, a.String())
 	}
 
 	return addrs, nil

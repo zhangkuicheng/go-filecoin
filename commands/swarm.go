@@ -134,14 +134,11 @@ var swarmAddrsCmd = &cmds.Command{
 
 		re.Emit(out) // nolint: errcheck
 	},
-	Type: map[string][]string{},
+	Type: []string{},
 	Encoders: cmds.EncoderMap{
-		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, res *map[string][]string) error {
-			for id, addr := range *res {
-				fmt.Fprintf(w, "%s\n", id) // nolint: errcheck
-				for _, a := range addr {
-					fmt.Fprintf(w, "\t%s", a)
-				}
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, res *[]string) error {
+			for _, a := range *res {
+				fmt.Fprintf(w, "%s", a) // nolint errcheck
 			}
 			return nil
 		}),

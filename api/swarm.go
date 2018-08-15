@@ -8,7 +8,7 @@ import (
 type Swarm interface {
 	Peers(ctx context.Context, verbose, latency, streams bool) (*SwarmConnInfos, error)
 	Connect(ctx context.Context, addrs []string) ([]SwarmConnectResult, error)
-	Addrs(ctx context.Context) (map[string][]string, error)
+	Addrs(ctx context.Context) ([]string, error)
 }
 
 // SwarmConnInfo represents details about a single swarm connection.
