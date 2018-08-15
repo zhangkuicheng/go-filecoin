@@ -23,6 +23,7 @@ libp2p peers on the internet.
 `,
 	},
 	Subcommands: map[string]*cmds.Command{
+		"addrs":   swarmAddrsCmd,
 		"connect": swarmConnectCmd,
 		"peers":   swarmPeersCmd,
 	},
@@ -111,6 +112,36 @@ go-filecoin swarm connect /ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUE
 		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, res *[]api.SwarmConnectResult) error {
 			for _, a := range *res {
 				fmt.Fprintf(w, "connect %s success\n", a.Peer) // nolint: errcheck
+			}
+			return nil
+		}),
+	},
+}
+
+var swarmAddrsCmd = &cmds.Command{
+	Helptext: cmdkit.HelpText{
+		Tagline: "List known addresses. Useful for debugging.",
+		ShortDescription: `
+'go-filecoin swarm addrs' lists all addresses this node is aware of.
+`,
+	},
+	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+		out, err := GetAPI(env).Swarm().Addrs(req.Context)
+		if err != nil {
+			re.SetError(err, cmdkit.ErrNormal)
+			return
+		}
+
+		re.Emit(out) // nolint: errcheck
+	},
+	Type: map[string][]string{},
+	Encoders: cmds.EncoderMap{
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, res *map[string][]string) error {
+			for id, addr := range *res {
+				fmt.Fprintf(w, "%s\n", id) // nolint: errcheck
+				for _, a := range addr {
+					fmt.Fprintf(w, "\t%s", a)
+				}
 			}
 			return nil
 		}),
