@@ -6,6 +6,7 @@ import (
 	"gx/ipfs/QmSKyB5faguXT4NqbrXpnRXqaVj5DhSm7x9BtzFydBY1UK/go-leb128"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	"gx/ipfs/QmcD7SqfyQyA91TZUQ7VPRYbGarxmY7EsQewVYMuN5LNSv/go-ipfs-blockstore"
+	"gx/ipfs/QmSkuaNgyGmV8c1L3cZNWcUxRJV6J3nsD96JVQPcWcwtyW/go-hamt-ipld"
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/state"
@@ -59,7 +60,7 @@ func (v *marketView) Miner(ctx context.Context, st state.Tree, bstore blockstore
 	vms := vm.NewStorageMap(bstore)
 	rets, ec, err := CallQueryMethod(ctx, st, vms, mAddr, "getStorage", []byte{}, types.Address{}, nil)
 	if err != nil {
-		return 0, err
+		return uint64(0), errors.Wrap(err, "couldnt unmarshall actor state")
 	}
 
 	if ec != 0 {

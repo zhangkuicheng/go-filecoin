@@ -3,12 +3,14 @@ package node
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path"
 	"sync"
 	"time"
 
 	"gx/ipfs/QmNgGXeuaQRR1cy5EbX71R5P6Y8edFyH4GLZxbYd76n6ag/go-bitswap"
 	bsnet "gx/ipfs/QmNgGXeuaQRR1cy5EbX71R5P6Y8edFyH4GLZxbYd76n6ag/go-bitswap/network"
-	"gx/ipfs/QmSkuaNgyGmV8c1L3cZNWcUxRJV6J3nsD96JVQPcWcwtyW/go-hamt-ipld"
 	bserv "gx/ipfs/QmUSuYd5Q1N291DH679AVvHwGLwtS1V9VPDWvnUN9nGJPT/go-blockservice"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	"gx/ipfs/QmXScvRbYh9X9okLuX9YMnz1HR4WgRTU2hocjBs15nmCNG/go-libp2p-floodsub"
@@ -19,6 +21,7 @@ import (
 	"gx/ipfs/Qmc2faLf7URkHpsbfYM4EMbr8iSAcGAe8VPgVi64HVnwji/go-ipfs-exchange-interface"
 	bstore "gx/ipfs/QmcD7SqfyQyA91TZUQ7VPRYbGarxmY7EsQewVYMuN5LNSv/go-ipfs-blockstore"
 	logging "gx/ipfs/QmcVVHfdyv15GVPk7NrxdWjh2hLVccXnoD8j2tyQShiXJb/go-log"
+	writer "gx/ipfs/QmcVVHfdyv15GVPk7NrxdWjh2hLVccXnoD8j2tyQShiXJb/go-log/writer"
 	libp2ppeer "gx/ipfs/QmdVrMn1LhB4ybb8hMVaMLXnA8XRSewMnK6YqXKXoTcRvN/go-libp2p-peer"
 
 	"github.com/filecoin-project/go-filecoin/abi"
@@ -35,6 +38,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/vm"
 	vmErrors "github.com/filecoin-project/go-filecoin/vm/errors"
 	"github.com/filecoin-project/go-filecoin/wallet"
+	hamt "gx/ipfs/QmSkuaNgyGmV8c1L3cZNWcUxRJV6J3nsD96JVQPcWcwtyW/go-hamt-ipld"
 )
 
 var log = logging.Logger("node") // nolint: deadcode
@@ -131,6 +135,7 @@ type Config struct {
 	OfflineMode  bool
 	MockMineMode bool // TODO: this is a TEMPORARY workaround
 	BlockTime    time.Duration
+	WriteLogfile bool
 }
 
 // ConfigOpt is a configuration option for a filecoin node.
@@ -162,6 +167,55 @@ func New(ctx context.Context, opts ...ConfigOpt) (*Node, error) {
 
 // Build instantiates a filecoin Node from the settings specified in the config.
 func (nc *Config) Build(ctx context.Context) (*Node, error) {
+	var chainMgr *core.ChainManager
+	// Maybe set up logging.
+	if nc.WriteLogfile {
+		r, w := io.Pipe()
+		go func() {
+			defer w.Close() // nolint: errcheck
+			<-ctx.Done()
+		}()
+
+		writer.WriterGroup.AddWriter(w)
+		go func() {
+			buf := make([]byte, 4096)
+			fName := fmt.Sprintf("go-filecoin.events.%d", os.Getpid())
+			outF, err := os.OpenFile(path.Join("/tmp", fName), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			if err != nil {
+				panic(err)
+			}
+			defer func() {
+				outF.Close()
+			}()
+			for {
+				n, rErr := r.Read(buf)
+				if n > 0 {
+					_, wErr := outF.Write(buf[:n])
+					if wErr != nil {
+						return
+					}
+				}
+				if rErr != nil {
+					return
+				}
+			}
+		}()
+
+		defer func() {
+			ticker := time.NewTicker(5 * time.Second)
+			go func() {
+				for _ = range ticker.C {
+					ctx = log.Start(context.Background(), "FakeChainManager.setHeaviestTipset")
+					h := chainMgr.GetHeaviestTipSet()
+					log.LogKV(ctx,
+						"event", "CHAIN.NEW_HEAD",
+						"head", h)
+					log.FinishWithErr(ctx, nil)
+				}
+			}()
+		}()
+	}
+
 	var host host.Host
 
 	if !nc.OfflineMode {
@@ -194,7 +248,7 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 
 	cst := &hamt.CborIpldStore{Blocks: bserv}
 
-	chainMgr := core.NewChainManager(nc.Repo.Datastore(), bs, cst)
+	chainMgr = core.NewChainManager(nc.Repo.Datastore(), bs, cst)
 	if nc.MockMineMode {
 		chainMgr.PwrTableView = &core.TestView{}
 	}

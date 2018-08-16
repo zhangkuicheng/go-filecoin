@@ -45,6 +45,8 @@ const (
 	// run with.  TODO: this should eventually be more explicitly grouped
 	// with testing as we won't be able to set blocktime in production.
 	BlockTime = "block-time"
+	// WriteLogfile when sets writes logs to a file.
+	WriteLogfile = "write-logfile"
 )
 
 var rootCmd = &cmds.Command{

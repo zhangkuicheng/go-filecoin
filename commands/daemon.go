@@ -34,6 +34,7 @@ var daemonCmd = &cmds.Command{
 		cmdkit.BoolOption(OfflineMode),
 		cmdkit.BoolOption(MockMineMode),
 		cmdkit.StringOption(BlockTime).WithDefault(mining.DefaultBlockTime.String()),
+		cmdkit.BoolOption(WriteLogfile),
 	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
 		if err := daemonRun(req, re, env); err != nil {
@@ -98,6 +99,13 @@ func daemonRun(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment)
 		c.BlockTime = blockTime
 		return nil
 	})
+
+	if writeLogfile, ok := req.Options[WriteLogfile].(bool); ok {
+		opts = append(opts, func(c *node.Config) error {
+			c.WriteLogfile = writeLogfile
+			return nil
+		})
+	}
 
 	fcn, err := node.New(req.Context, opts...)
 	if err != nil {

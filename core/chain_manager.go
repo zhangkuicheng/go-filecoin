@@ -191,6 +191,9 @@ func (cm *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err e
 
 // setHeaviestTipSet sets the best tipset.  CALLER MUST HOLD THE heaviestTipSet LOCK.
 func (cm *ChainManager) setHeaviestTipSet(ctx context.Context, ts TipSet) error {
+	log.LogKV(ctx,
+		"event", "CHAIN.NEW_HEAD",
+		"head", ts.String())
 	log.LogKV(ctx, "setHeaviestTipSet", ts.String())
 	if err := putCidSet(ctx, cm.ds, heaviestTipSetKey, ts.ToSortedCidSet()); err != nil {
 		return errors.Wrap(err, "failed to write TipSet cids to datastore")

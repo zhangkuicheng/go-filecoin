@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	xerrors "gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
+	errors "gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -16,10 +16,10 @@ import (
 func NextNonce(ctx context.Context, st state.Tree, mp *MessagePool, address types.Address) (uint64, error) {
 	actor, err := st.GetActor(ctx, address)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrapf(err, "couldnt get actor for address %s", address)
 	}
 	if actor.Code != nil && !actor.Code.Equals(types.AccountActorCodeCid) {
-		return 0, xerrors.New("actor not an account or empty actor")
+		return 0, errors.New("actor not an account or empty actor")
 	}
 
 	nonce := uint64(actor.Nonce)
