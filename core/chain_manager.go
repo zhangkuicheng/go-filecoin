@@ -138,13 +138,15 @@ type ChainManager struct {
 
 	FetchBlock        func(context.Context, *cid.Cid) (*types.Block, error)
 	GetHeaviestTipSet func() TipSet
+
+	PeerID peer.ID
 }
 
 // NewChainManager creates a new filecoin chain manager.
 // TODO: taking three data things feels a bit weird. Two makes sense, mutable and immutable.
 //       figure out how to coalesce the blockstore and ipldstore into a single
 //       object (theyre the same under the hood)
-func NewChainManager(ds datastore.Datastore, bs blockstore.Blockstore, cs *hamt.CborIpldStore) *ChainManager {
+func NewChainManager(ds datastore.Datastore, bs blockstore.Blockstore, cs *hamt.CborIpldStore, peerID peer.ID) *ChainManager {
 	cm := &ChainManager{
 		cstore:          cs,
 		ds:              ds,
@@ -157,6 +159,7 @@ func NewChainManager(ds datastore.Datastore, bs blockstore.Blockstore, cs *hamt.
 
 		PwrTableView:         &marketView{},
 		HeaviestTipSetPubSub: pubsub.New(128),
+		PeerID:               peerID,
 	}
 	cm.FetchBlock = cm.fetchBlock
 	cm.GetHeaviestTipSet = cm.getHeaviestTipSet
@@ -187,17 +190,30 @@ func (cm *ChainManager) Genesis(ctx context.Context, gen GenesisInitFunc) (err e
 	defer cm.heaviestTipSet.Unlock()
 
 	return cm.setHeaviestTipSet(ctx, genTipSet)
+	return cm.setHeaviestTipSet(ctx, genTipSet, genesis)
 }
 
 // setHeaviestTipSet sets the best tipset.  CALLER MUST HOLD THE heaviestTipSet LOCK.
-func (cm *ChainManager) setHeaviestTipSet(ctx context.Context, ts TipSet) error {
-	log.LogKV(ctx,
-		"event", "CHAIN.NEW_HEAD",
-		"head", ts.String())
-	log.LogKV(ctx, "setHeaviestTipSet", ts.String())
+func (cm *ChainManager) setHeaviestTipSet(ctx context.Context, ts TipSet, blk *types.Block) error {
 	if err := putCidSet(ctx, cm.ds, heaviestTipSetKey, ts.ToSortedCidSet()); err != nil {
 		return errors.Wrap(err, "failed to write TipSet cids to datastore")
 	}
+
+	height, err := ts.Height()
+	if err != nil {
+		return err
+	}
+
+	ctx = log.Start(ctx, "CHAIN.NEW_HEAD")
+	defer func() { log.Finish(ctx) }()
+	log.SetTags(ctx, map[string]interface{}{
+		"head":    ts.String(),
+		"height":  fmt.Sprintf("%d", height),
+		"peerID":  cm.PeerID.Pretty(),
+		"blockID": blk.Cid().String(),
+		"minerID": blk.Miner.String(),
+	})
+
 	cm.HeaviestTipSetPubSub.Pub(ts, HeaviestTipSetTopic)
 	// The heaviest tipset should not pick up changes from adding new blocks to the index.
 	// It only changes explicitly when set through this function.
@@ -341,7 +357,7 @@ func (cm *ChainManager) maybeAcceptBlock(ctx context.Context, blk *types.Block) 
 	}
 
 	// set the given tipset as our current heaviest tipset
-	if err := cm.setHeaviestTipSet(ctx, ts); err != nil {
+	if err := cm.setHeaviestTipSet(ctx, ts, blk); err != nil {
 		return Unknown, err
 	}
 	log.Infof("new heaviest tipset, [s=%s, hs=%s]", newWeight.RatString(), ts.String())
@@ -658,7 +674,6 @@ type ChainManagerForTest = ChainManager
 // outside of a testing context.
 func (cm *ChainManagerForTest) SetHeaviestTipSetForTest(ctx context.Context, ts TipSet) error {
 	// added to make `LogKV` call in `setHeaviestTipSet` happy (else it logs an error message)
-	ctx = log.Start(ctx, "SetHeaviestTipSetForTest")
 	for _, b := range ts {
 		_, err := cm.cstore.Put(ctx, b)
 		if err != nil {
@@ -670,7 +685,7 @@ func (cm *ChainManagerForTest) SetHeaviestTipSetForTest(ctx context.Context, ts 
 	defer log.Finish(ctx)
 	cm.heaviestTipSet.Lock()
 	defer cm.heaviestTipSet.Unlock()
-	return cm.setHeaviestTipSet(ctx, ts)
+	return cm.setHeaviestTipSet(ctx, ts, nil)
 }
 
 // BlockHistory returns a channel of block pointers (or errors), starting with the current best tipset's blocks

@@ -28,7 +28,7 @@ func Init(ctx context.Context, r repo.Repo, gen core.GenesisInitFunc) error {
 	bs := bstore.NewBlockstore(r.Datastore())
 	cst := &hamt.CborIpldStore{Blocks: bserv.New(bs, offline.Exchange(bs))}
 
-	cm := core.NewChainManager(r.Datastore(), bs, cst)
+	cm := core.NewChainManager(r.Datastore(), bs, cst, "INIT_NO_PEER_ID")
 	if err := cm.Genesis(ctx, gen); err != nil {
 		return errors.Wrap(err, "failed to initialize genesis")
 	}

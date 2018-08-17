@@ -234,7 +234,7 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 
 	cst := &hamt.CborIpldStore{Blocks: bserv}
 
-	chainMgr := core.NewChainManager(nc.Repo.Datastore(), bs, cst)
+	chainMgr := core.NewChainManager(nc.Repo.Datastore(), bs, cst, host.ID())
 	if nc.MockMineMode {
 		chainMgr.PwrTableView = &core.TestView{}
 	}
