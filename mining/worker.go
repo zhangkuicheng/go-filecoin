@@ -229,3 +229,16 @@ var isWinningTicket = func(ticket []byte, myPower, totalPower int64) bool {
 func (w *DefaultWorker) fakeCreatePoST() {
 	time.Sleep(w.blockTime)
 }
+// How long the node's mining Worker should sleep to simulate mining.
+const mineSleepTime = time.Second * 10
+
+// createPoST is the default implementation of DoSomeWorkFunc. Contrary to the
+// advertisement, it doesn't do anything yet.
+func createPoST() {
+	time.Sleep(mineSleepTime)
+}
+
+// nullBlockTimer is the default implementation of NullBlockTimerFunc.
+func nullBlockTimer() {
+	time.Sleep(mineSleepTime)
+}
