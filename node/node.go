@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"time"
 
 	"gx/ipfs/QmNgGXeuaQRR1cy5EbX71R5P6Y8edFyH4GLZxbYd76n6ag/go-bitswap"
 	bsnet "gx/ipfs/QmNgGXeuaQRR1cy5EbX71R5P6Y8edFyH4GLZxbYd76n6ag/go-bitswap/network"
@@ -24,6 +23,8 @@ import (
 	writer "gx/ipfs/QmcVVHfdyv15GVPk7NrxdWjh2hLVccXnoD8j2tyQShiXJb/go-log/writer"
 	libp2ppeer "gx/ipfs/QmdVrMn1LhB4ybb8hMVaMLXnA8XRSewMnK6YqXKXoTcRvN/go-libp2p-peer"
 
+	hamt "gx/ipfs/QmSkuaNgyGmV8c1L3cZNWcUxRJV6J3nsD96JVQPcWcwtyW/go-hamt-ipld"
+
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
@@ -38,7 +39,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/vm"
 	vmErrors "github.com/filecoin-project/go-filecoin/vm/errors"
 	"github.com/filecoin-project/go-filecoin/wallet"
-	hamt "gx/ipfs/QmSkuaNgyGmV8c1L3cZNWcUxRJV6J3nsD96JVQPcWcwtyW/go-hamt-ipld"
 )
 
 var log = logging.Logger("node") // nolint: deadcode
@@ -167,7 +167,6 @@ func New(ctx context.Context, opts ...ConfigOpt) (*Node, error) {
 
 // Build instantiates a filecoin Node from the settings specified in the config.
 func (nc *Config) Build(ctx context.Context) (*Node, error) {
-	var chainMgr *core.ChainManager
 	// Maybe set up logging.
 	if nc.WriteLogfile {
 		r, w := io.Pipe()
@@ -201,19 +200,6 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 			}
 		}()
 
-		defer func() {
-			ticker := time.NewTicker(5 * time.Second)
-			go func() {
-				for _ = range ticker.C {
-					ctx = log.Start(context.Background(), "FakeChainManager.setHeaviestTipset")
-					h := chainMgr.GetHeaviestTipSet()
-					log.LogKV(ctx,
-						"event", "CHAIN.NEW_HEAD",
-						"head", h)
-					log.FinishWithErr(ctx, nil)
-				}
-			}()
-		}()
 	}
 
 	var host host.Host
@@ -248,7 +234,7 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 
 	cst := &hamt.CborIpldStore{Blocks: bserv}
 
-	chainMgr = core.NewChainManager(nc.Repo.Datastore(), bs, cst)
+	chainMgr := core.NewChainManager(nc.Repo.Datastore(), bs, cst)
 	if nc.MockMineMode {
 		chainMgr.PwrTableView = &core.TestView{}
 	}
