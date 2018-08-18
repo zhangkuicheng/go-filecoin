@@ -208,7 +208,7 @@ func (cm *ChainManager) setHeaviestTipSet(ctx context.Context, ts TipSet, blk *t
 	defer func() { log.Finish(ctx) }()
 	log.SetTags(ctx, map[string]interface{}{
 		"head":    ts.String(),
-		"height":  fmt.Sprintf("%d", height),
+		"height":  height,
 		"peerID":  cm.PeerID.Pretty(),
 		"blockID": blk.Cid().String(),
 		"minerID": blk.Miner.String(),
