@@ -68,7 +68,7 @@ type timingScheduler struct {
 
 // MineDelayConversionFactor is the constant that divides the mining block time
 // to arrive and the mining delay.  TODO: get a legit value for this param.
-const MineDelayConversionFactor = 30
+const MineDelayConversionFactor = 15
 
 // runWorker launches calls to worker.Mine().  Inputs to worker.Mine() are
 // accepted on mineInCh.  For each new input on mineInCh, runWorker cancels the
