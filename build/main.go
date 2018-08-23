@@ -205,7 +205,7 @@ func buildFilecoin() {
 	runParts(
 		"go", "build",
 		"-ldflags", fmt.Sprintf("-X github.com/filecoin-project/go-filecoin/flags.Commit=%s", commit),
-		"-v", "-o", "go-filecoin", ".",
+		"-v", "-race", "-o", "go-filecoin", ".",
 	)
 }
 
