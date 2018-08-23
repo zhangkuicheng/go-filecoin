@@ -35,7 +35,7 @@ func init() {
 
 // DefaultBlockTime is the estimated proving period time.
 // We define this so that we can fake mining in the current incomplete system.
-const DefaultBlockTime = time.Second
+const DefaultBlockTime = time.Millisecond * 300
 
 // Input is the TipSets the worker should mine on, the address
 // to accrue rewards to, and a context that the caller can use

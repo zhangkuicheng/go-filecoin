@@ -13,7 +13,7 @@ import (
 const BlockTimeTest = time.Millisecond * 300
 
 // MineDelayTest is the mining delay used by schedulers during testing
-const MineDelayTest = time.Millisecond * 10
+const MineDelayTest = time.Millisecond * 300
 
 // MockScheduler is a mock Scheduler.
 type MockScheduler struct {
