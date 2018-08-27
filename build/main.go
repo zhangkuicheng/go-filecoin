@@ -197,16 +197,27 @@ func buildFakecoin() {
 	)
 }
 
-func buildFilecoin() {
+func buildFilecoin(args ...string) {
 	log.Println("Building go-filecoin...")
 
 	commit := runCapture("git log -n 1 --format=%H")
 
-	runParts(
+	defaultArgs := []string{
 		"go", "build",
 		"-ldflags", fmt.Sprintf("-X github.com/filecoin-project/go-filecoin/flags.Commit=%s", commit),
-		"-v", "-race", "-o", "go-filecoin", ".",
-	)
+		"-v", "-o", "go-filecoin",
+	}
+
+	args = append(defaultArgs, args...)
+	args = append(args, ".")
+
+	runParts(args...)
+}
+
+func buildFilecoinRace() {
+	log.Println("Building go-filecoin with race mode detection...")
+
+	buildFilecoin("-race")
 }
 
 func install() {
@@ -242,6 +253,8 @@ func main() {
 		buildFakecoin()
 	case "build-filecoin":
 		buildFilecoin()
+	case "build-filecoin-race":
+		buildFilecoinRace()
 	case "build":
 		build()
 	case "test":

@@ -52,12 +52,12 @@ jobs:
             - "/home/circleci/.cargo"
 
       - run:
-          name: Build
-          command: go run ./build/*.go build
+          name: Build Filecoin
+          command: go run ./build/*.go build-filecoin-race
       - run:
           name: Test
           command: |
-            go run ./build/*.go test -v -race -covermode=atomic -coverprofile=coverage.txt &&
+            go run ./build/*.go test -v -covermode=atomic -coverprofile=coverage.txt &&
             bash <(curl -s https://codecov.io/bash)
       - run:
           name: Lint
