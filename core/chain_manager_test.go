@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"gx/ipfs/QmSkuaNgyGmV8c1L3cZNWcUxRJV6J3nsD96JVQPcWcwtyW/go-hamt-ipld"
 	"gx/ipfs/QmYVNvtQkeZ6AKSwDrjQTs432QtL6umrrK41EBq3cu7iSP/go-cid"
@@ -136,11 +135,11 @@ func TestMultiBlockTipsetAdd(t *testing.T) {
 	assert.Equal(cm.GetHeaviestTipSet(), tipsetB)
 }
 
-func TestHeaviestTipSetPubSub(t *testing.T) {
+func TestHeaviestTipSetEmitter(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx, _, _, cm := newTestUtils()
-	ch := cm.HeaviestTipSetPubSub.Sub(HeaviestTipSetTopic)
+	ch := cm.HeaviestTipSetEmitter.On(HeaviestTipSetTopic)
 
 	assert.NoError(cm.Genesis(ctx, InitGenesis))
 	block3 := MkChild([]*types.Block{block2}, block2.StateRoot, 0)
@@ -157,8 +156,8 @@ func TestHeaviestTipSetPubSub(t *testing.T) {
 	}
 	gotTSs := map[string]bool{}
 	for i := 0; i < 5; i++ {
-		gotTipSet := <-ch
-		gotTSs[gotTipSet.(TipSet).String()] = true
+		event := <-ch
+		gotTSs[event.Args[0].(TipSet).String()] = true
 	}
 
 	for _, ts := range expTipSets {
@@ -304,14 +303,11 @@ func TestBlockHistory(t *testing.T) {
 	requireProcessBlock(ctx, t, cm, block1)
 	requireProcessBlock(ctx, t, cm, block2)
 
-	tsCh := cm.BlockHistory(ctx)
+	tsCh := cm.BlockHistory(ctx).On("*")
 
-	assert.Equal(RequireNewTipSet(require, block2), ((<-tsCh).(TipSet)))
-	assert.Equal(RequireNewTipSet(require, block1), ((<-tsCh).(TipSet)))
-	assert.Equal(cm.GetGenesisCid(), ((<-tsCh).(TipSet)).ToSlice()[0].Cid())
-	ts, more := <-tsCh
-	assert.Equal(nil, ts)     // Genesis block has no parent.
-	assert.Equal(false, more) // Channel is closed
+	assert.Equal(RequireNewTipSet(require, block2), ((<-tsCh).Args[0].(TipSet)))
+	assert.Equal(RequireNewTipSet(require, block1), ((<-tsCh).Args[0].(TipSet)))
+	assert.Equal(cm.GetGenesisCid(), ((<-tsCh).Args[0].(TipSet)).ToSlice()[0].Cid())
 }
 
 func TestBlockHistoryFetchError(t *testing.T) {
@@ -324,19 +320,17 @@ func TestBlockHistoryFetchError(t *testing.T) {
 	requireProcessBlock(ctx, t, cm, block1)
 	requireProcessBlock(ctx, t, cm, block2)
 
-	tsCh := cm.BlockHistory(ctx)
+	tsCh := cm.BlockHistory(ctx).On("*")
 
 	cm.FetchBlock = func(ctx context.Context, cid *cid.Cid) (*types.Block, error) {
 		return nil, fmt.Errorf("error fetching block (in test)")
 	}
 	// One tipset is already ready.
-	assert.Equal(RequireNewTipSet(require, block2), ((<-tsCh).(TipSet)))
+	assert.Equal(RequireNewTipSet(require, block2), ((<-tsCh).Args[0].(TipSet)))
 
 	// Next tipset sent should instead be an error.
 	next := <-tsCh
-
-	_, ok := next.(error)
-	assert.True(ok)
+	assert.Equal(next.OriginalTopic, ErrorTopic)
 }
 
 func TestBlockHistoryCancel(t *testing.T) {
@@ -350,15 +344,14 @@ func TestBlockHistoryCancel(t *testing.T) {
 	requireProcessBlock(ctx, t, cm, block1)
 	requireProcessBlock(ctx, t, cm, block2)
 
-	tsCh := cm.BlockHistory(ctx)
-	assert.Equal(RequireNewTipSet(require, block2), ((<-tsCh).(TipSet)))
+	tsCh := cm.BlockHistory(ctx).On("*")
+	assert.Equal(RequireNewTipSet(require, block2), ((<-tsCh).Args[0].(TipSet)))
 	cancel()
-	time.Sleep(10 * time.Millisecond)
 
-	ts, more := <-tsCh
-	// Channel is closed
-	assert.Equal(nil, ts)
-	assert.Equal(false, more)
+	<-tsCh // one more is emitted before cancel comes into effect
+	ts := <-tsCh
+	// Channel is closed, sent an error
+	assert.Equal(ts.Args[0].(error).Error(), "context canceled")
 }
 
 func assertPut(assert *assert.Assertions, cst *hamt.CborIpldStore, i interface{}) {

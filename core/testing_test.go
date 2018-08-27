@@ -10,22 +10,25 @@ import (
 )
 
 func countBlocks(cm *ChainManager) (count int) {
-	for range cm.BlockHistory(context.Background()) {
+	for event := range cm.BlockHistory(context.Background()).On("*") {
+		if event.OriginalTopic == ChainEndTopic {
+			break
+		}
 		count++
 	}
 	return count
 }
 
 func nullBlockExists(require *require.Assertions, cm *ChainManager) bool {
-	historyCh := cm.BlockHistory(context.Background())
+	historyCh := cm.BlockHistory(context.Background()).On("*")
 	raw := <-historyCh
-	ts, ok := raw.(TipSet)
+	ts, ok := raw.Args[0].(TipSet)
 	require.True(ok)
 	height, err := ts.Height()
 	require.NoError(err)
 	prevHeight := uint64(height)
 	for raw := range historyCh {
-		ts, ok := raw.(TipSet)
+		ts, ok := raw.Args[0].(TipSet)
 		require.True(ok)
 		height, err = ts.Height()
 		require.NoError(err)
@@ -38,30 +41,39 @@ func nullBlockExists(require *require.Assertions, cm *ChainManager) bool {
 }
 
 func heightsAreOrdered(require *require.Assertions, cm *ChainManager) bool {
-	historyCh := cm.BlockHistory(context.Background())
+	historyCh := cm.BlockHistory(context.Background()).On("*")
 	raw := <-historyCh
-	ts, ok := raw.(TipSet)
+	ts, ok := raw.Args[0].(TipSet)
 	require.True(ok)
 	height, err := ts.Height()
 	require.NoError(err)
 	prevHeight := uint64(height)
-	for raw := range historyCh {
-		ts, ok := raw.(TipSet)
-		require.True(ok)
-		height, err := ts.Height()
-		require.NoError(err)
 
-		if prevHeight < uint64(height) {
-			return false
+Outer:
+	for raw := range historyCh {
+		switch raw.OriginalTopic {
+		case ChainBlockTopic:
+			ts, ok := raw.Args[0].(TipSet)
+			require.True(ok)
+			height, err := ts.Height()
+			require.NoError(err)
+
+			if prevHeight < uint64(height) {
+				return false
+			}
+			prevHeight = uint64(height)
+		case ChainEndTopic:
+			break Outer
+		default:
+			require.Fail("unexpected topic", raw.OriginalTopic)
 		}
-		prevHeight = uint64(height)
 	}
 	return true
 }
 
 func multiBlockTipSetExists(require *require.Assertions, cm *ChainManager) bool {
-	for raw := range cm.BlockHistory(context.Background()) {
-		ts, ok := raw.(TipSet)
+	for raw := range cm.BlockHistory(context.Background()).On("*") {
+		ts, ok := raw.Args[0].(TipSet)
 		require.True(ok)
 		if len(ts) > 1 {
 			return true
@@ -81,6 +93,7 @@ func TestAddChain(t *testing.T) {
 	stateGetter := func(ctx context.Context, ts TipSet) (state.Tree, error) {
 		return cm.State(ctx, ts.ToSlice())
 	}
+
 	_, err := AddChain(ctx, cm.ProcessNewBlock, stateGetter, bts.ToSlice(), 9)
 	assert.NoError(err)
 

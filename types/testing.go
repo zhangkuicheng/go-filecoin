@@ -230,6 +230,7 @@ func SmsgCidsEqual(m1, m2 *SignedMessage) bool {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(m1Cid, m2Cid)
 	return m1Cid.Equals(m2Cid)
 }
 

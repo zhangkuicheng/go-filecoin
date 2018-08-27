@@ -15,7 +15,6 @@ import (
 	"gx/ipfs/QmcD7SqfyQyA91TZUQ7VPRYbGarxmY7EsQewVYMuN5LNSv/go-ipfs-blockstore"
 	logging "gx/ipfs/QmcVVHfdyv15GVPk7NrxdWjh2hLVccXnoD8j2tyQShiXJb/go-log"
 	"gx/ipfs/QmdVrMn1LhB4ybb8hMVaMLXnA8XRSewMnK6YqXKXoTcRvN/go-libp2p-peer"
-	"gx/ipfs/QmdbxjQWogRCHRaxhhGnYdT1oQJzL9GdqSKzCdqWr85AP2/pubsub"
 	"gx/ipfs/QmeiCcJfDW1GJnWUArudsv5rQsihpi4oyddPhdqo3CfX6i/go-datastore"
 
 	"github.com/filecoin-project/go-filecoin/actor/builtin"
@@ -23,6 +22,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/types"
 	pp "github.com/filecoin-project/go-filecoin/util/prettyprint"
 	"github.com/filecoin-project/go-filecoin/vm"
+	"github.com/olebedev/emitter"
 )
 
 var log = logging.Logger("chain")
@@ -44,6 +44,10 @@ var heaviestTipSetKey = datastore.NewKey("/chain/heaviestTipSet")
 
 // HeaviestTipSetTopic is the topic used to publish new best tipsets.
 const HeaviestTipSetTopic = "heaviest-tipset"
+
+const ErrorTopic = "error"
+const ChainEndTopic = "chain:end"
+const ChainBlockTopic = "chain:block"
 
 // BlockProcessResult signifies the outcome of processing a given block.
 type BlockProcessResult int
@@ -130,11 +134,11 @@ type ChainManager struct {
 	// computation.
 	PwrTableView PowerTableView
 
-	// HeaviestTipSetPubSub is a pubsub channel that publishes all best tipsets.
+	// HeaviestTipSetEmitter is an event emitter that publishes all best tipsets.
 	// We operate under the assumption that tipsets published to this channel
 	// will always be queued and delivered to subscribers in the order discovered.
 	// Successive published tipsets may be supersets of previously published tipsets.
-	HeaviestTipSetPubSub *pubsub.PubSub
+	HeaviestTipSetEmitter *emitter.Emitter
 
 	FetchBlock        func(context.Context, *cid.Cid) (*types.Block, error)
 	GetHeaviestTipSet func() TipSet
@@ -155,8 +159,8 @@ func NewChainManager(ds datastore.Datastore, bs blockstore.Blockstore, cs *hamt.
 		tips:            tipIndex{},
 		stateCache:      make(map[string]*cid.Cid),
 
-		PwrTableView:         &marketView{},
-		HeaviestTipSetPubSub: pubsub.New(128),
+		PwrTableView:          &marketView{},
+		HeaviestTipSetEmitter: &emitter.Emitter{},
 	}
 	cm.FetchBlock = cm.fetchBlock
 	cm.GetHeaviestTipSet = cm.getHeaviestTipSet
@@ -195,7 +199,9 @@ func (cm *ChainManager) setHeaviestTipSet(ctx context.Context, ts TipSet) error 
 	if err := putCidSet(ctx, cm.ds, heaviestTipSetKey, ts.ToSortedCidSet()); err != nil {
 		return errors.Wrap(err, "failed to write TipSet cids to datastore")
 	}
-	cm.HeaviestTipSetPubSub.Pub(ts, HeaviestTipSetTopic)
+	go func() {
+		<-cm.HeaviestTipSetEmitter.Emit(HeaviestTipSetTopic, ts)
+	}()
 	// The heaviest tipset should not pick up changes from adding new blocks to the index.
 	// It only changes explicitly when set through this function.
 	cm.heaviestTipSet.ts = ts.Clone()
@@ -237,17 +243,24 @@ func (cm *ChainManager) Load() error {
 	}
 
 	var genesii []*types.Block
-	err = cm.walkChain(ts.ToSlice(), func(tips []*types.Block) (cont bool, err error) {
-		for _, t := range tips {
-			id := t.Cid()
-			cm.addBlock(t, id)
+
+Outer:
+	for event := range cm.walkChain(context.TODO(), ts.ToSlice()).On("*") {
+		switch event.OriginalTopic {
+		case ChainBlockTopic:
+			tips := event.Args[0].([]*types.Block)
+			for _, t := range tips {
+				id := t.Cid()
+				cm.addBlock(t, id)
+			}
+			genesii = tips
+		case ChainEndTopic:
+			break Outer
+		case ErrorTopic:
+			return event.Args[0].(error)
 		}
-		genesii = tips
-		return true, nil
-	})
-	if err != nil {
-		return err
 	}
+
 	switch len(genesii) {
 	case 1:
 		// TODO: probably want to load the expected genesis block and assert it here?
@@ -487,6 +500,7 @@ func (cm *ChainManager) fetchParentBlks(ctx context.Context, ts TipSet) ([]*type
 	if err != nil {
 		return nil, err
 	}
+
 	return cm.fetchBlksForIDs(ctx, ids)
 }
 
@@ -644,7 +658,8 @@ func (cm *ChainManager) InformNewTipSet(from peer.ID, cids []*cid.Cid, h uint64)
 
 // Stop stops all activities and cleans up.
 func (cm *ChainManager) Stop() {
-	cm.HeaviestTipSetPubSub.Shutdown()
+	// removes all listeners
+	cm.HeaviestTipSetEmitter.Off("*")
 }
 
 // ChainManagerForTest provides backdoor access to internal fields to make
@@ -670,38 +685,28 @@ func (cm *ChainManagerForTest) SetHeaviestTipSetForTest(ctx context.Context, ts 
 	return cm.setHeaviestTipSet(ctx, ts)
 }
 
-// BlockHistory returns a channel of block pointers (or errors), starting with the current best tipset's blocks
-// followed by each subsequent parent and ending with the genesis block, after which the channel
-// is closed. If an error is encountered while fetching a block, the error is sent, and the channel is closed.
-func (cm *ChainManager) BlockHistory(ctx context.Context) <-chan interface{} {
+// BlockHistory returns an emitter of block pointers (or errors), starting with the current best tipset's blocks
+// followed by each subsequent parent and ending with the genesis block, after which the emitter stops emitting.
+// If an error is encountered while fetching a block, the error is sent, and the channel is closed.
+func (cm *ChainManager) BlockHistory(ctx context.Context) *emitter.Emitter {
 	ctx = log.Start(ctx, "ChainManager.BlockHistory")
-	out := make(chan interface{})
-	tips := cm.GetHeaviestTipSet().ToSlice()
 
-	go func() {
-		defer close(out)
-		defer log.Finish(ctx)
-		err := cm.walkChain(tips, func(tips []*types.Block) (cont bool, err error) {
-			var raw interface{}
-			raw, err = NewTipSet(tips...)
-			if err != nil {
-				raw = err
-			}
-			select {
-			case <-ctx.Done():
-				return false, nil
-			case out <- raw:
-			}
-			return true, nil
-		})
-		if err != nil {
-			select {
-			case <-ctx.Done():
-			case out <- err:
+	tips := cm.GetHeaviestTipSet().ToSlice()
+	em := cm.walkChain(ctx, tips)
+	em.Use("*", func(e *emitter.Event) {
+		if e.OriginalTopic == ChainBlockTopic {
+			tips := e.Args[0].([]*types.Block)
+			raw, err := NewTipSet(tips...)
+			if err == nil {
+				e.Args[0] = raw
+			} else {
+				e.OriginalTopic = ErrorTopic
+				e.Args[0] = err
 			}
 		}
-	}()
-	return out
+	})
+
+	return em
 }
 
 // msgIndexOfTipSet returns the order in which  msgCid apperas in the canonical
@@ -872,45 +877,29 @@ func (cm *ChainManager) Weight(ctx context.Context, ts TipSet) (numer uint64, de
 // TODO: This implementation will become prohibitively expensive since it involves traversing the entire blockchain.
 //       We should replace with an index later.
 func (cm *ChainManager) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb func(*types.Block, *types.SignedMessage,
-	*types.MessageReceipt) error) (retErr error) {
+	*types.MessageReceipt) error) error {
 	ctx = log.Start(ctx, "WaitForMessage")
 	log.SetTag(ctx, "messageCid", msgCid.String())
 	defer log.Finish(ctx)
 	log.Info("Calling WaitForMessage")
-	// Ch will contain a stream of blocks to check for message (or errors).
+
+	// Create a group that collects both historical blocks, and new blocks.
 	// Blocks are either in new heaviest tipsets, or next oldest historical blocks.
-	ch := make(chan (interface{}))
+	blocksEmitter := &emitter.Group{Cap: 1}
+	blocksEmitter.Add(
+		cm.HeaviestTipSetEmitter.On(HeaviestTipSetTopic),
+		cm.BlockHistory(ctx).On("*"),
+	)
 
-	// New blocks
-	newTipSetCh := cm.HeaviestTipSetPubSub.Sub(HeaviestTipSetTopic)
-	defer cm.HeaviestTipSetPubSub.Unsub(newTipSetCh, HeaviestTipSetTopic)
+	for event := range blocksEmitter.On() {
+		switch event.OriginalTopic {
+		case ErrorTopic:
+			err := event.Args[0].(error)
+			log.Errorf("chainManager.WaitForMessage: %s", err)
+			return err
+		case HeaviestTipSetTopic, ChainBlockTopic:
+			ts := event.Args[0].(TipSet)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Historical blocks
-	historyCh := cm.BlockHistory(ctx)
-
-	// Merge historical and new block Channels.
-	go func() {
-		// TODO: accommodate a new chain being added, as opposed to just a single block.
-		for raw := range newTipSetCh {
-			ch <- raw
-		}
-	}()
-	go func() {
-		// TODO make history serve up tipsets
-		for raw := range historyCh {
-			ch <- raw
-		}
-	}()
-
-	for raw := range ch {
-		switch ts := raw.(type) {
-		case error:
-			log.Errorf("chainManager.WaitForMessage: %s", ts)
-			return ts
-		case TipSet:
 			for _, blk := range ts {
 				for _, msg := range blk.Messages {
 					c, err := msg.Cid()
@@ -930,40 +919,49 @@ func (cm *ChainManager) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb 
 		}
 	}
 
-	return retErr
+	return nil
 }
 
-// Called for each step in the walk for walkChain(). The path contains all nodes traversed,
-// including all tips at each height. Return true to continue walking, false to stop.
-type walkChainCallback func(tips []*types.Block) (cont bool, err error)
+// walkChain walks backward through the chain, starting at tips. Either "error" or "block" is emitted.
+// It is lazy, in the sense that only once the current block was pulled, it loads the next one.
+// Stops when either the end of the chain is reached, or the context is canceled.
+func (cm *ChainManager) walkChain(ctx context.Context, tips []*types.Block) *emitter.Emitter {
+	em := &emitter.Emitter{}
+	em.Use("*", emitter.Sync)
 
-// walkChain walks backward through the chain, starting at tips, invoking cb() at each height.
-func (cm *ChainManager) walkChain(tips []*types.Block, cb walkChainCallback) error {
-	for {
-		cont, err := cb(tips)
-		if err != nil {
-			return errors.Wrap(err, "error processing block")
-		}
-		if !cont {
-			return nil
-		}
-		ids := tips[0].Parents
-		if ids.Empty() {
-			break
-		}
+	go func() {
+	Outer:
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println("canceling")
+				// context canceled, we are done here
+				<-em.Emit(ErrorTopic, ctx.Err())
+				break Outer
+			case <-em.Emit(ChainBlockTopic, tips):
+				// sent current tips, get the next one
+				ids := tips[0].Parents
+				if ids.Empty() {
+					<-em.Emit(ChainEndTopic)
+					break Outer
+				}
 
-		tips = tips[:0]
-		for it := ids.Iter(); !it.Complete(); it.Next() {
-			pid := it.Value()
-			p, err := cm.FetchBlock(context.TODO(), pid)
-			if err != nil {
-				return errors.Wrap(err, "error fetching block")
+				tips = tips[:0]
+				for it := ids.Iter(); !it.Complete(); it.Next() {
+					pid := it.Value()
+					p, err := cm.FetchBlock(context.TODO(), pid)
+					if err == nil {
+						tips = append(tips, p)
+					} else {
+						<-em.Emit(ErrorTopic, errors.Wrap(err, "error fetching block"))
+						break Outer
+					}
+				}
 			}
-			tips = append(tips, p)
 		}
-	}
+	}()
 
-	return nil
+	return em
 }
 
 // GetTipSetByBlock returns the tipset associated with a given block by

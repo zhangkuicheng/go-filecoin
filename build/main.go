@@ -95,6 +95,8 @@ func deps() {
 		"go get github.com/stretchr/testify",
 		"go get github.com/xeipuuv/gojsonschema",
 		"go get github.com/ipfs/iptb",
+		// TODO: replace with gxed version before merging,
+		"go get github.com/olebedev/emitter",
 		"cargo build --release --manifest-path proofs/rust-proofs/Cargo.toml",
 	}
 
@@ -123,6 +125,8 @@ func smartdeps() {
 		"github.com/whyrusleeping/gx-go",
 		"github.com/xeipuuv/gojsonschema",
 		"github.com/ipfs/iptb",
+		// TODO: replace with gxed version before merging,
+		"github.com/olebedev/emitter",
 	}
 
 	gopath := os.Getenv("GOPATH")

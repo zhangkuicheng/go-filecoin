@@ -255,13 +255,13 @@ func TestUpdateMessagePool(t *testing.T) {
 	newChain := core.NewChainWithMessages(node.CborStore, nil, [][]*types.SignedMessage{{}}, [][]*types.SignedMessage{{m[1], m[2]}})
 	chainMgrForTest.SetHeaviestTipSetForTest(ctx, oldChain[len(oldChain)-1])
 	assert.NoError(node.Start(ctx))
-	updateMsgPoolDoneCh := make(chan struct{})
-	node.HeaviestTipSetHandled = func() { updateMsgPoolDoneCh <- struct{}{} }
+
 	// Triggers a notification, node should update the message pool as a result.
 	chainMgrForTest.SetHeaviestTipSetForTest(ctx, newChain[len(newChain)-1])
-	<-updateMsgPoolDoneCh
+
 	assert.Equal(2, len(node.MsgPool.Pending()))
 	pending := node.MsgPool.Pending()
+
 	assert.True(types.SmsgCidsEqual(m[0], pending[0]) || types.SmsgCidsEqual(m[0], pending[1]))
 	assert.True(types.SmsgCidsEqual(m[3], pending[0]) || types.SmsgCidsEqual(m[3], pending[1]))
 	node.Stop(ctx)

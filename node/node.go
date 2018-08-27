@@ -35,6 +35,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/vm"
 	vmErrors "github.com/filecoin-project/go-filecoin/vm/errors"
 	"github.com/filecoin-project/go-filecoin/wallet"
+	"github.com/olebedev/emitter"
 )
 
 var log = logging.Logger("node") // nolint: deadcode
@@ -56,11 +57,8 @@ type Node struct {
 
 	ChainMgr *core.ChainManager
 	// HeavyTipSetCh is a subscription to the heaviest tipset topic on the chainmgr.
-	HeaviestTipSetCh chan interface{}
-	// HeavyTipSetHandled is a hook for tests because pubsub notifications
-	// arrive async. It's called after handling a new heaviest tipset.
-	HeaviestTipSetHandled func()
-	MsgPool               *core.MessagePool
+	HeaviestTipSetCh <-chan emitter.Event
+	MsgPool          *core.MessagePool
 
 	Wallet *wallet.Wallet
 
@@ -276,8 +274,7 @@ func (node *Node) Start(ctx context.Context) error {
 	go node.handleSubscription(cctx, node.processBlock, "processBlock", node.BlockSub, "BlockSub")
 	go node.handleSubscription(cctx, node.processMessage, "processMessage", node.MessageSub, "MessageSub")
 
-	node.HeaviestTipSetHandled = func() {}
-	node.HeaviestTipSetCh = node.ChainMgr.HeaviestTipSetPubSub.Sub(core.HeaviestTipSetTopic)
+	node.HeaviestTipSetCh = node.ChainMgr.HeaviestTipSetEmitter.On(core.HeaviestTipSetTopic)
 	go node.handleNewHeaviestTipSet(cctx, node.ChainMgr.GetHeaviestTipSet())
 
 	if !node.OfflineMode {
@@ -324,14 +321,14 @@ func (node *Node) handleNewMiningOutput(miningOutCh <-chan mining.Output) {
 			}
 		}
 	}
-
 }
 
 func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head core.TipSet) {
 	currentBestCancel := func() {}
-	for ts := range node.HeaviestTipSetCh {
+
+	for event := range node.HeaviestTipSetCh {
 		var currentBestCtx context.Context
-		newHead := ts.(core.TipSet)
+		newHead := event.Args[0].(core.TipSet)
 		if len(newHead) == 0 {
 			log.Error("TipSet of size 0 published on HeaviestTipSetCh:")
 			log.Error("ignoring and waiting for a new Heaviest TipSet.")
@@ -360,7 +357,6 @@ func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head core.TipSet)
 				}
 			}()
 		}
-		node.HeaviestTipSetHandled()
 	}
 	currentBestCancel() // keep the linter happy
 }
@@ -383,7 +379,7 @@ func (node *Node) cancelSubscriptions() {
 
 // Stop initiates the shutdown of the node.
 func (node *Node) Stop(ctx context.Context) {
-	node.ChainMgr.HeaviestTipSetPubSub.Unsub(node.HeaviestTipSetCh)
+	node.ChainMgr.HeaviestTipSetEmitter.Off(core.HeaviestTipSetTopic, node.HeaviestTipSetCh)
 	if node.cancelMining != nil {
 		node.cancelMining()
 	}
