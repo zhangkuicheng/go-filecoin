@@ -23,8 +23,9 @@ func TestMessagePropagation(t *testing.T) {
 	connect(t, nodes[0], nodes[1])
 	connect(t, nodes[1], nodes[2])
 
-	// Wait for network connection notifications to propagate
-	time.Sleep(time.Millisecond * 50)
+	// wait for heartbeats to build mesh (gossipsub)
+	// and network notifications to propagate
+	time.Sleep(time.Second * 2)
 
 	require.Equal(0, len(nodes[0].MsgPool.Pending()))
 	require.Equal(0, len(nodes[1].MsgPool.Pending()))

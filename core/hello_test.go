@@ -62,7 +62,8 @@ func TestHelloHandshake(t *testing.T) {
 	mn.LinkAll()
 	mn.ConnectAllButSelf()
 
-	time.Sleep(time.Millisecond * 50)
+	// wait for heartbeats to build mesh (gossipsub)
+	time.Sleep(time.Second * 2)
 
 	msc1.AssertExpectations(t)
 	msc2.AssertExpectations(t)
@@ -98,7 +99,8 @@ func TestHelloBadGenesis(t *testing.T) {
 	mn.LinkAll()
 	mn.ConnectAllButSelf()
 
-	time.Sleep(time.Millisecond * 50)
+	// wait for heartbeats to build mesh (gossip sub)
+	time.Sleep(time.Second * 2)
 
 	msc1.AssertNumberOfCalls(t, "SyncCallback", 0)
 	msc2.AssertNumberOfCalls(t, "SyncCallback", 0)
@@ -142,7 +144,8 @@ func TestHelloMultiBlock(t *testing.T) {
 	mn.LinkAll()
 	mn.ConnectAllButSelf()
 
-	time.Sleep(time.Millisecond * 50)
+	// wait for heartbeats to build mesh (gossip sub)
+	time.Sleep(time.Second * 2)
 
 	msc1.AssertExpectations(t)
 	msc2.AssertExpectations(t)

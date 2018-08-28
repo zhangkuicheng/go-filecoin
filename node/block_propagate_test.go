@@ -51,6 +51,9 @@ func TestBlockPropTwoNodes(t *testing.T) {
 	defer stopNodes(nodes)
 	connect(t, nodes[0], nodes[1])
 
+	// wait for heartbeats to build mesh (gossipsub)
+	time.Sleep(time.Second * 2)
+
 	baseBlk := core.RequireBestBlock(nodes[0].ChainMgr, t)
 	nextBlk := &types.Block{
 		Parents:           types.NewSortedCidSet(baseBlk.Cid()),
@@ -115,6 +118,9 @@ func TestChainSync(t *testing.T) {
 	assert.NoError(nodes[0].AddNewBlock(ctx, nextBlk3))
 
 	connect(t, nodes[0], nodes[1])
+
+	// wait for heartbeats to build mesh (gossipsub)
+	time.Sleep(time.Second * 2)
 
 	equal := false
 	for i := 0; i < 30; i++ {

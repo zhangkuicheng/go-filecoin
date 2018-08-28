@@ -11,7 +11,7 @@ import (
 	"gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
 	libp2ppeer "gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
-	"gx/ipfs/QmT5K5mHn2KUyCDBntKoojQJAJftNzutxzpYR33w8JdN6M/go-libp2p-floodsub"
+	pubsub "gx/ipfs/QmT5K5mHn2KUyCDBntKoojQJAJftNzutxzpYR33w8JdN6M/go-libp2p-floodsub"
 	bserv "gx/ipfs/QmTfTKeBhTLjSjxXQsjkF2b1DfZmYEMnknGE2y2gX57C6v/go-blockservice"
 	"gx/ipfs/QmTwzvuH2eYPJLdp3sL4ZsdSwCcqzdwc1Vk9ssVbk25EA2/go-bitswap"
 	bsnet "gx/ipfs/QmTwzvuH2eYPJLdp3sL4ZsdSwCcqzdwc1Vk9ssVbk25EA2/go-bitswap/network"
@@ -87,9 +87,9 @@ type Node struct {
 	StorageMiner       *StorageMiner
 
 	// Network Fields
-	PubSub       *floodsub.PubSub
-	BlockSub     *floodsub.Subscription
-	MessageSub   *floodsub.Subscription
+	PubSub       *pubsub.PubSub
+	BlockSub     *pubsub.Subscription
+	MessageSub   *pubsub.Subscription
 	Ping         *ping.PingService
 	HelloSvc     *core.Hello
 	Bootstrapper *filnet.Bootstrapper
@@ -215,9 +215,9 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	msgPool := core.NewMessagePool()
 
 	// Set up libp2p pubsub
-	fsub, err := floodsub.NewFloodSub(ctx, host)
+	gsub, err := pubsub.NewGossipSub(ctx, host)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to set up floodsub")
+		return nil, errors.Wrap(err, "failed to set up gossipsub")
 	}
 	backend, err := wallet.NewDSBackend(nc.Repo.WalletDatastore())
 	if err != nil {
@@ -235,7 +235,7 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 		MsgPool:      msgPool,
 		OfflineMode:  nc.OfflineMode,
 		Ping:         pinger,
-		PubSub:       fsub,
+		PubSub:       gsub,
 		Repo:         nc.Repo,
 		Wallet:       fcWallet,
 		blockTime:    nc.BlockTime,
