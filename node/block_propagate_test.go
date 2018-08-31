@@ -51,9 +51,6 @@ func TestBlockPropTwoNodes(t *testing.T) {
 	defer stopNodes(nodes)
 	connect(t, nodes[0], nodes[1])
 
-	// wait for heartbeats to build mesh (gossipsub)
-	time.Sleep(time.Second * 2)
-
 	baseBlk := core.RequireBestBlock(nodes[0].ChainMgr, t)
 	nextBlk := &types.Block{
 		Parents:           types.NewSortedCidSet(baseBlk.Cid()),
@@ -64,7 +61,7 @@ func TestBlockPropTwoNodes(t *testing.T) {
 	}
 
 	// Wait for network connection notifications to propagate
-	time.Sleep(time.Millisecond * 75)
+	time.Sleep(time.Millisecond * 500)
 
 	assert.NoError(nodes[0].AddNewBlock(ctx, nextBlk))
 
@@ -75,7 +72,7 @@ func TestBlockPropTwoNodes(t *testing.T) {
 		if equal {
 			break
 		}
-		time.Sleep(time.Millisecond * 20)
+		time.Sleep(time.Millisecond * 50)
 	}
 
 	assert.True(equal, "failed to sync chains")
@@ -119,8 +116,7 @@ func TestChainSync(t *testing.T) {
 
 	connect(t, nodes[0], nodes[1])
 
-	// wait for heartbeats to build mesh (gossipsub)
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Millisecond * 50)
 
 	equal := false
 	for i := 0; i < 30; i++ {
@@ -129,7 +125,7 @@ func TestChainSync(t *testing.T) {
 		if equal {
 			break
 		}
-		time.Sleep(time.Millisecond * 20)
+		time.Sleep(time.Millisecond * 50)
 	}
 
 	assert.True(equal, "failed to sync chains")
