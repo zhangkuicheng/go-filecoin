@@ -1,13 +1,14 @@
-package types
+package chain
 
 import (
 	"testing"
 
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
-var ki = MustGenerateKeyInfo(10, GenerateKeyInfoSeed())
-var mockSigner = NewMockSigner(ki)
+var ki = crypto.MustGenerateKeyInfo(10, crypto.GenerateKeyInfoSeed())
+var mockSigner = crypto.NewMockSigner(ki)
 var newSignedMessage = NewSignedMessageForTestGetter(mockSigner)
 
 func TestSignedMessageRecover(t *testing.T) {
@@ -15,7 +16,7 @@ func TestSignedMessageRecover(t *testing.T) {
 
 	smsg := newSignedMessage()
 
-	mockRecoverer := MockRecoverer{}
+	mockRecoverer := crypto.MockRecoverer{}
 
 	addr, err := smsg.RecoverAddress(&mockRecoverer)
 	assert.NoError(err)

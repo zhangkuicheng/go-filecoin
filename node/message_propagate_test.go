@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -33,8 +34,8 @@ func TestMessagePropagation(t *testing.T) {
 	nd0Addr, err := nodes[0].NewAddress()
 	require.NoError(err)
 
-	msg := types.NewMessage(nd0Addr, address.NetworkAddress, 0, types.NewAttoFILFromFIL(123), "", nil)
-	smsg, err := types.NewSignedMessage(*msg, nodes[0].Wallet)
+	msg := chain.NewMessage(nd0Addr, address.NetworkAddress, 0, types.NewAttoFILFromFIL(123), "", nil)
+	smsg, err := chain.NewSignedMessage(*msg, nodes[0].Wallet)
 	require.NoError(err)
 	require.NoError(nodes[0].AddNewMessage(ctx, smsg))
 

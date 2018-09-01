@@ -7,6 +7,7 @@ import (
 	"gx/ipfs/QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky/go-ipfs-cmdkit/files"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -15,7 +16,7 @@ type Address interface {
 	Addrs() Addrs
 	Balance(ctx context.Context, addr address.Address) (*types.AttoFIL, error)
 	Import(ctx context.Context, f files.File) ([]address.Address, error)
-	Export(ctx context.Context, addrs []address.Address) ([]*types.KeyInfo, error)
+	Export(ctx context.Context, addrs []address.Address) ([]*crypto.KeyInfo, error)
 }
 
 // Addrs is the interface that defines method to interact with addresses.

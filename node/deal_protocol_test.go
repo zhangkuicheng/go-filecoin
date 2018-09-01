@@ -13,9 +13,12 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,9 +96,9 @@ func (msa *mockStorageMarketPeeker) addBid(owner address.Address, price, size ui
 	return id
 }
 
-func (msa *mockStorageMarketPeeker) AddDeal(ctx context.Context, miner address.Address, ask, bid uint64, sig types.Signature, data *cid.Cid) (*cid.Cid, error) {
+func (msa *mockStorageMarketPeeker) AddDeal(ctx context.Context, miner address.Address, ask, bid uint64, sig crypto.Signature, data *cid.Cid) (*cid.Cid, error) {
 	// TODO: something useful
-	msg := types.NewMessage(address.Address{}, address.Address{}, 0, nil, "", nil)
+	msg := chain.NewMessage(address.Address{}, address.Address{}, 0, nil, "", nil)
 	return msg.Cid()
 }
 
@@ -267,8 +270,8 @@ func TestStateTreeMarketPeeker(t *testing.T) {
 	cm.PwrTableView = &core.TestView{}
 
 	// setup miner power in genesis block
-	ki := types.MustGenerateKeyInfo(1, types.GenerateKeyInfoSeed())
-	sn := types.NewMockSigner(ki)
+	ki := crypto.MustGenerateKeyInfo(1, crypto.GenerateKeyInfoSeed())
+	sn := crypto.NewMockSigner(ki)
 	testAddress := sn.Addresses[0]
 
 	testGen := th.MakeGenesisFunc(

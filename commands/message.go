@@ -12,6 +12,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -79,8 +80,8 @@ var msgSendCmd = &cmds.Command{
 }
 
 type waitResult struct {
-	Message   *types.SignedMessage
-	Receipt   *types.MessageReceipt
+	Message   *chain.SignedMessage
+	Receipt   *chain.MessageReceipt
 	Signature *exec.FunctionSignature
 }
 
@@ -108,7 +109,7 @@ var msgWaitCmd = &cmds.Command{
 		api := GetAPI(env)
 
 		var found bool
-		err = api.Message().Wait(req.Context, msgCid, func(blk *types.Block, msg *types.SignedMessage, receipt *types.MessageReceipt, signature *exec.FunctionSignature) error {
+		err = api.Message().Wait(req.Context, msgCid, func(blk *chain.Block, msg *chain.SignedMessage, receipt *chain.MessageReceipt, signature *exec.FunctionSignature) error {
 			res := waitResult{
 				Message:   msg,
 				Receipt:   receipt,

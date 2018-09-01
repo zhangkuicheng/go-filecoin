@@ -9,6 +9,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 
@@ -78,7 +79,7 @@ func TestNextNonce(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(uint64(2), nonce)
 
-		msg := types.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{})
+		msg := chain.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{})
 		smsg := MustSign(mockSigner, msg)
 		MustAdd(mp, smsg...)
 
@@ -86,7 +87,7 @@ func TestNextNonce(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(uint64(3), nonce)
 
-		msg = types.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{})
+		msg = chain.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{})
 		smsg = MustSign(mockSigner, msg)
 		MustAdd(mp, smsg...)
 

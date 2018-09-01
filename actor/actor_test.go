@@ -14,6 +14,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/abi"
 	. "github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
@@ -136,7 +137,7 @@ func NewMockActor(list exec.Exports) *MockActor {
 
 func makeCtx(method string) exec.VMContext {
 	addrGetter := address.NewForTestGetter()
-	return vm.NewVMContext(nil, nil, types.NewMessage(addrGetter(), addrGetter(), 0, nil, method, nil), nil, nil, types.NewBlockHeight(0))
+	return vm.NewVMContext(nil, nil, chain.NewMessage(addrGetter(), addrGetter(), 0, nil, method, nil), nil, nil, chain.NewBlockHeight(0))
 }
 
 func TestMakeTypedExportSuccess(t *testing.T) {
@@ -390,7 +391,7 @@ func TestLoadLookupWithInvalidCid(t *testing.T) {
 	storage := vms.NewStorage(address.TestAddress, &Actor{})
 	ctx := context.TODO()
 
-	cid := types.NewCidForTestGetter()()
+	cid := chain.NewCidForTestGetter()()
 
 	_, err := LoadLookup(ctx, storage, cid)
 	require.Error(err)

@@ -15,6 +15,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
@@ -291,17 +292,17 @@ func (sma *Actor) AddBid(vmctx exec.VMContext, price *types.AttoFIL, size *types
 }
 
 // VerifyDealSignature checks if the given deal and signature match to the provided address.
-func VerifyDealSignature(deal *Deal, sig types.Signature, addr address.Address) bool {
+func VerifyDealSignature(deal *Deal, sig crypto.Signature, addr address.Address) bool {
 	dealBytes, err := deal.Marshal()
 	if err != nil {
 		return false
 	}
 
-	return types.VerifySignature(dealBytes, addr, sig)
+	return crypto.VerifySignature(dealBytes, addr, sig)
 }
 
 // SignDeal signs the given deal using the provided address.
-func SignDeal(deal *Deal, signer types.Signer, addr address.Address) (types.Signature, error) {
+func SignDeal(deal *Deal, signer crypto.Signer, addr address.Address) (crypto.Signature, error) {
 	dealBytes, err := deal.Marshal()
 	if err != nil {
 		return nil, err

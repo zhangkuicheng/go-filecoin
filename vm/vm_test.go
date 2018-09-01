@@ -9,6 +9,7 @@ import (
 	"gx/ipfs/QmcmpX42gtDv1fz24kau4wjS9hfwWj5VexWBKgGnWzsyag/go-ipfs-blockstore"
 
 	"github.com/filecoin-project/go-filecoin/actor"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -44,9 +45,9 @@ func TestTransfer(t *testing.T) {
 }
 
 func TestSendErrorHandling(t *testing.T) {
-	actor1 := actor.NewActor(types.SomeCid(), types.NewAttoFILFromFIL(100))
-	actor2 := actor.NewActor(types.SomeCid(), types.NewAttoFILFromFIL(50))
-	newMsg := types.NewMessageForTestGetter()
+	actor1 := actor.NewActor(chain.SomeCid(), types.NewAttoFILFromFIL(100))
+	actor2 := actor.NewActor(chain.SomeCid(), types.NewAttoFILFromFIL(50))
+	newMsg := chain.NewMessageForTestGetter()
 
 	bs := blockstore.NewBlockstore(datastore.NewMapDatastore())
 	vms := NewStorageMap(bs)
@@ -66,7 +67,7 @@ func TestSendErrorHandling(t *testing.T) {
 		}
 
 		tree := state.NewCachedStateTree(&state.MockStateTree{NoMocks: true})
-		vmCtx := NewVMContext(actor1, actor2, msg, tree, vms, types.NewBlockHeight(0))
+		vmCtx := NewVMContext(actor1, actor2, msg, tree, vms, chain.NewBlockHeight(0))
 		_, code, sendErr := send(context.Background(), deps, vmCtx)
 
 		assert.Error(sendErr)
@@ -83,7 +84,7 @@ func TestSendErrorHandling(t *testing.T) {
 		deps := sendDeps{}
 
 		tree := state.NewCachedStateTree(&state.MockStateTree{NoMocks: true, BuiltinActors: map[string]exec.ExecutableActor{}})
-		vmCtx := NewVMContext(actor1, actor2, msg, tree, vms, types.NewBlockHeight(0))
+		vmCtx := NewVMContext(actor1, actor2, msg, tree, vms, chain.NewBlockHeight(0))
 		_, code, sendErr := send(context.Background(), deps, vmCtx)
 
 		assert.Error(sendErr)
@@ -105,7 +106,7 @@ func TestSendErrorHandling(t *testing.T) {
 		tree := state.NewCachedStateTree(&state.MockStateTree{NoMocks: true, BuiltinActors: map[string]exec.ExecutableActor{
 			actor2.Code.KeyString(): &actor.FakeActor{},
 		}})
-		vmCtx := NewVMContext(actor1, actor2, msg, tree, vms, types.NewBlockHeight(0))
+		vmCtx := NewVMContext(actor1, actor2, msg, tree, vms, chain.NewBlockHeight(0))
 		_, code, sendErr := send(context.Background(), deps, vmCtx)
 
 		assert.Error(sendErr)

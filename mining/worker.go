@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/state"
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
 
 	"gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
@@ -54,12 +54,12 @@ func NewInput(ts core.TipSet) Input {
 // block or an error, mimicing the golang (retVal, error) pattern.
 // If a mining run's context is canceled there is no output.
 type Output struct {
-	NewBlock *types.Block
+	NewBlock *chain.Block
 	Err      error
 }
 
 // NewOutput instantiates a new Output.
-func NewOutput(b *types.Block, e error) Output {
+func NewOutput(b *chain.Block, e error) Output {
 	return Output{NewBlock: b, Err: e}
 }
 
@@ -77,7 +77,7 @@ type GetStateTree func(context.Context, core.TipSet) (state.Tree, error)
 // expressed as two uint64s comprising a rational number.
 type GetWeight func(context.Context, core.TipSet) (uint64, uint64, error)
 
-type miningApplier func(ctx context.Context, messages []*types.SignedMessage, st state.Tree, vms vm.StorageMap, bh *types.BlockHeight) (core.ApplyMessagesResponse, error)
+type miningApplier func(ctx context.Context, messages []*chain.SignedMessage, st state.Tree, vms vm.StorageMap, bh *chain.BlockHeight) (core.ApplyMessagesResponse, error)
 
 // DefaultWorker runs a mining job.
 type DefaultWorker struct {

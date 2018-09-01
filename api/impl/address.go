@@ -12,6 +12,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/api"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/wallet"
@@ -117,10 +118,10 @@ func (api *nodeAddress) Import(ctx context.Context, f files.File) ([]address.Add
 	return out, nil
 }
 
-func (api *nodeAddress) Export(ctx context.Context, addrs []address.Address) ([]*types.KeyInfo, error) {
+func (api *nodeAddress) Export(ctx context.Context, addrs []address.Address) ([]*crypto.KeyInfo, error) {
 	nd := api.api.node
 
-	out := make([]*types.KeyInfo, len(addrs))
+	out := make([]*crypto.KeyInfo, len(addrs))
 	for i, addr := range addrs {
 		bck, err := nd.Wallet.Find(addr)
 		if err != nil {
@@ -137,8 +138,8 @@ func (api *nodeAddress) Export(ctx context.Context, addrs []address.Address) ([]
 	return out, nil
 }
 
-func parseKeyInfos(f files.File) ([]*types.KeyInfo, error) {
-	var kinfos []*types.KeyInfo
+func parseKeyInfos(f files.File) ([]*crypto.KeyInfo, error) {
+	var kinfos []*crypto.KeyInfo
 	for {
 		fi, err := f.NextFile()
 		switch err {
@@ -149,7 +150,7 @@ func parseKeyInfos(f files.File) ([]*types.KeyInfo, error) {
 		case nil:
 		}
 
-		var ki types.KeyInfo
+		var ki crypto.KeyInfo
 		if err := json.NewDecoder(fi).Decode(&ki); err != nil {
 			return nil, err
 		}

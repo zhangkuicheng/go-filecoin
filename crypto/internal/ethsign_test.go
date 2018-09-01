@@ -16,7 +16,7 @@
 
 // THIS WAS TAKEN FROM github.com/ethereum/go-ethereum MODIFY CAREFULLY
 
-package crypto
+package internal
 
 import (
 	"crypto/ecdsa"

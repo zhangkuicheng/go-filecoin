@@ -1,10 +1,10 @@
 package node
 
 import (
-	ci "gx/ipfs/QmPvyPwuCgJ7pDmrKDxRtsScJgBaM5h4EpRL2qQJsmXf4n/go-libp2p-crypto"
 	libp2p "gx/ipfs/QmVM6VuGaWcAaYjxG2om6XxMmpP3Rt9rw4nbMXVNYAPLhS/go-libp2p"
 	errors "gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/repo"
 )
 
@@ -32,7 +32,7 @@ func OptionsFromRepo(r repo.Repo) ([]ConfigOpt, error) {
 	return append(cfgopts, dsopt), nil
 }
 
-func privKeyFromKeystore(r repo.Repo) (ci.PrivKey, error) {
+func privKeyFromKeystore(r repo.Repo) (crypto.PrivKey, error) {
 	sk, err := r.Keystore().Get("self")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get key from keystore")

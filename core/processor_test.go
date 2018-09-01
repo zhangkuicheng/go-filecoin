@@ -13,6 +13,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
@@ -52,14 +53,14 @@ func TestProcessBlockSuccess(t *testing.T) {
 	})
 
 	vms := VMStorage()
-	msg := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil)
-	smsg, err := types.NewSignedMessage(*msg, &mockSigner)
+	msg := chain.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil)
+	smsg, err := chain.NewSignedMessage(*msg, &mockSigner)
 	require.NoError(err)
 
-	blk := &types.Block{
+	blk := &chain.Block{
 		Height:    20,
 		StateRoot: stCid,
-		Messages:  []*types.SignedMessage{smsg},
+		Messages:  []*chain.SignedMessage{smsg},
 	}
 	results, err := ProcessBlock(ctx, blk, st, vms)
 	assert.NoError(err)
@@ -96,22 +97,22 @@ func TestProcessTipSetSuccess(t *testing.T) {
 		fromAddr2: fromAddr2Act,
 	})
 
-	msg1 := types.NewMessage(fromAddr1, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil)
-	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
+	msg1 := chain.NewMessage(fromAddr1, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil)
+	smsg1, err := chain.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
-	blk1 := &types.Block{
+	blk1 := &chain.Block{
 		Height:    20,
 		StateRoot: stCid,
-		Messages:  []*types.SignedMessage{smsg1},
+		Messages:  []*chain.SignedMessage{smsg1},
 	}
 
-	msg2 := types.NewMessage(fromAddr2, toAddr, 0, types.NewAttoFILFromFIL(50), "", nil)
-	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
+	msg2 := chain.NewMessage(fromAddr2, toAddr, 0, types.NewAttoFILFromFIL(50), "", nil)
+	smsg2, err := chain.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
-	blk2 := &types.Block{
+	blk2 := &chain.Block{
 		Height:    20,
 		StateRoot: stCid,
-		Messages:  []*types.SignedMessage{smsg2},
+		Messages:  []*chain.SignedMessage{smsg2},
 	}
 
 	res, err := ProcessTipSet(ctx, RequireNewTipSet(require, blk1, blk2), st, vms)
@@ -145,23 +146,23 @@ func TestProcessTipsConflicts(t *testing.T) {
 		fromAddr: act1,
 	})
 
-	msg1 := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(501), "", nil)
-	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
+	msg1 := chain.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(501), "", nil)
+	smsg1, err := chain.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
-	blk1 := &types.Block{
+	blk1 := &chain.Block{
 		Height:    20,
 		StateRoot: stCid,
-		Messages:  []*types.SignedMessage{smsg1},
+		Messages:  []*chain.SignedMessage{smsg1},
 		Ticket:    []byte{0, 0}, // Block with smaller ticket
 	}
 
-	msg2 := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(502), "", nil)
-	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
+	msg2 := chain.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(502), "", nil)
+	smsg2, err := chain.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
-	blk2 := &types.Block{
+	blk2 := &chain.Block{
 		Height:    20,
 		StateRoot: stCid,
-		Messages:  []*types.SignedMessage{smsg2},
+		Messages:  []*chain.SignedMessage{smsg2},
 		Ticket:    []byte{1, 1},
 	}
 	res, err := ProcessTipSet(ctx, RequireNewTipSet(require, blk1, blk2), st, vms)
@@ -189,7 +190,7 @@ func TestProcessBlockVMErrors(t *testing.T) {
 	vms := VMStorage()
 
 	// Install the fake actor so we can execute it.
-	fakeActorCodeCid := types.NewCidForTestGetter()()
+	fakeActorCodeCid := chain.NewCidForTestGetter()()
 	builtin.Actors[fakeActorCodeCid.KeyString()] = &actor.FakeActor{}
 	defer func() {
 		delete(builtin.Actors, fakeActorCodeCid.KeyString())
@@ -202,13 +203,13 @@ func TestProcessBlockVMErrors(t *testing.T) {
 		fromAddr: act1,
 		toAddr:   act2,
 	})
-	msg := types.NewMessage(fromAddr, toAddr, 0, nil, "returnRevertError", nil)
-	smsg, err := types.NewSignedMessage(*msg, &mockSigner)
+	msg := chain.NewMessage(fromAddr, toAddr, 0, nil, "returnRevertError", nil)
+	smsg, err := chain.NewSignedMessage(*msg, &mockSigner)
 	require.NoError(err)
-	blk := &types.Block{
+	blk := &chain.Block{
 		Height:    20,
 		StateRoot: stCid,
-		Messages:  []*types.SignedMessage{smsg},
+		Messages:  []*chain.SignedMessage{smsg},
 	}
 
 	// The "foo" message will cause a vm error and
@@ -255,9 +256,9 @@ func TestProcessBlockParamsLengthError(t *testing.T) {
 	assert.NoError(err)
 	badParams, err := abi.EncodeValues(params)
 	assert.NoError(err)
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams)
+	msg := chain.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams)
 
-	rct, err := ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
+	rct, err := ApplyMessage(ctx, st, vms, msg, chain.NewBlockHeight(0))
 	assert.NoError(err) // No error means definitely no fault error, which is what we're especially testing here.
 
 	assert.Empty(rct.Receipt.Return)
@@ -280,9 +281,9 @@ func TestProcessBlockParamsError(t *testing.T) {
 		addr2: act2,
 	})
 	badParams := []byte{1, 2, 3, 4, 5}
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams)
+	msg := chain.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams)
 
-	rct, err := ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
+	rct, err := ApplyMessage(ctx, st, vms, msg, chain.NewBlockHeight(0))
 	assert.NoError(err) // No error means definitely no fault error, which is what we're especially testing here.
 
 	assert.Empty(rct.Receipt.Return)
@@ -305,9 +306,9 @@ func TestProcessBlockNonceTooLow(t *testing.T) {
 		addr1: act1,
 		addr2: act2,
 	})
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "", []byte{})
+	msg := chain.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "", []byte{})
 
-	_, err := ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
+	_, err := ApplyMessage(ctx, st, VMStorage(), msg, chain.NewBlockHeight(0))
 	assert.Error(err)
 	assert.Equal(err.(*errors.ApplyErrorPermanent).Cause(), errNonceTooLow)
 }
@@ -327,9 +328,9 @@ func TestProcessBlockNonceTooHigh(t *testing.T) {
 		addr1: act1,
 		addr2: act2,
 	})
-	msg := types.NewMessage(addr1, addr2, 5, types.NewAttoFILFromFIL(550), "", []byte{})
+	msg := chain.NewMessage(addr1, addr2, 5, types.NewAttoFILFromFIL(550), "", []byte{})
 
-	_, err := ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
+	_, err := ApplyMessage(ctx, st, VMStorage(), msg, chain.NewBlockHeight(0))
 	assert.Error(err)
 	assert.Equal(err.(*errors.ApplyErrorTemporary).Cause(), errNonceTooHigh)
 }
@@ -347,7 +348,7 @@ func TestNestedSendBalance(t *testing.T) {
 	vms := vm.NewStorageMap(bs)
 
 	// Install the fake actor so we can execute it.
-	fakeActorCodeCid := types.NewCidForTestGetter()()
+	fakeActorCodeCid := chain.NewCidForTestGetter()()
 	builtin.Actors[fakeActorCodeCid.KeyString()] = &actor.FakeActor{}
 	defer func() {
 		delete(builtin.Actors, fakeActorCodeCid.KeyString())
@@ -367,9 +368,9 @@ func TestNestedSendBalance(t *testing.T) {
 	// send 100 from addr1 -> addr2, by sending a message from addr0 to addr1
 	params1, err := abi.ToEncodedValues(addr2)
 	assert.NoError(err)
-	msg1 := types.NewMessage(addr0, addr1, 0, nil, "nestedBalance", params1)
+	msg1 := chain.NewMessage(addr0, addr1, 0, nil, "nestedBalance", params1)
 
-	_, err = ApplyMessage(ctx, st, VMStorage(), msg1, types.NewBlockHeight(0))
+	_, err = ApplyMessage(ctx, st, VMStorage(), msg1, chain.NewBlockHeight(0))
 	assert.NoError(err)
 
 	gotStCid, err := st.Flush(ctx)
@@ -398,7 +399,7 @@ func TestReentrantTransferDoesntAllowMultiSpending(t *testing.T) {
 	vms := VMStorage()
 
 	// Install the fake actor so we can execute it.
-	fakeActorCodeCid := types.NewCidForTestGetter()()
+	fakeActorCodeCid := chain.NewCidForTestGetter()()
 	builtin.Actors[fakeActorCodeCid.KeyString()] = &actor.FakeActor{}
 	defer func() {
 		delete(builtin.Actors, fakeActorCodeCid.KeyString())
@@ -418,8 +419,8 @@ func TestReentrantTransferDoesntAllowMultiSpending(t *testing.T) {
 	// addr1 will attempt to double spend to addr2 by sending a reentrant message that spends twice
 	params, err := abi.ToEncodedValues(addr1, addr2)
 	assert.NoError(err)
-	msg := types.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend1", params)
-	_, err = ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
+	msg := chain.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend1", params)
+	_, err = ApplyMessage(ctx, st, VMStorage(), msg, chain.NewBlockHeight(0))
 	assert.Error(err)
 	assert.Contains(err.Error(), "second callSendTokens")
 	assert.Contains(err.Error(), "not enough balance")
@@ -427,8 +428,8 @@ func TestReentrantTransferDoesntAllowMultiSpending(t *testing.T) {
 	// addr1 will attempt to double spend to addr2 by sending a reentrant message that spends and then spending directly
 	params, err = abi.ToEncodedValues(addr1, addr2)
 	assert.NoError(err)
-	msg = types.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend2", params)
-	_, err = ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
+	msg = chain.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend2", params)
+	_, err = ApplyMessage(ctx, st, VMStorage(), msg, chain.NewBlockHeight(0))
 	assert.Error(err)
 	assert.Contains(err.Error(), "failed sendTokens")
 	assert.Contains(err.Error(), "not enough balance")
@@ -449,13 +450,13 @@ func TestSendToNonExistantAddressThenSpendFromIt(t *testing.T) {
 	})
 
 	// send 500 from addr1 to addr2
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(500), "", []byte{})
-	_, err := ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
+	msg := chain.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(500), "", []byte{})
+	_, err := ApplyMessage(ctx, st, VMStorage(), msg, chain.NewBlockHeight(0))
 	require.NoError(err)
 
 	// send 250 along from addr2 to addr3
-	msg = types.NewMessage(addr2, addr3, 0, types.NewAttoFILFromFIL(300), "", []byte{})
-	_, err = ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
+	msg = chain.NewMessage(addr2, addr3, 0, types.NewAttoFILFromFIL(300), "", []byte{})
+	_, err = ApplyMessage(ctx, st, VMStorage(), msg, chain.NewBlockHeight(0))
 	require.NoError(err)
 
 	// get all 3 actors
@@ -481,7 +482,7 @@ func TestApplyQueryMessageWillNotAlterState(t *testing.T) {
 	vms := VMStorage()
 
 	// Install the fake actor so we can execute it.
-	fakeActorCodeCid := types.NewCidForTestGetter()()
+	fakeActorCodeCid := chain.NewCidForTestGetter()()
 	builtin.Actors[fakeActorCodeCid.KeyString()] = &actor.FakeActor{}
 	defer func() {
 		delete(builtin.Actors, fakeActorCodeCid.KeyString())
@@ -506,7 +507,7 @@ func TestApplyQueryMessageWillNotAlterState(t *testing.T) {
 	args1, err := abi.ToEncodedValues(addr2)
 	assert.NoError(err)
 
-	_, exitCode, err := CallQueryMethod(ctx, st, vms, addr1, "nestedBalance", args1, addr0, types.NewBlockHeight(0))
+	_, exitCode, err := CallQueryMethod(ctx, st, vms, addr1, "nestedBalance", args1, addr0, chain.NewBlockHeight(0))
 	require.Equal(uint8(0), exitCode)
 	require.NoError(err)
 

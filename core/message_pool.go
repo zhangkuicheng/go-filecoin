@@ -10,7 +10,7 @@ import (
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/address"
-	"github.com/filecoin-project/go-filecoin/types"
+	"github.com/filecoin-project/go-filecoin/chain"
 )
 
 // MessagePool keeps an unordered, de-duplicated set of Messages and supports removal by CID.
@@ -23,11 +23,11 @@ import (
 type MessagePool struct {
 	lk sync.RWMutex
 
-	pending map[string]*types.SignedMessage // all pending messages
+	pending map[string]*chain.SignedMessage // all pending messages
 }
 
 // Add adds a message to the pool.
-func (pool *MessagePool) Add(msg *types.SignedMessage) (*cid.Cid, error) {
+func (pool *MessagePool) Add(msg *chain.SignedMessage) (*cid.Cid, error) {
 	pool.lk.Lock()
 	defer pool.lk.Unlock()
 
@@ -41,10 +41,10 @@ func (pool *MessagePool) Add(msg *types.SignedMessage) (*cid.Cid, error) {
 }
 
 // Pending returns all pending messages.
-func (pool *MessagePool) Pending() []*types.SignedMessage {
+func (pool *MessagePool) Pending() []*chain.SignedMessage {
 	pool.lk.Lock()
 	defer pool.lk.Unlock()
-	out := make([]*types.SignedMessage, 0, len(pool.pending))
+	out := make([]*chain.SignedMessage, 0, len(pool.pending))
 	for _, msg := range pool.pending {
 		out = append(out, msg)
 	}
@@ -63,7 +63,7 @@ func (pool *MessagePool) Remove(c *cid.Cid) {
 // NewMessagePool constructs a new MessagePool.
 func NewMessagePool() *MessagePool {
 	return &MessagePool{
-		pending: make(map[string]*types.SignedMessage),
+		pending: make(map[string]*chain.SignedMessage),
 	}
 }
 
@@ -75,7 +75,7 @@ func getParentTipSet(store *hamt.CborIpldStore, ts TipSet) (TipSet, error) {
 		return nil, err
 	}
 	for it := parents.Iter(); !it.Complete(); it.Next() {
-		var newBlk types.Block
+		var newBlk chain.Block
 		if err := store.Get(context.TODO(), it.Value(), &newBlk); err != nil {
 			return nil, err
 		}
@@ -91,8 +91,8 @@ func getParentTipSet(store *hamt.CborIpldStore, ts TipSet) (TipSet, error) {
 // height `height`.  This function returns the messages collected along with
 // the tipset at the final height.
 // TODO ripe for optimizing away lots of allocations
-func collectChainsMessagesToHeight(store *hamt.CborIpldStore, curTipSet TipSet, height uint64) ([]*types.SignedMessage, TipSet, error) {
-	var msgs []*types.SignedMessage
+func collectChainsMessagesToHeight(store *hamt.CborIpldStore, curTipSet TipSet, height uint64) ([]*chain.SignedMessage, TipSet, error) {
+	var msgs []*chain.SignedMessage
 	h, err := curTipSet.Height()
 	if err != nil {
 		return nil, nil, err
@@ -111,7 +111,7 @@ func collectChainsMessagesToHeight(store *hamt.CborIpldStore, curTipSet TipSet, 
 		default:
 			nextTipSet, err := getParentTipSet(store, curTipSet)
 			if err != nil {
-				return []*types.SignedMessage{}, TipSet{}, err
+				return []*chain.SignedMessage{}, TipSet{}, err
 			}
 			curTipSet = nextTipSet
 			h, err = curTipSet.Height()
@@ -220,9 +220,9 @@ func UpdateMessagePool(ctx context.Context, pool *MessagePool, store *hamt.CborI
 // TODO can be smarter here by skipping messages with gaps; see
 //      ethereum's abstraction for example
 // TODO order by time of receipt
-func OrderMessagesByNonce(messages []*types.SignedMessage) []*types.SignedMessage {
+func OrderMessagesByNonce(messages []*chain.SignedMessage) []*chain.SignedMessage {
 	// TODO this could all be more efficient.
-	byAddress := make(map[address.Address][]*types.SignedMessage)
+	byAddress := make(map[address.Address][]*chain.SignedMessage)
 	for _, m := range messages {
 		byAddress[m.From] = append(byAddress[m.From], m)
 	}

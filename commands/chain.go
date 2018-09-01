@@ -6,8 +6,8 @@ import (
 	"gx/ipfs/QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky/go-ipfs-cmdkit"
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
-	"github.com/filecoin-project/go-filecoin/types"
 )
 
 var chainCmd = &cmds.Command{
@@ -57,5 +57,5 @@ var chainLsCmd = &cmds.Command{
 			}
 		}
 	},
-	Type: []types.Block{},
+	Type: []chain.Block{},
 }

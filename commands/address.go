@@ -8,6 +8,7 @@ import (
 	"gx/ipfs/QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky/go-ipfs-cmdkit"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -172,5 +173,5 @@ var walletExportCmd = &cmds.Command{
 			re.Emit(ki) // nolint: errcheck
 		}
 	},
-	Type: types.KeyInfo{},
+	Type: crypto.KeyInfo{},
 }

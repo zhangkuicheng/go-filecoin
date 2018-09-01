@@ -12,13 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/filecoin-project/go-filecoin/address"
-	"github.com/filecoin-project/go-filecoin/types"
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/crypto"
 )
 
-var seed = types.GenerateKeyInfoSeed()
-var ki = types.MustGenerateKeyInfo(10, seed)
-var mockSigner = types.NewMockSigner(ki)
-var newSignedMessage = types.NewSignedMessageForTestGetter(mockSigner)
+var seed = crypto.GenerateKeyInfoSeed()
+var ki = crypto.MustGenerateKeyInfo(10, seed)
+var mockSigner = crypto.NewMockSigner(ki)
+var newSignedMessage = chain.NewSignedMessageForTestGetter(mockSigner)
 
 func TestMessagePoolAddRemove(t *testing.T) {
 	assert := assert.New(t)
@@ -66,7 +67,7 @@ func TestMessagePoolAsync(t *testing.T) {
 	assert := assert.New(t)
 
 	count := 400
-	msgs := types.NewSignedMsgs(count, mockSigner)
+	msgs := chain.NewSignedMsgs(count, mockSigner)
 
 	pool := NewMessagePool()
 	var wg sync.WaitGroup
@@ -86,7 +87,7 @@ func TestMessagePoolAsync(t *testing.T) {
 	assert.Len(pool.Pending(), count)
 }
 
-func msgAsString(msg *types.SignedMessage) string {
+func msgAsString(msg *chain.SignedMessage) string {
 	// When using NewMessageForTestGetter msg.Method is set
 	// to "msgN" so we print that (it will correspond
 	// to a variable of the same name in the tests
@@ -94,7 +95,7 @@ func msgAsString(msg *types.SignedMessage) string {
 	return msg.Message.Method
 }
 
-func msgsAsString(msgs []*types.SignedMessage) string {
+func msgsAsString(msgs []*chain.SignedMessage) string {
 	s := ""
 	for _, m := range msgs {
 		s = fmt.Sprintf("%s%s ", s, msgAsString(m))
@@ -103,7 +104,7 @@ func msgsAsString(msgs []*types.SignedMessage) string {
 }
 
 // assertPoolEquals returns true if p contains exactly the expected messages.
-func assertPoolEquals(assert *assert.Assertions, p *MessagePool, expMsgs ...*types.SignedMessage) {
+func assertPoolEquals(assert *assert.Assertions, p *MessagePool, expMsgs ...*chain.SignedMessage) {
 	msgs := p.Pending()
 	if len(msgs) != len(expMsgs) {
 		assert.Failf("wrong messages in pool", "expMsgs %v, got msgs %v", msgsAsString(expMsgs), msgsAsString(msgs))
@@ -112,7 +113,7 @@ func assertPoolEquals(assert *assert.Assertions, p *MessagePool, expMsgs ...*typ
 	for _, m1 := range expMsgs {
 		found := false
 		for _, m2 := range msgs {
-			if types.SmsgCidsEqual(m1, m2) {
+			if chain.SmsgCidsEqual(m1, m2) {
 				found = true
 				break
 			}
@@ -130,8 +131,8 @@ func headOf(chain []TipSet) TipSet {
 func TestUpdateMessagePool(t *testing.T) {
 	assert := assert.New(t)
 	ctx := context.Background()
-	type msgs []*types.SignedMessage
-	type msgsSet [][]*types.SignedMessage
+	type msgs []*chain.SignedMessage
+	type msgsSet [][]*chain.SignedMessage
 
 	t.Run("Replace head", func(t *testing.T) {
 		// Msg pool: [m0, m1], Chain: b[]
@@ -140,7 +141,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(2, mockSigner)
+		m := chain.NewSignedMsgs(2, mockSigner)
 		MustAdd(p, m[0], m[1])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{})
@@ -160,7 +161,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(3, mockSigner)
+		m := chain.NewSignedMsgs(3, mockSigner)
 		MustAdd(p, m[0], m[1])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{msgs{m[2]}})
@@ -177,7 +178,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(7, mockSigner)
+		m := chain.NewSignedMsgs(7, mockSigner)
 		MustAdd(p, m[2], m[5])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{msgs{m[0], m[1]}})
@@ -203,7 +204,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(7, mockSigner)
+		m := chain.NewSignedMsgs(7, mockSigner)
 		MustAdd(p, m[2], m[5])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{msgs{m[0]}, msgs{m[1]}})
@@ -227,7 +228,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(6, mockSigner)
+		m := chain.NewSignedMsgs(6, mockSigner)
 		MustAdd(p, m[3], m[5])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{msgs{m[0]}}, msgsSet{msgs{m[1]}}, msgsSet{msgs{m[2]}})
@@ -247,7 +248,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(7, mockSigner)
+		m := chain.NewSignedMsgs(7, mockSigner)
 		MustAdd(p, m[6])
 
 		oldChain := NewChainWithMessages(store, TipSet{},
@@ -276,7 +277,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(7, mockSigner)
+		m := chain.NewSignedMsgs(7, mockSigner)
 		MustAdd(p, m[6])
 
 		oldChain := NewChainWithMessages(store, TipSet{},
@@ -303,7 +304,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(6, mockSigner)
+		m := chain.NewSignedMsgs(6, mockSigner)
 		MustAdd(p, m[3], m[5])
 
 		oldChain := NewChainWithMessages(store, TipSet{},
@@ -328,7 +329,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		// Msg pool: [m2, m3],         Chain: b[m0] -> b[m1]
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
-		m := types.NewSignedMsgs(4, mockSigner)
+		m := chain.NewSignedMsgs(4, mockSigner)
 
 		oldChain := NewChainWithMessages(store, TipSet{},
 			msgsSet{msgs{m[0]}},
@@ -350,7 +351,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(3, mockSigner)
+		m := chain.NewSignedMsgs(3, mockSigner)
 		MustAdd(p, m[0], m[1])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{msgs{}})
@@ -370,7 +371,7 @@ func TestUpdateMessagePool(t *testing.T) {
 		store := hamt.NewCborStore()
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(7, mockSigner)
+		m := chain.NewSignedMsgs(7, mockSigner)
 		MustAdd(p, m[2], m[5])
 
 		oldChain := NewChainWithMessages(store, TipSet{}, msgsSet{msgs{m[0]}}, msgsSet{msgs{m[1]}})
@@ -401,7 +402,7 @@ func TestOrderMessagesByNonce(t *testing.T) {
 		require := require.New(t)
 		p := NewMessagePool()
 
-		m := types.NewMsgsWithAddrs(9, mockSigner.Addresses)
+		m := chain.NewMsgsWithAddrs(9, mockSigner.Addresses)
 
 		// Three in increasing nonce order.
 		m[3].From = m[0].From
@@ -424,7 +425,7 @@ func TestOrderMessagesByNonce(t *testing.T) {
 		m[5].Nonce = 7
 		m[8].Nonce = 0
 
-		sm, err := types.SignMsgs(mockSigner, m)
+		sm, err := chain.SignMsgs(mockSigner, m)
 		require.NoError(err)
 
 		MustAdd(p, sm...)
@@ -450,7 +451,7 @@ func TestLargestNonce(t *testing.T) {
 	t.Run("No matches", func(t *testing.T) {
 		p := NewMessagePool()
 
-		m := types.NewSignedMsgs(2, mockSigner)
+		m := chain.NewSignedMsgs(2, mockSigner)
 		MustAdd(p, m[0], m[1])
 
 		_, found := LargestNonce(p, address.NewForTestGetter()())
@@ -460,10 +461,10 @@ func TestLargestNonce(t *testing.T) {
 	t.Run("Match, largest is zero", func(t *testing.T) {
 		p := NewMessagePool()
 
-		m := types.NewMsgsWithAddrs(1, mockSigner.Addresses)
+		m := chain.NewMsgsWithAddrs(1, mockSigner.Addresses)
 		m[0].Nonce = 0
 
-		sm, err := types.SignMsgs(mockSigner, m)
+		sm, err := chain.SignMsgs(mockSigner, m)
 		require.NoError(err)
 
 		MustAdd(p, sm...)
@@ -476,12 +477,12 @@ func TestLargestNonce(t *testing.T) {
 	t.Run("Match", func(t *testing.T) {
 		p := NewMessagePool()
 
-		m := types.NewMsgsWithAddrs(3, mockSigner.Addresses)
+		m := chain.NewMsgsWithAddrs(3, mockSigner.Addresses)
 		m[1].Nonce = 1
 		m[2].Nonce = 2
 		m[2].From = m[1].From
 
-		sm, err := types.SignMsgs(mockSigner, m)
+		sm, err := chain.SignMsgs(mockSigner, m)
 		require.NoError(err)
 
 		MustAdd(p, sm...)

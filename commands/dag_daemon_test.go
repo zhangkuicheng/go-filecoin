@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func TestDagDaemon(t *testing.T) {
 		result1 := op1.ReadStdoutTrimNewlines()
 		genesisBlockJSONStr := bytes.Split([]byte(result1), []byte{'\n'})[0]
 
-		var expectedRaw []types.Block
+		var expectedRaw []chain.Block
 		err := json.Unmarshal(genesisBlockJSONStr, &expectedRaw)
 		assert.NoError(err)
 		require.Equal(1, len(expectedRaw))
@@ -46,7 +47,7 @@ func TestDagDaemon(t *testing.T) {
 
 		// CBOR decode the IPLD node's raw data into a Filecoin block
 
-		var actual types.Block
+		var actual chain.Block
 		cbor.DecodeInto(ipldnode.RawData(), &actual)
 		// assert.NoError(err)
 		// TODO Enable ^^ and debug why Block.Miner isn't being de/encoded properly.

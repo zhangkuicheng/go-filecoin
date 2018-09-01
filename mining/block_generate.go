@@ -10,13 +10,15 @@ import (
 	errors "gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
 )
 
 // Generate returns a new block created from the messages in the pool.
-func (w *DefaultWorker) Generate(ctx context.Context, baseTipSet core.TipSet, ticket types.Signature, nullBlockCount uint64) (*types.Block, error) {
+func (w *DefaultWorker) Generate(ctx context.Context, baseTipSet core.TipSet, ticket crypto.Signature, nullBlockCount uint64) (*chain.Block, error) {
 	stateTree, err := w.getStateTree(ctx, baseTipSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "get state tree")
@@ -42,19 +44,19 @@ func (w *DefaultWorker) Generate(ctx context.Context, baseTipSet core.TipSet, ti
 	}
 
 	blockHeight := baseHeight + nullBlockCount + 1
-	rewardMsg := types.NewMessage(address.NetworkAddress, w.minerAddr, nonce, types.NewAttoFILFromFIL(1000), "", nil)
-	srewardMsg := &types.SignedMessage{
+	rewardMsg := chain.NewMessage(address.NetworkAddress, w.minerAddr, nonce, types.NewAttoFILFromFIL(1000), "", nil)
+	srewardMsg := &chain.SignedMessage{
 		Message:   *rewardMsg,
 		Signature: nil,
 	}
 
 	pending := w.messagePool.Pending()
-	messages := make([]*types.SignedMessage, len(pending)+1)
+	messages := make([]*chain.SignedMessage, len(pending)+1)
 	messages[0] = srewardMsg // Reward message must come first since this is a part of the consensus rules.
 	copy(messages[1:], core.OrderMessagesByNonce(w.messagePool.Pending()))
 
 	vms := vm.NewStorageMap(w.blockstore)
-	res, err := w.applyMessages(ctx, messages, stateTree, vms, types.NewBlockHeight(blockHeight))
+	res, err := w.applyMessages(ctx, messages, stateTree, vms, chain.NewBlockHeight(blockHeight))
 
 	if err != nil {
 		return nil, errors.Wrap(err, "generate apply messages")
@@ -65,12 +67,12 @@ func (w *DefaultWorker) Generate(ctx context.Context, baseTipSet core.TipSet, ti
 		return nil, errors.Wrap(err, "generate flush state tree")
 	}
 
-	var receipts []*types.MessageReceipt
+	var receipts []*chain.MessageReceipt
 	for _, r := range res.Results {
 		receipts = append(receipts, r.Receipt)
 	}
 
-	next := &types.Block{
+	next := &chain.Block{
 		Miner:             w.minerAddr,
 		Height:            types.Uint64(blockHeight),
 		Messages:          res.SuccessfulMessages,

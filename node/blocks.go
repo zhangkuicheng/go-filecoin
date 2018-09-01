@@ -6,7 +6,7 @@ import (
 	"gx/ipfs/QmT5K5mHn2KUyCDBntKoojQJAJftNzutxzpYR33w8JdN6M/go-libp2p-floodsub"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
-	"github.com/filecoin-project/go-filecoin/types"
+	"github.com/filecoin-project/go-filecoin/chain"
 )
 
 // BlocksTopic is the pubsub topic identifier on which new blocks are announced.
@@ -16,7 +16,7 @@ const BlocksTopic = "/fil/blocks"
 const MessageTopic = "/fil/msgs"
 
 // AddNewBlock processes a block on the local chain and publishes it to the network.
-func (node *Node) AddNewBlock(ctx context.Context, b *types.Block) (err error) {
+func (node *Node) AddNewBlock(ctx context.Context, b *chain.Block) (err error) {
 	ctx = log.Start(ctx, "Node.AddNewBlock")
 	log.SetTag(ctx, "block", b)
 	defer func() {
@@ -57,7 +57,7 @@ func (node *Node) processBlock(ctx context.Context, pubSubMsg *floodsub.Message)
 		return nil
 	}
 
-	blk, err := types.DecodeBlock(pubSubMsg.GetData())
+	blk, err := chain.DecodeBlock(pubSubMsg.GetData())
 	if err != nil {
 		return errors.Wrap(err, "got bad block data")
 	}
@@ -78,7 +78,7 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 		log.FinishWithErr(ctx, err)
 	}()
 
-	unmarshaled := &types.SignedMessage{}
+	unmarshaled := &chain.SignedMessage{}
 	if err := unmarshaled.Unmarshal(pubSubMsg.GetData()); err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (node *Node) processMessage(ctx context.Context, pubSubMsg *floodsub.Messag
 
 // AddNewMessage adds a new message to the pool, signs it with `node`s wallet,
 // and publishes it to the network.
-func (node *Node) AddNewMessage(ctx context.Context, msg *types.SignedMessage) (err error) {
+func (node *Node) AddNewMessage(ctx context.Context, msg *chain.SignedMessage) (err error) {
 	ctx = log.Start(ctx, "Node.AddNewMessage")
 	log.SetTag(ctx, "message", msg)
 	defer func() {

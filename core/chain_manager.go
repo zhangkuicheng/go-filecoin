@@ -19,6 +19,7 @@ import (
 	"gx/ipfs/QmdbxjQWogRCHRaxhhGnYdT1oQJzL9GdqSKzCdqWr85AP2/pubsub"
 
 	"github.com/filecoin-project/go-filecoin/actor/builtin"
+	"github.com/filecoin-project/go-filecoin/chain"
 	statetree "github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	pp "github.com/filecoin-project/go-filecoin/util/prettyprint"
@@ -136,7 +137,7 @@ type ChainManager struct {
 	// Successive published tipsets may be supersets of previously published tipsets.
 	HeaviestTipSetPubSub *pubsub.PubSub
 
-	FetchBlock        func(context.Context, *cid.Cid) (*types.Block, error)
+	FetchBlock        func(context.Context, *cid.Cid) (*chain.Block, error)
 	GetHeaviestTipSet func() TipSet
 }
 
@@ -236,8 +237,8 @@ func (cm *ChainManager) Load() error {
 		}
 	}
 
-	var genesii []*types.Block
-	err = cm.walkChain(ts.ToSlice(), func(tips []*types.Block) (cont bool, err error) {
+	var genesii []*chain.Block
+	err = cm.walkChain(ts.ToSlice(), func(tips []*chain.Block) (cont bool, err error) {
 		for _, t := range tips {
 			id := t.Cid()
 			cm.addBlock(t, id)
@@ -298,7 +299,7 @@ func (cm *ChainManager) getHeaviestTipSet() TipSet {
 
 // maybeAcceptBlock attempts to accept blk if its score is greater than the current best block,
 // otherwise returning ChainValid.
-func (cm *ChainManager) maybeAcceptBlock(ctx context.Context, blk *types.Block) (BlockProcessResult, error) {
+func (cm *ChainManager) maybeAcceptBlock(ctx context.Context, blk *chain.Block) (BlockProcessResult, error) {
 	// We have to hold the lock at this level to avoid TOCTOU problems
 	// with the new heaviest tipset.
 	log.LogKV(ctx, "maybeAcceptBlock", blk.Cid().String())
@@ -343,12 +344,12 @@ func (cm *ChainManager) maybeAcceptBlock(ctx context.Context, blk *types.Block) 
 }
 
 // NewBlockProcessor is the signature for a function which processes a new block.
-type NewBlockProcessor func(context.Context, *types.Block) (BlockProcessResult, error)
+type NewBlockProcessor func(context.Context, *chain.Block) (BlockProcessResult, error)
 
 // ProcessNewBlock sends a new block to the chain manager. If the block is in a
 // tipset heavier than our current heaviest, this tipset is accepted as our
 // heaviest tipset. Otherwise an error is returned explaining why it was not accepted.
-func (cm *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (bpr BlockProcessResult, err error) {
+func (cm *ChainManager) ProcessNewBlock(ctx context.Context, blk *chain.Block) (bpr BlockProcessResult, err error) {
 	ctx = log.Start(ctx, "ChainManager.ProcessNewBlock")
 	defer func() {
 		log.SetTag(ctx, "result", bpr.String())
@@ -361,7 +362,7 @@ func (cm *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (
 
 	// TODO: this is really confusing. This function needs a better name than 'state'
 	// and it should be much more clear about *why* its doing these things
-	switch _, err := cm.state(ctx, []*types.Block{blk}); err {
+	switch _, err := cm.state(ctx, []*chain.Block{blk}); err {
 	default:
 		return Unknown, errors.Wrap(err, "validate block failed")
 	case ErrInvalidBase:
@@ -372,13 +373,13 @@ func (cm *ChainManager) ProcessNewBlock(ctx context.Context, blk *types.Block) (
 }
 
 // fetchBlock gets the requested block, either from disk or from the network.
-func (cm *ChainManager) fetchBlock(ctx context.Context, c *cid.Cid) (*types.Block, error) {
+func (cm *ChainManager) fetchBlock(ctx context.Context, c *cid.Cid) (*chain.Block, error) {
 	log.Infof("fetching block, [%s]", c.String())
 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
-	var blk types.Block
+	var blk chain.Block
 	if err := cm.cstore.Get(ctx, c, &blk); err != nil {
 		return nil, err
 	}
@@ -390,7 +391,7 @@ func (cm *ChainManager) fetchBlock(ctx context.Context, c *cid.Cid) (*types.Bloc
 // to be valid.  It operates by validating each block and further checking that
 // this tipset contains only blocks with the same heights, parent weights,
 // and parent sets.
-func (cm *ChainManager) newValidTipSet(ctx context.Context, blks []*types.Block) (TipSet, error) {
+func (cm *ChainManager) newValidTipSet(ctx context.Context, blks []*chain.Block) (TipSet, error) {
 	for _, blk := range blks {
 		if err := cm.validateBlockStructure(ctx, blk); err != nil {
 			return nil, err
@@ -404,7 +405,7 @@ func (cm *ChainManager) newValidTipSet(ctx context.Context, blks []*types.Block)
 // properly filled out and its signatures are correct. Checking the validity of
 // state changes must be done separately and only once the state of the
 // previous block has been validated. TODO: not yet signature checking
-func (cm *ChainManager) validateBlockStructure(ctx context.Context, b *types.Block) error {
+func (cm *ChainManager) validateBlockStructure(ctx context.Context, b *chain.Block) error {
 	// TODO: validate signatures on messages
 	log.LogKV(ctx, "validateBlockStructure", b.Cid().String())
 	if b.StateRoot == nil {
@@ -421,7 +422,7 @@ func (cm *ChainManager) validateBlockStructure(ctx context.Context, b *types.Blo
 // validated state of the input blocks.  initializing a trace can't happen
 // within state because it is a recursive function and would log a new
 // trace for each invocation.
-func (cm *ChainManager) State(ctx context.Context, blks []*types.Block) (statetree.Tree, error) {
+func (cm *ChainManager) State(ctx context.Context, blks []*chain.Block) (statetree.Tree, error) {
 	ctx = log.Start(ctx, "State")
 	log.Info("Calling State")
 	return cm.state(ctx, blks)
@@ -429,7 +430,7 @@ func (cm *ChainManager) State(ctx context.Context, blks []*types.Block) (statetr
 
 // state returns the aggregate state tree for the blocks or an error if the
 // blocks are not a valid tipset or are not part of a valid chain.
-func (cm *ChainManager) state(ctx context.Context, blks []*types.Block) (statetree.Tree, error) {
+func (cm *ChainManager) state(ctx context.Context, blks []*chain.Block) (statetree.Tree, error) {
 	ts, err := cm.newValidTipSet(ctx, blks)
 	if err != nil {
 		return nil, errors.Wrapf(err, "blks do not form a valid tipset: %s", pp.StringFromBlocks(blks))
@@ -478,7 +479,7 @@ func (cm *ChainManager) state(ctx context.Context, blks []*types.Block) (statetr
 }
 
 // fetchParentBlks returns the blocks in the parent set of the input tipset.
-func (cm *ChainManager) fetchParentBlks(ctx context.Context, ts TipSet) ([]*types.Block, error) {
+func (cm *ChainManager) fetchParentBlks(ctx context.Context, ts TipSet) ([]*chain.Block, error) {
 	ids, err := ts.Parents()
 	if err != nil {
 		return nil, err
@@ -487,8 +488,8 @@ func (cm *ChainManager) fetchParentBlks(ctx context.Context, ts TipSet) ([]*type
 }
 
 // fetchBlks returns the blocks in the input cid set.
-func (cm *ChainManager) fetchBlksForIDs(ctx context.Context, ids types.SortedCidSet) ([]*types.Block, error) {
-	var pBlks []*types.Block
+func (cm *ChainManager) fetchBlksForIDs(ctx context.Context, ids types.SortedCidSet) ([]*chain.Block, error) {
+	var pBlks []*chain.Block
 	for it := ids.Iter(); !it.Complete(); it.Next() {
 		pid := it.Value()
 		p, err := cm.FetchBlock(ctx, pid)
@@ -587,7 +588,7 @@ func (cm *ChainManager) flushAndCache(ctx context.Context, st statetree.Tree, vm
 	return nil
 }
 
-func (cm *ChainManager) addBlock(b *types.Block, id *cid.Cid) {
+func (cm *ChainManager) addBlock(b *chain.Block, id *cid.Cid) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	cm.knownGoodBlocks.Add(id)
@@ -677,7 +678,7 @@ func (cm *ChainManager) BlockHistory(ctx context.Context) <-chan interface{} {
 	go func() {
 		defer close(out)
 		defer log.Finish(ctx)
-		err := cm.walkChain(tips, func(tips []*types.Block) (cont bool, err error) {
+		err := cm.walkChain(tips, func(tips []*chain.Block) (cont bool, err error) {
 			var raw interface{}
 			raw, err = NewTipSet(tips...)
 			if err != nil {
@@ -705,7 +706,7 @@ func (cm *ChainManager) BlockHistory(ctx context.Context) <-chan interface{} {
 // tipset.
 func msgIndexOfTipSet(msgCid *cid.Cid, ts TipSet, fails types.SortedCidSet) (int, error) {
 	blks := ts.ToSlice()
-	types.SortBlocks(blks)
+	chain.SortBlocks(blks)
 	var duplicates types.SortedCidSet
 	var msgCnt int
 	for _, b := range blks {
@@ -735,9 +736,9 @@ func msgIndexOfTipSet(msgCid *cid.Cid, ts TipSet, fails types.SortedCidSet) (int
 // input tipset.  This can differ from the message's receipt as stored in its
 // parent block in the case that the message is in conflict with another
 // message of the tipset.
-func (cm *ChainManager) receiptFromTipSet(ctx context.Context, msgCid *cid.Cid, ts TipSet) (*types.MessageReceipt, error) {
+func (cm *ChainManager) receiptFromTipSet(ctx context.Context, msgCid *cid.Cid, ts TipSet) (*chain.MessageReceipt, error) {
 	// Receipts always match block if tipset has only 1 member.
-	var rcpt *types.MessageReceipt
+	var rcpt *chain.MessageReceipt
 	blks := ts.ToSlice()
 	if len(ts) == 1 {
 		b := blks[0]
@@ -867,8 +868,8 @@ func (cm *ChainManager) Weight(ctx context.Context, ts TipSet) (numer uint64, de
 // possible that an error is returned and the success callback is called. In that case, the error can be safely ignored.
 // TODO: This implementation will become prohibitively expensive since it involves traversing the entire blockchain.
 //       We should replace with an index later.
-func (cm *ChainManager) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb func(*types.Block, *types.SignedMessage,
-	*types.MessageReceipt) error) (retErr error) {
+func (cm *ChainManager) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb func(*chain.Block, *chain.SignedMessage,
+	*chain.MessageReceipt) error) (retErr error) {
 	ctx = log.Start(ctx, "WaitForMessage")
 	log.SetTag(ctx, "messageCid", msgCid.String())
 	defer log.Finish(ctx)
@@ -931,10 +932,10 @@ func (cm *ChainManager) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb 
 
 // Called for each step in the walk for walkChain(). The path contains all nodes traversed,
 // including all tips at each height. Return true to continue walking, false to stop.
-type walkChainCallback func(tips []*types.Block) (cont bool, err error)
+type walkChainCallback func(tips []*chain.Block) (cont bool, err error)
 
 // walkChain walks backward through the chain, starting at tips, invoking cb() at each height.
-func (cm *ChainManager) walkChain(tips []*types.Block, cb walkChainCallback) error {
+func (cm *ChainManager) walkChain(tips []*chain.Block, cb walkChainCallback) error {
 	for {
 		cont, err := cb(tips)
 		if err != nil {
@@ -965,7 +966,7 @@ func (cm *ChainManager) walkChain(tips []*types.Block, cb walkChainCallback) err
 // GetTipSetByBlock returns the tipset associated with a given block by
 // performing a lookup on its parent set.  The tipset returned is a
 // cloned shallow copy of the version stored in the index
-func (cm *ChainManager) GetTipSetByBlock(blk *types.Block) (TipSet, error) {
+func (cm *ChainManager) GetTipSetByBlock(blk *chain.Block) (TipSet, error) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	ts, ok := cm.tips[uint64(blk.Height)][keyForParentSet(blk.Parents)]

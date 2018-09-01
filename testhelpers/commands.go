@@ -23,6 +23,7 @@ import (
 	cid "gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/config"
 	"github.com/filecoin-project/go-filecoin/types"
 
@@ -448,7 +449,7 @@ func (td *TestDaemon) CreateMinerAddr(fromAddr string) address.Address {
 func (td *TestDaemon) WaitForMessageRequireSuccess(msgCid *cid.Cid) {
 	args := []string{"message", "wait", msgCid.String(), "--receipt=true", "--message=false"}
 	trim := strings.Trim(td.RunSuccess(args...).ReadStdout(), "\n")
-	rcpt := &types.MessageReceipt{}
+	rcpt := &chain.MessageReceipt{}
 	require.NoError(td.test, json.Unmarshal([]byte(trim), rcpt))
 	require.Equal(td.test, 0, int(rcpt.ExitCode))
 }
@@ -529,19 +530,19 @@ func (td *TestDaemon) MustHaveChainHeadBy(wait time.Duration, peers []*TestDaemo
 }
 
 // GetChainHead returns the blocks in the head tipset from `td`
-func (td *TestDaemon) GetChainHead() []types.Block {
+func (td *TestDaemon) GetChainHead() []chain.Block {
 	out := td.RunSuccess("chain", "ls", "--enc=json")
 	bc := td.MustUnmarshalChain(out.ReadStdout())
 	return bc[0]
 }
 
 // MustUnmarshalChain unmarshals the chain from `input` into a slice of blocks
-func (td *TestDaemon) MustUnmarshalChain(input string) [][]types.Block {
-	chain := strings.Trim(input, "\n")
-	var bs [][]types.Block
+func (td *TestDaemon) MustUnmarshalChain(input string) [][]chain.Block {
+	ch := strings.Trim(input, "\n")
+	var bs [][]chain.Block
 
-	for _, line := range bytes.Split([]byte(chain), []byte{'\n'}) {
-		var b []types.Block
+	for _, line := range bytes.Split([]byte(ch), []byte{'\n'}) {
+		var b []chain.Block
 		if err := json.Unmarshal(line, &b); err != nil {
 			td.test.Fatal(err)
 		}

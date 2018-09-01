@@ -1,10 +1,14 @@
-package types
+package types_test
 
 import (
 	"encoding/json"
+	"testing"
+
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	cid "gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
-	"testing"
+
+	"github.com/filecoin-project/go-filecoin/chain"
+	. "github.com/filecoin-project/go-filecoin/types"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -27,11 +31,11 @@ func TestSortedCidSet(t *testing.T) {
 	c3, _ := cid.Parse("zDPWYqFD4b5HLFuPfhkjJJkfvm4r8KLi1V9e2ahJX6Ab16Ay24pL")
 
 	// TODO: could test this more extensively -- version, codec, etc.
-	assert.True(cidLess(c1, c2))
-	assert.True(cidLess(c2, c3))
-	assert.True(cidLess(c1, c3))
-	assert.False(cidLess(c1, c1))
-	assert.False(cidLess(c2, c1))
+	assert.True(CidLess(c1, c2))
+	assert.True(CidLess(c2, c3))
+	assert.True(CidLess(c1, c3))
+	assert.False(CidLess(c1, c1))
+	assert.False(CidLess(c2, c1))
 
 	assert.False(s.Has(c2))
 
@@ -72,7 +76,7 @@ func TestSortedCidSetCborRoundtrip(t *testing.T) {
 	assert := assert.New(t)
 
 	exp := SortedCidSet{}
-	makeCid := NewCidForTestGetter()
+	makeCid := chain.NewCidForTestGetter()
 	exp.Add(makeCid())
 	exp.Add(makeCid())
 	exp.Add(makeCid())
@@ -92,7 +96,7 @@ func TestSortedCidSetJSONRoundtrip(t *testing.T) {
 	assert := assert.New(t)
 
 	exp := SortedCidSet{}
-	makeCid := NewCidForTestGetter()
+	makeCid := chain.NewCidForTestGetter()
 	exp.Add(makeCid())
 	exp.Add(makeCid())
 	exp.Add(makeCid())

@@ -1,7 +1,9 @@
-package types
+package chain
 
 import (
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
+
+	"github.com/filecoin-project/go-filecoin/types"
 )
 
 func init() {
@@ -16,5 +18,5 @@ type MessageReceipt struct {
 	// Return contains the return values, if any, from processing a message.
 	// This can be non-empty even in the case of error (e.g., to provide
 	// programmatically readable detail about errors).
-	Return []Bytes `json:"return"`
+	Return []types.Bytes `json:"return"`
 }

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/types"
 
@@ -34,7 +36,7 @@ func TestChainHead(t *testing.T) {
 		require := require.New(t)
 		assert := assert.New(t)
 
-		blk := types.NewBlockForTest(nil, 1)
+		blk := chain.NewBlockForTest(nil, 1)
 		n := node.MakeNodesUnstarted(t, 1, true, true)[0]
 
 		n.ChainMgr.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, blk))
@@ -61,14 +63,14 @@ func TestChainLsRun(t *testing.T) {
 		err := n.ChainMgr.Genesis(ctx, core.InitGenesis)
 		require.NoError(err)
 		genBlock := core.RequireBestBlock(n.ChainMgr, t)
-		chlBlock := types.NewBlockForTest(genBlock, 1)
+		chlBlock := chain.NewBlockForTest(genBlock, 1)
 
 		err = n.ChainMgr.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, chlBlock))
 		require.NoError(err)
 
 		api := New(n)
 
-		var bs [][]*types.Block
+		var bs [][]*chain.Block
 		for raw := range api.Chain().Ls(ctx) {
 			switch v := raw.(type) {
 			case core.TipSet:
@@ -90,8 +92,8 @@ func TestChainLsRun(t *testing.T) {
 		ctx := context.Background()
 		n := node.MakeNodesUnstarted(t, 1, true, true)[0]
 
-		parBlock := types.NewBlockForTest(nil, 0)
-		chlBlock := types.NewBlockForTest(parBlock, 1)
+		parBlock := chain.NewBlockForTest(nil, 0)
+		chlBlock := chain.NewBlockForTest(parBlock, 1)
 
 		err := n.ChainMgr.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, chlBlock))
 		require.NoError(err)
@@ -118,24 +120,24 @@ func TestChainLsRun(t *testing.T) {
 		t.Parallel()
 		assert := assert.New(t)
 
-		parent := types.NewBlockForTest(nil, 0)
-		child := types.NewBlockForTest(parent, 1)
+		parent := chain.NewBlockForTest(nil, 0)
+		child := chain.NewBlockForTest(parent, 1)
 
 		// Generate a single private/public key pair
-		ki := types.MustGenerateKeyInfo(1, types.GenerateKeyInfoSeed())
+		ki := crypto.MustGenerateKeyInfo(1, crypto.GenerateKeyInfoSeed())
 		// Create a mockSigner (bad name) that can sign using the previously generated key
-		mockSigner := types.NewMockSigner(ki)
+		mockSigner := crypto.NewMockSigner(ki)
 		// Generate SignedMessages
-		newSignedMessage := types.NewSignedMessageForTestGetter(mockSigner)
+		newSignedMessage := chain.NewSignedMessageForTestGetter(mockSigner)
 		message := newSignedMessage()
 
 		retVal := []byte{1, 2, 3}
-		receipt := &types.MessageReceipt{
+		receipt := &chain.MessageReceipt{
 			ExitCode: 123,
 			Return:   []types.Bytes{retVal},
 		}
-		child.Messages = []*types.SignedMessage{message}
-		child.MessageReceipts = []*types.MessageReceipt{receipt}
+		child.Messages = []*chain.SignedMessage{message}
+		child.MessageReceipts = []*chain.MessageReceipt{receipt}
 
 		marshaled, e1 := json.Marshal(child)
 		assert.NoError(e1)
@@ -146,7 +148,7 @@ func TestChainLsRun(t *testing.T) {
 		assert.Contains(str, message.To.String())
 
 		// marshal/unmarshal symmetry
-		var unmarshalled types.Block
+		var unmarshalled chain.Block
 		e2 := json.Unmarshal(marshaled, &unmarshalled)
 		assert.NoError(e2)
 

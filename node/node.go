@@ -24,6 +24,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/filnet"
@@ -437,9 +438,9 @@ func (node *Node) Stop(ctx context.Context) {
 	fmt.Println("stopping filecoin :(")
 }
 
-type newBlockFunc func(context.Context, *types.Block)
+type newBlockFunc func(context.Context, *chain.Block)
 
-func (node *Node) addNewlyMinedBlock(ctx context.Context, b *types.Block) {
+func (node *Node) addNewlyMinedBlock(ctx context.Context, b *chain.Block) {
 	if err := node.AddNewBlock(ctx, b); err != nil {
 		// Not really an error; a better block could have
 		// arrived while mining.
@@ -593,7 +594,7 @@ func NextNonce(ctx context.Context, node *Node, address address.Address) (nonce 
 // NewMessageWithNextNonce returns a new types.Message whose
 // nonce is set to our best guess at the next appropriate value
 // (see NextNonce).
-func NewMessageWithNextNonce(ctx context.Context, node *Node, from, to address.Address, value *types.AttoFIL, method string, params []byte) (_ *types.Message, err error) {
+func NewMessageWithNextNonce(ctx context.Context, node *Node, from, to address.Address, value *types.AttoFIL, method string, params []byte) (_ *chain.Message, err error) {
 	ctx = log.Start(ctx, "Node.NewMessageWithNextNonce")
 	defer func() {
 		log.FinishWithErr(ctx, err)
@@ -603,7 +604,7 @@ func NewMessageWithNextNonce(ctx context.Context, node *Node, from, to address.A
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't get next nonce")
 	}
-	return types.NewMessage(from, to, nonce, value, method, params), nil
+	return chain.NewMessage(from, to, nonce, value, method, params), nil
 }
 
 // NewAddress creates a new account address on the default wallet backend.
@@ -647,7 +648,7 @@ func (node *Node) CallQueryMethod(ctx context.Context, to address.Address, metho
 	}
 
 	vms := vm.NewStorageMap(node.Blockstore)
-	return core.CallQueryMethod(ctx, st, vms, to, method, args, fromAddr, types.NewBlockHeight(h))
+	return core.CallQueryMethod(ctx, st, vms, to, method, args, fromAddr, chain.NewBlockHeight(h))
 }
 
 // CreateMiner creates a new miner actor for the given account and returns its address.
@@ -682,7 +683,7 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, 
 		return nil, err
 	}
 
-	smsg, err := types.NewSignedMessage(*msg, node.Wallet)
+	smsg, err := chain.NewSignedMessage(*msg, node.Wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -697,8 +698,8 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, 
 	}
 
 	var minerAddress address.Address
-	err = node.ChainMgr.WaitForMessage(ctx, smsgCid, func(blk *types.Block, smsg *types.SignedMessage,
-		receipt *types.MessageReceipt) error {
+	err = node.ChainMgr.WaitForMessage(ctx, smsgCid, func(blk *chain.Block, smsg *chain.SignedMessage,
+		receipt *chain.MessageReceipt) error {
 		if receipt.ExitCode != uint8(0) {
 			return vmErrors.VMExitCodeToError(receipt.ExitCode, storagemarket.Errors)
 		}

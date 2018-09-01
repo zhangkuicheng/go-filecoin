@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/state"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -44,8 +46,8 @@ func requireMinerWithPower(t *testing.T, power uint64) (context.Context, *ChainM
 	ctx, _, _, cm := newTestUtils()
 	cm.PwrTableView = &TestView{}
 	// setup miner power in genesis block
-	ki := types.MustGenerateKeyInfo(1, types.GenerateKeyInfoSeed())
-	mockSigner := types.NewMockSigner(ki)
+	ki := crypto.MustGenerateKeyInfo(1, crypto.GenerateKeyInfoSeed())
+	mockSigner := crypto.NewMockSigner(ki)
 	testAddress := mockSigner.Addresses[0]
 	pwr := types.NewBytesAmount(power)
 	testGen := th.MakeGenesisFunc(
@@ -56,7 +58,7 @@ func requireMinerWithPower(t *testing.T, power uint64) (context.Context, *ChainM
 	require.NoError(err)
 	addr, block, _, err := CreateMinerWithPower(ctx, t, cm, genesisBlock, mockSigner, 0, mockSigner.Addresses[0], pwr)
 	require.NoError(err)
-	st, err := cm.State(ctx, []*types.Block{block})
+	st, err := cm.State(ctx, []*chain.Block{block})
 	require.NoError(err)
 	return ctx, cm, addr, st
 }

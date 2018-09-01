@@ -12,6 +12,8 @@ import (
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 	"gx/ipfs/QmcmpX42gtDv1fz24kau4wjS9hfwWj5VexWBKgGnWzsyag/go-ipfs-blockstore"
 
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
@@ -19,10 +21,10 @@ import (
 )
 
 var (
-	testGenesis, block1, block2, fork1, fork2, fork3             *types.Block
-	tipsetA1, tipsetA2, tipsetA3, tipsetB1, tipsetB2, tipsetFork *types.Block
+	testGenesis, block1, block2, fork1, fork2, fork3             *chain.Block
+	tipsetA1, tipsetA2, tipsetA3, tipsetB1, tipsetB2, tipsetFork *chain.Block
 
-	bad1, bad2, bad3 *types.Block
+	bad1, bad2, bad3 *chain.Block
 )
 
 func init() {
@@ -35,32 +37,32 @@ func init() {
 	}
 	testGenesis = genesis
 
-	block1 = MkChild([]*types.Block{testGenesis}, genesis.StateRoot, 0)
-	block2 = MkChild([]*types.Block{block1}, block1.StateRoot, 0)
+	block1 = MkChild([]*chain.Block{testGenesis}, genesis.StateRoot, 0)
+	block2 = MkChild([]*chain.Block{block1}, block1.StateRoot, 0)
 
-	fork1 = MkChild([]*types.Block{testGenesis}, genesis.StateRoot, 1)
-	fork2 = MkChild([]*types.Block{fork1}, fork1.StateRoot, 1)
-	fork3 = MkChild([]*types.Block{fork2}, fork2.StateRoot, 1)
+	fork1 = MkChild([]*chain.Block{testGenesis}, genesis.StateRoot, 1)
+	fork2 = MkChild([]*chain.Block{fork1}, fork1.StateRoot, 1)
+	fork3 = MkChild([]*chain.Block{fork2}, fork2.StateRoot, 1)
 
-	tipsetA1 = MkChild([]*types.Block{testGenesis}, genesis.StateRoot, 2)
-	tipsetA2 = MkChild([]*types.Block{testGenesis}, genesis.StateRoot, 3)
-	tipsetA3 = MkChild([]*types.Block{testGenesis}, genesis.StateRoot, 4)
+	tipsetA1 = MkChild([]*chain.Block{testGenesis}, genesis.StateRoot, 2)
+	tipsetA2 = MkChild([]*chain.Block{testGenesis}, genesis.StateRoot, 3)
+	tipsetA3 = MkChild([]*chain.Block{testGenesis}, genesis.StateRoot, 4)
 
-	tipsetB1 = MkChild([]*types.Block{tipsetA1, tipsetA2, tipsetA3}, genesis.StateRoot, 0)
-	tipsetB2 = MkChild([]*types.Block{tipsetA1, tipsetA2, tipsetA3}, genesis.StateRoot, 1)
+	tipsetB1 = MkChild([]*chain.Block{tipsetA1, tipsetA2, tipsetA3}, genesis.StateRoot, 0)
+	tipsetB2 = MkChild([]*chain.Block{tipsetA1, tipsetA2, tipsetA3}, genesis.StateRoot, 1)
 
-	tipsetFork = MkChild([]*types.Block{tipsetA1, tipsetA3}, genesis.StateRoot, 0)
+	tipsetFork = MkChild([]*chain.Block{tipsetA1, tipsetA3}, genesis.StateRoot, 0)
 
-	bad1 = &types.Block{
+	bad1 = &chain.Block{
 		StateRoot: testGenesis.StateRoot,
 		Nonce:     404,
 	}
-	bad2 = MkChild([]*types.Block{bad1}, genesis.StateRoot, 0)
+	bad2 = MkChild([]*chain.Block{bad1}, genesis.StateRoot, 0)
 
-	bad3 = MkChild([]*types.Block{tipsetA1, block2}, genesis.StateRoot, 0)
+	bad3 = MkChild([]*chain.Block{tipsetA1, block2}, genesis.StateRoot, 0)
 }
 
-func addBlocks(t *testing.T, cs *hamt.CborIpldStore, blks ...*types.Block) {
+func addBlocks(t *testing.T, cs *hamt.CborIpldStore, blks ...*chain.Block) {
 	for _, blk := range blks {
 		_, err := cs.Put(context.Background(), blk)
 		if err != nil {
@@ -79,7 +81,7 @@ func newTestUtils() (context.Context, *hamt.CborIpldStore, datastore.Datastore, 
 	return ctx, cs, ds, cm
 }
 
-func requireProcessBlock(ctx context.Context, t *testing.T, cm *ChainManager, b *types.Block) {
+func requireProcessBlock(ctx context.Context, t *testing.T, cm *ChainManager, b *chain.Block) {
 	require := require.New(t)
 	_, err := cm.ProcessNewBlock(ctx, b)
 	require.NoError(err)
@@ -143,9 +145,9 @@ func TestHeaviestTipSetPubSub(t *testing.T) {
 	ch := cm.HeaviestTipSetPubSub.Sub(HeaviestTipSetTopic)
 
 	assert.NoError(cm.Genesis(ctx, InitGenesis))
-	block3 := MkChild([]*types.Block{block2}, block2.StateRoot, 0)
-	block4 := MkChild([]*types.Block{block2}, block2.StateRoot, 1)
-	blocks := []*types.Block{block1, block2, block3, block4}
+	block3 := MkChild([]*chain.Block{block2}, block2.StateRoot, 0)
+	block4 := MkChild([]*chain.Block{block2}, block2.StateRoot, 1)
+	blocks := []*chain.Block{block1, block2, block3, block4}
 	expTipSets := []TipSet{
 		RequireNewTipSet(require, block1),
 		RequireNewTipSet(require, block2),
@@ -326,7 +328,7 @@ func TestBlockHistoryFetchError(t *testing.T) {
 
 	tsCh := cm.BlockHistory(ctx)
 
-	cm.FetchBlock = func(ctx context.Context, cid *cid.Cid) (*types.Block, error) {
+	cm.FetchBlock = func(ctx context.Context, cid *cid.Cid) (*chain.Block, error) {
 		return nil, fmt.Errorf("error fetching block (in test)")
 	}
 	// One tipset is already ready.
@@ -465,8 +467,8 @@ func TestTipSetWeightDeepFailure(t *testing.T) {
 	assert.Error(err)
 
 	// child block with an invalid state cid
-	newCid := types.NewCidForTestGetter()
-	badChild := MkChild([]*types.Block{testGenesis}, newCid(), 0)
+	newCid := chain.NewCidForTestGetter()
+	badChild := MkChild([]*chain.Block{testGenesis}, newCid(), 0)
 	_, err = stm.ProcessNewBlock(ctx, badChild)
 	assert.Error(err)
 }
@@ -480,8 +482,8 @@ func TestTipSetWeightDeep(t *testing.T) {
 	stm.PwrTableView = &TestView{}
 
 	// setup miner power in genesis block
-	ki := types.MustGenerateKeyInfo(1, types.GenerateKeyInfoSeed())
-	mockSigner := types.NewMockSigner(ki)
+	ki := crypto.MustGenerateKeyInfo(1, crypto.GenerateKeyInfoSeed())
+	mockSigner := crypto.NewMockSigner(ki)
 	testAddress := mockSigner.Addresses[0]
 
 	// pwr1, pwr2 = 1/100. pwr3 = 98/100.
@@ -576,7 +578,7 @@ func TestTipSetWeightDeep(t *testing.T) {
 	assert.Equal(expectedWeight, w)
 }
 
-func requireMkBlockCorrected(ctx context.Context, t *testing.T, cm *ChainManager, nonce uint64, parents ...*types.Block) *types.Block {
+func requireMkBlockCorrected(ctx context.Context, t *testing.T, cm *ChainManager, nonce uint64, parents ...*chain.Block) *chain.Block {
 	tipSet, err := NewTipSet(parents...)
 	require.NoError(t, err)
 

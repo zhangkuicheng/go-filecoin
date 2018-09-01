@@ -16,6 +16,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/actor/builtin/paymentbroker"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -68,7 +69,7 @@ func TestPaymentChannelLs(t *testing.T) {
 		target, err := address.NewFromString(th.TestAddress2)
 		require.NoError(err)
 
-		eol := types.NewBlockHeight(20)
+		eol := chain.NewBlockHeight(20)
 		amt := types.NewAttoFILFromFIL(10000)
 
 		daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *th.TestDaemon, channelID *types.ChannelID) {
@@ -87,7 +88,7 @@ func TestPaymentChannelLs(t *testing.T) {
 		target, err := address.NewFromString(th.TestAddress2)
 		require.NoError(err)
 
-		eol := types.NewBlockHeight(20)
+		eol := chain.NewBlockHeight(20)
 		amt := types.NewAttoFILFromFIL(10000)
 
 		daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *th.TestDaemon, channelID *types.ChannelID) {
@@ -109,7 +110,7 @@ func TestPaymentChannelLs(t *testing.T) {
 		target, err := address.NewFromString(th.TestAddress2)
 		require.NoError(err)
 
-		eol := types.NewBlockHeight(20)
+		eol := chain.NewBlockHeight(20)
 		amt := types.NewAttoFILFromFIL(10000)
 
 		daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *th.TestDaemon, channelID *types.ChannelID) {
@@ -130,7 +131,7 @@ func TestPaymentChannelVoucherSuccess(t *testing.T) {
 	target, err := address.NewFromString(th.TestAddress2)
 	require.NoError(err)
 
-	eol := types.NewBlockHeight(20)
+	eol := chain.NewBlockHeight(20)
 	amt := types.NewAttoFILFromFIL(10000)
 
 	daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *th.TestDaemon, channelID *types.ChannelID) {
@@ -152,7 +153,7 @@ func TestPaymentChannelRedeemSuccess(t *testing.T) {
 	target, err := address.NewFromString(th.TestAddress2)
 	require.NoError(err)
 
-	eol := types.NewBlockHeight(20)
+	eol := chain.NewBlockHeight(20)
 	amt := types.NewAttoFILFromFIL(10000)
 
 	targetDaemon := th.NewDaemon(t, th.WalletAddr(target.String())).Start()
@@ -185,7 +186,7 @@ func TestPaymentChannelReclaimSuccess(t *testing.T) {
 	require.NoError(err)
 
 	// Not used in logic
-	eol := types.NewBlockHeight(20)
+	eol := chain.NewBlockHeight(20)
 	amt := types.NewAttoFILFromFIL(10000)
 
 	targetDaemon := th.NewDaemon(t, th.WalletAddr(target.String())).Start()
@@ -235,7 +236,7 @@ func TestPaymentChannelCloseSuccess(t *testing.T) {
 	require.NoError(err)
 	payer := &payerA
 	target := &targetA
-	eol := types.NewBlockHeight(100)
+	eol := chain.NewBlockHeight(100)
 	amt := types.NewAttoFILFromFIL(10000)
 
 	targetDaemon := th.NewDaemon(t, th.WalletAddr(target.String())).Start()
@@ -279,13 +280,13 @@ func TestPaymentChannelExtendSuccess(t *testing.T) {
 	target, err := address.NewFromString(th.TestAddress2)
 	require.NoError(err)
 
-	eol := types.NewBlockHeight(5)
+	eol := chain.NewBlockHeight(5)
 	amt := types.NewAttoFILFromFIL(10000)
 
 	daemonTestWithPaymentChannel(t, &payer, &target, amt, eol, func(d *th.TestDaemon, channelID *types.ChannelID) {
 		assert := assert.New(t)
 
-		extendedEOL := types.NewBlockHeight(6)
+		extendedEOL := chain.NewBlockHeight(6)
 		extendedAmt := types.NewAttoFILFromFIL(10001)
 
 		lsStr := listChannelsAsStrs(d, &payer)[0]
@@ -298,7 +299,7 @@ func TestPaymentChannelExtendSuccess(t *testing.T) {
 	})
 }
 
-func daemonTestWithPaymentChannel(t *testing.T, payerAddress *address.Address, targetAddress *address.Address, fundsToLock *types.AttoFIL, eol *types.BlockHeight, f func(*th.TestDaemon, *types.ChannelID)) {
+func daemonTestWithPaymentChannel(t *testing.T, payerAddress *address.Address, targetAddress *address.Address, fundsToLock *types.AttoFIL, eol *chain.BlockHeight, f func(*th.TestDaemon, *types.ChannelID)) {
 	assert := assert.New(t)
 
 	d := th.NewDaemon(t, th.KeyFile(th.TestKey1)).Start()
@@ -363,7 +364,7 @@ func listChannelsAsStrs(d *th.TestDaemon, fromAddress *address.Address) []string
 	return th.RunSuccessLines(d, args...)
 }
 
-func mustExtendChannel(t *testing.T, d *th.TestDaemon, channelID *types.ChannelID, amount *types.AttoFIL, eol *types.BlockHeight, payerAddress *address.Address) {
+func mustExtendChannel(t *testing.T, d *th.TestDaemon, channelID *types.ChannelID, amount *types.AttoFIL, eol *chain.BlockHeight, payerAddress *address.Address) {
 	require := require.New(t)
 
 	args := []string{"paych", "extend"}

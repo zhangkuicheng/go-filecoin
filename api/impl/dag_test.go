@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/node"
-	"github.com/filecoin-project/go-filecoin/types"
 )
 
 func TestDagGet(t *testing.T) {
@@ -36,7 +36,7 @@ func TestDagGet(t *testing.T) {
 		n := node.MakeNodesUnstarted(t, 1, true, true)[0]
 		api := New(n)
 
-		someCid := types.SomeCid()
+		someCid := chain.SomeCid()
 
 		_, err := api.Dag().Get(ctx, someCid.String())
 		assert.EqualError(err, fmt.Sprintf("failed to get block for %s: context deadline exceeded", someCid.String()))
@@ -49,7 +49,7 @@ func TestDagGet(t *testing.T) {
 		n := node.MakeNodesUnstarted(t, 1, true, true)[0]
 		api := New(n)
 
-		ipldnode := types.NewBlockForTest(nil, 1234).ToNode()
+		ipldnode := chain.NewBlockForTest(nil, 1234).ToNode()
 
 		// put into out blockservice
 		assert.NoError(n.Blockservice.AddBlock(ipldnode))

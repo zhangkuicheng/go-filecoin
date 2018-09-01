@@ -10,9 +10,9 @@ import (
 
 	"gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/state"
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,9 +27,9 @@ func TestAddFakeChain(t *testing.T) {
 
 	getHeaviestTipSet := func() core.TipSet {
 		gbbCount++
-		return core.RequireNewTipSet(require, new(types.Block))
+		return core.RequireNewTipSet(require, new(chain.Block))
 	}
-	processBlock := func(context context.Context, block *types.Block) (core.BlockProcessResult, error) {
+	processBlock := func(context context.Context, block *chain.Block) (core.BlockProcessResult, error) {
 		pbCount++
 		return 0, nil
 	}

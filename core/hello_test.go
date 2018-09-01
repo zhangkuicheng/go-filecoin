@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	types "github.com/filecoin-project/go-filecoin/types"
+	"github.com/filecoin-project/go-filecoin/chain"
 )
 
 type mockSyncCallback struct {
@@ -43,10 +43,10 @@ func TestHelloHandshake(t *testing.T) {
 	a := mn.Hosts()[0]
 	b := mn.Hosts()[1]
 
-	genesisA := &types.Block{Nonce: 451}
+	genesisA := &chain.Block{Nonce: 451}
 
-	heavy1 := RequireNewTipSet(require, &types.Block{Nonce: 1000, Height: 2})
-	heavy2 := RequireNewTipSet(require, &types.Block{Nonce: 1001, Height: 3})
+	heavy1 := RequireNewTipSet(require, &chain.Block{Nonce: 1000, Height: 2})
+	heavy2 := RequireNewTipSet(require, &chain.Block{Nonce: 1001, Height: 3})
 
 	msc1, msc2 := new(mockSyncCallback), new(mockSyncCallback)
 	hg1, hg2 := &mockHeaviestGetter{heavy1}, &mockHeaviestGetter{heavy2}
@@ -78,11 +78,11 @@ func TestHelloBadGenesis(t *testing.T) {
 	a := mn.Hosts()[0]
 	b := mn.Hosts()[1]
 
-	genesisA := &types.Block{Nonce: 451}
-	genesisB := &types.Block{Nonce: 101}
+	genesisA := &chain.Block{Nonce: 451}
+	genesisB := &chain.Block{Nonce: 101}
 
-	heavy1 := RequireNewTipSet(require, &types.Block{Nonce: 1000, Height: 2})
-	heavy2 := RequireNewTipSet(require, &types.Block{Nonce: 1001, Height: 3})
+	heavy1 := RequireNewTipSet(require, &chain.Block{Nonce: 1000, Height: 2})
+	heavy2 := RequireNewTipSet(require, &chain.Block{Nonce: 1001, Height: 3})
 
 	msc1, msc2 := new(mockSyncCallback), new(mockSyncCallback)
 	hg1, hg2 := &mockHeaviestGetter{heavy1}, &mockHeaviestGetter{heavy2}
@@ -114,17 +114,17 @@ func TestHelloMultiBlock(t *testing.T) {
 	a := mn.Hosts()[0]
 	b := mn.Hosts()[1]
 
-	genesisA := &types.Block{Nonce: 452}
+	genesisA := &chain.Block{Nonce: 452}
 
 	heavy1 := RequireNewTipSet(require,
-		&types.Block{Nonce: 1000, Height: 2},
-		&types.Block{Nonce: 1002, Height: 2},
-		&types.Block{Nonce: 1004, Height: 2},
+		&chain.Block{Nonce: 1000, Height: 2},
+		&chain.Block{Nonce: 1002, Height: 2},
+		&chain.Block{Nonce: 1004, Height: 2},
 	)
 	heavy2 := RequireNewTipSet(require,
-		&types.Block{Nonce: 1001, Height: 3},
-		&types.Block{Nonce: 1003, Height: 3},
-		&types.Block{Nonce: 1005, Height: 3},
+		&chain.Block{Nonce: 1001, Height: 3},
+		&chain.Block{Nonce: 1003, Height: 3},
+		&chain.Block{Nonce: 1005, Height: 3},
 	)
 
 	msc1, msc2 := new(mockSyncCallback), new(mockSyncCallback)

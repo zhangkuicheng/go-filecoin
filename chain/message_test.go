@@ -1,9 +1,10 @@
-package types
+package chain
 
 import (
 	"testing"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +19,7 @@ func TestMessageMarshal(t *testing.T) {
 		addrGetter(),
 		addrGetter(),
 		0,
-		NewAttoFILFromFIL(17777),
+		types.NewAttoFILFromFIL(17777),
 		"send",
 		[]byte("foobar"),
 	)
@@ -45,7 +46,7 @@ func TestMessageCid(t *testing.T) {
 		addrGetter(),
 		addrGetter(),
 		0,
-		NewAttoFILFromFIL(999),
+		types.NewAttoFILFromFIL(999),
 		"send",
 		nil,
 	)
@@ -54,7 +55,7 @@ func TestMessageCid(t *testing.T) {
 		addrGetter(),
 		addrGetter(),
 		0,
-		NewAttoFILFromFIL(4004),
+		types.NewAttoFILFromFIL(4004),
 		"send",
 		nil,
 	)

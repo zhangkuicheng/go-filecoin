@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
@@ -13,7 +14,7 @@ import (
 )
 
 // Processor is the signature of a function used to process blocks.
-type Processor func(ctx context.Context, blk *types.Block, st state.Tree, vms vm.StorageMap) ([]*ApplicationResult, error)
+type Processor func(ctx context.Context, blk *chain.Block, st state.Tree, vms vm.StorageMap) ([]*ApplicationResult, error)
 
 // TipSetProcessor is the signature of a function used to process tipsets
 type TipSetProcessor func(ctx context.Context, ts TipSet, st state.Tree, vms vm.StorageMap) (*ProcessTipSetResponse, error)
@@ -45,9 +46,9 @@ type TipSetProcessor func(ctx context.Context, ts TipSet, st state.Tree, vms vm.
 // will in many cases be successfully applied even though an
 // error was thrown causing any state changes to be rolled back.
 // See comments on ApplyMessage for specific intent.
-func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree, vms vm.StorageMap) ([]*ApplicationResult, error) {
+func ProcessBlock(ctx context.Context, blk *chain.Block, st state.Tree, vms vm.StorageMap) ([]*ApplicationResult, error) {
 	var emptyResults []*ApplicationResult
-	bh := types.NewBlockHeight(uint64(blk.Height))
+	bh := chain.NewBlockHeight(uint64(blk.Height))
 	res, faultErr := ApplyMessages(ctx, blk.Messages, st, vms, bh)
 	if faultErr != nil {
 		return emptyResults, faultErr
@@ -65,7 +66,7 @@ func ProcessBlock(ctx context.Context, blk *types.Block, st state.Tree, vms vm.S
 // A message can return an error and still be applied successfully.
 // See ApplyMessage() for details.
 type ApplicationResult struct {
-	Receipt        *types.MessageReceipt
+	Receipt        *chain.MessageReceipt
 	ExecutionError error
 }
 
@@ -95,17 +96,17 @@ func ProcessTipSet(ctx context.Context, ts TipSet, st state.Tree, vms vm.Storage
 	if err != nil {
 		return &emptyRes, errors.FaultErrorWrap(err, "processing empty tipset")
 	}
-	bh := types.NewBlockHeight(h)
+	bh := chain.NewBlockHeight(h)
 	msgFilter := make(map[string]struct{})
 
 	tips := ts.ToSlice()
-	types.SortBlocks(tips)
+	chain.SortBlocks(tips)
 
 	// TODO: this can be made slightly more efficient by reusing the validation
 	// transition of the first validated block (currently done in chain_manager fns).
 	for _, blk := range tips {
 		// filter out duplicates within TipSet
-		var msgs []*types.SignedMessage
+		var msgs []*chain.SignedMessage
 		for _, msg := range blk.Messages {
 			mCid, err := msg.Cid()
 			if err != nil {
@@ -225,7 +226,7 @@ func ProcessTipSet(ctx context.Context, ts TipSet, st state.Tree, vms vm.Storage
 //   - ApplyMessage and VMContext.Send() are the only things that should call
 //     Send() -- all the user-actor logic goes in ApplyMessage and all the
 //     actor-actor logic goes in VMContext.Send
-func ApplyMessage(ctx context.Context, st state.Tree, store vm.StorageMap, msg *types.Message, bh *types.BlockHeight) (*ApplicationResult, error) {
+func ApplyMessage(ctx context.Context, st state.Tree, store vm.StorageMap, msg *chain.Message, bh *chain.BlockHeight) (*ApplicationResult, error) {
 	cachedStateTree := state.NewCachedStateTree(st)
 
 	r, err := attemptApplyMessage(ctx, cachedStateTree, store, msg, bh)
@@ -284,7 +285,7 @@ var (
 // CallQueryMethod calls a method on an actor in the given state tree. It does
 // not make any changes to the state/blockchain and is useful for interrogating
 // actor state. Block height bh is optional; some methods will ignore it.
-func CallQueryMethod(ctx context.Context, st state.Tree, vms vm.StorageMap, to address.Address, method string, params []byte, from address.Address, optBh *types.BlockHeight) ([][]byte, uint8, error) {
+func CallQueryMethod(ctx context.Context, st state.Tree, vms vm.StorageMap, to address.Address, method string, params []byte, from address.Address, optBh *chain.BlockHeight) ([][]byte, uint8, error) {
 	// TODO: don't use from?
 	toActor, err := st.GetActor(ctx, to)
 	if err != nil {
@@ -294,7 +295,7 @@ func CallQueryMethod(ctx context.Context, st state.Tree, vms vm.StorageMap, to a
 	// not committing or flushing storage structures guarantees changes won't make it to stored state tree or datastore
 	cachedSt := state.NewCachedStateTree(st)
 
-	msg := &types.Message{
+	msg := &chain.Message{
 		To:     to,
 		Nonce:  0,
 		Value:  nil,
@@ -313,7 +314,7 @@ func CallQueryMethod(ctx context.Context, st state.Tree, vms vm.StorageMap, to a
 // should deal with trying got apply the message to the state tree whereas
 // ApplyMessage should deal with any side effects and how it should be presented
 // to the caller. attemptApplyMessage should only be called from ApplyMessage.
-func attemptApplyMessage(ctx context.Context, st *state.CachedTree, store vm.StorageMap, msg *types.Message, bh *types.BlockHeight) (*types.MessageReceipt, error) {
+func attemptApplyMessage(ctx context.Context, st *state.CachedTree, store vm.StorageMap, msg *chain.Message, bh *chain.BlockHeight) (*chain.MessageReceipt, error) {
 	fromActor, err := st.GetActor(ctx, msg.From)
 	if state.IsActorNotFoundError(err) {
 		return nil, errAccountNotFound
@@ -362,7 +363,7 @@ func attemptApplyMessage(ctx context.Context, st *state.CachedTree, store vm.Sto
 		return nil, vmErr
 	}
 
-	receipt := &types.MessageReceipt{
+	receipt := &chain.MessageReceipt{
 		ExitCode: exitCode,
 	}
 
@@ -379,9 +380,9 @@ func attemptApplyMessage(ctx context.Context, st *state.CachedTree, store vm.Sto
 // prevent callers from mistakenly mixing up outputs of the same type.
 type ApplyMessagesResponse struct {
 	Results            []*ApplicationResult
-	PermanentFailures  []*types.SignedMessage
-	TemporaryFailures  []*types.SignedMessage
-	SuccessfulMessages []*types.SignedMessage
+	PermanentFailures  []*chain.SignedMessage
+	TemporaryFailures  []*chain.SignedMessage
+	SuccessfulMessages []*chain.SignedMessage
 
 	// Application Errors
 	PermanentErrors []error
@@ -393,7 +394,7 @@ type ApplyMessagesResponse struct {
 // groupings of messages with permanent failures, temporary failures, and
 // successes, and the permanent and temporary errors raised during application.
 // ApplyMessages will return an error iff a fault message occurs.
-func ApplyMessages(ctx context.Context, messages []*types.SignedMessage, st state.Tree, vms vm.StorageMap, bh *types.BlockHeight) (ApplyMessagesResponse, error) {
+func ApplyMessages(ctx context.Context, messages []*chain.SignedMessage, st state.Tree, vms vm.StorageMap, bh *chain.BlockHeight) (ApplyMessagesResponse, error) {
 	var emptyRet ApplyMessagesResponse
 	var ret ApplyMessagesResponse
 

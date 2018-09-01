@@ -9,6 +9,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
@@ -141,7 +142,7 @@ func MarshalValue(val interface{}) ([]byte, error) {
 			return []byte{}, nil
 		}
 		return t.Bytes(), nil
-	case *types.BlockHeight:
+	case *chain.BlockHeight:
 		if t == nil {
 			return []byte{}, nil
 		}

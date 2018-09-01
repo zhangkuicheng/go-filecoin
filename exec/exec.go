@@ -8,6 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
 )
@@ -65,11 +66,11 @@ type FunctionSignature struct {
 
 // VMContext defines the ABI interface exposed to actors.
 type VMContext interface {
-	Message() *types.Message
+	Message() *chain.Message
 	Storage() Storage
 	Send(to address.Address, method string, value *types.AttoFIL, params []interface{}) ([][]byte, uint8, error)
 	AddressForNewActor() (address.Address, error)
-	BlockHeight() *types.BlockHeight
+	BlockHeight() *chain.BlockHeight
 	IsFromAccountActor() bool
 
 	CreateNewActor(addr address.Address, code *cid.Cid, initalizationParams interface{}) error

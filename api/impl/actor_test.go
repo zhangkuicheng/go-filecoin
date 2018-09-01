@@ -17,6 +17,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/api"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/state"
@@ -72,7 +73,7 @@ func TestActorLs(t *testing.T) {
 		st := state.NewEmptyStateTree(nd.CborStore)
 		root, err := st.Flush(ctx)
 		require.NoError(err)
-		b1 := &types.Block{StateRoot: root}
+		b1 := &chain.Block{StateRoot: root}
 		var chainMgrForTest *core.ChainManagerForTest // nolint: gosimple, megacheck
 		chainMgrForTest = nd.ChainMgr
 		chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b1))
@@ -83,7 +84,7 @@ func TestActorLs(t *testing.T) {
 			actor1, _ := account.NewActor(tokenAmount)
 			actor2, _ := storagemarket.NewActor()
 			actor3 := miner.NewActor()
-			actor4 := actor.NewActor(types.NewCidForTestGetter()(), types.NewAttoFILFromFIL(21))
+			actor4 := actor.NewActor(chain.NewCidForTestGetter()(), types.NewAttoFILFromFIL(21))
 			return []string{"address1", "address2", "address3", "address4"}, []*actor.Actor{actor1, actor2, actor3, actor4}
 		}
 

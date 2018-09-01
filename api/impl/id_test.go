@@ -6,20 +6,20 @@ import (
 	"testing"
 
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/repo"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ci "gx/ipfs/QmPvyPwuCgJ7pDmrKDxRtsScJgBaM5h4EpRL2qQJsmXf4n/go-libp2p-crypto"
 	peer "gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	libp2p "gx/ipfs/QmVM6VuGaWcAaYjxG2om6XxMmpP3Rt9rw4nbMXVNYAPLhS/go-libp2p"
 )
 
-func makeIdentityOption(t *testing.T) (libp2p.Option, ci.PrivKey) {
+func makeIdentityOption(t *testing.T) (libp2p.Option, crypto.PrivKey) {
 	// create a public private key pair
-	sk, _, err := ci.GenerateKeyPair(ci.RSA, 1024)
+	sk, _, err := crypto.GenerateRSAKeyPair(1024)
 	require.NoError(t, err)
 	return libp2p.Identity(sk), sk
 }

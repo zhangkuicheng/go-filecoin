@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	crypto "gx/ipfs/QmPvyPwuCgJ7pDmrKDxRtsScJgBaM5h4EpRL2qQJsmXf4n/go-libp2p-crypto"
 	hamt "gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	cid "gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
@@ -14,12 +13,13 @@ import (
 	blockstore "gx/ipfs/QmcmpX42gtDv1fz24kau4wjS9hfwWj5VexWBKgGnWzsyag/go-ipfs-blockstore"
 
 	"github.com/filecoin-project/go-filecoin/api"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/config"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/repo"
 	"github.com/filecoin-project/go-filecoin/testhelpers"
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/wallet"
 )
 
@@ -91,8 +91,8 @@ func (nd *nodeDaemon) Init(ctx context.Context, opts ...api.DaemonInitOpt) error
 			return err
 		}
 
-		tif = func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*types.Block, error) {
-			var blk types.Block
+		tif = func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*chain.Block, error) {
+			var blk chain.Block
 
 			if err := cst.Get(ctx, genCid, &blk); err != nil {
 				return nil, err
@@ -153,7 +153,7 @@ func loadPeerKey(fname string) (crypto.PrivKey, error) {
 	return crypto.UnmarshalPrivateKey(data)
 }
 
-func loadAddress(ai wallet.TypesAddressInfo, ki types.KeyInfo, r repo.Repo) error {
+func loadAddress(ai wallet.TypesAddressInfo, ki crypto.KeyInfo, r repo.Repo) error {
 	backend, err := wallet.NewDSBackend(r.WalletDatastore())
 	if err != nil {
 		return err

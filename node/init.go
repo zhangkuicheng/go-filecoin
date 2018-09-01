@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 
-	ci "gx/ipfs/QmPvyPwuCgJ7pDmrKDxRtsScJgBaM5h4EpRL2qQJsmXf4n/go-libp2p-crypto"
 	"gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	offline "gx/ipfs/QmZxjqR9Qgompju73kakSoUj3rbVndAzky3oCDiBNCxPs1/go-ipfs-exchange-offline"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/repo"
 	"github.com/filecoin-project/go-filecoin/wallet"
 )
@@ -21,7 +21,7 @@ var ErrLittleBits = errors.New("Bitsize less than 1024 is considered unsafe") //
 
 // InitCfg contains configuration for initializing a node
 type InitCfg struct {
-	PeerKey ci.PrivKey
+	PeerKey crypto.PrivKey
 }
 
 // InitOpt is an init option function
@@ -29,7 +29,7 @@ type InitOpt func(*InitCfg)
 
 // PeerKeyOpt sets the private key for the nodes 'self' key
 // this is the key that is used for libp2p identity
-func PeerKeyOpt(k ci.PrivKey) InitOpt {
+func PeerKeyOpt(k crypto.PrivKey) InitOpt {
 	return func(c *InitCfg) {
 		c.PeerKey = k
 	}
@@ -86,13 +86,13 @@ func Init(ctx context.Context, r repo.Repo, gen core.GenesisInitFunc, opts ...In
 }
 
 // borrowed from go-ipfs: `repo/config/init.go`
-func makePrivateKey(nbits int) (ci.PrivKey, error) {
+func makePrivateKey(nbits int) (crypto.PrivKey, error) {
 	if nbits < 1024 {
 		return nil, ErrLittleBits
 	}
 
 	// create a public private key pair
-	sk, _, err := ci.GenerateKeyPair(ci.RSA, nbits)
+	sk, _, err := crypto.GenerateRSAKeyPair(nbits)
 	if err != nil {
 		return nil, err
 	}

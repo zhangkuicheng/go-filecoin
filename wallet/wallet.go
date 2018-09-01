@@ -12,9 +12,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/crypto"
-	cu "github.com/filecoin-project/go-filecoin/crypto/util"
 	"github.com/filecoin-project/go-filecoin/types"
-	wutil "github.com/filecoin-project/go-filecoin/wallet/util"
 )
 
 var (
@@ -102,7 +100,7 @@ func (w *Wallet) Backends(kind reflect.Type) []Backend {
 
 // SignBytes cryptographically signs `data` using the private key corresponding to
 // address `addr`
-func (w *Wallet) SignBytes(data []byte, addr address.Address) (types.Signature, error) {
+func (w *Wallet) SignBytes(data []byte, addr address.Address) (crypto.Signature, error) {
 	// Check that we are storing the address to sign for.
 	backend, err := w.Find(addr)
 	if err != nil {
@@ -113,16 +111,16 @@ func (w *Wallet) SignBytes(data []byte, addr address.Address) (types.Signature, 
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data' with
 // the public key `pk`.
-func (w *Wallet) Verify(data []byte, pk []byte, sig types.Signature) (bool, error) {
-	return wutil.Verify(pk, data, sig)
+func (w *Wallet) Verify(data []byte, pk []byte, sig crypto.Signature) (bool, error) {
+	return crypto.Verify(pk, data, sig)
 }
 
 // Ecrecover returns an uncompressed public key that could produce the given
 // signature from data.
 // Note: The returned public key should not be used to verify `data` is valid
 // since a public key may have N private key pairs
-func (w *Wallet) Ecrecover(data []byte, sig types.Signature) ([]byte, error) {
-	return wutil.Ecrecover(data, sig)
+func (w *Wallet) Ecrecover(data []byte, sig crypto.Signature) ([]byte, error) {
+	return crypto.Ecrecover(data, sig)
 }
 
 // File holds the values representing a wallet when writing to a file.
@@ -132,8 +130,8 @@ type File struct {
 
 // AddressKeyInfo holds the address and KeyInfo used to generate it.
 type AddressKeyInfo struct {
-	AddressInfo AddressInfo   `toml:"addressinfo"`
-	KeyInfo     types.KeyInfo `toml:"keyinfo"`
+	AddressInfo AddressInfo    `toml:"addressinfo"`
+	KeyInfo     crypto.KeyInfo `toml:"keyinfo"`
 }
 
 // AddressInfo holds an address and a balance.
@@ -151,7 +149,7 @@ type TypesAddressInfo struct {
 // LoadWalletAddressAndKeysFromFile will load the addresses and their keys from File
 // `file`. The balance field may also be set to specify what an address's balance
 // should be at time of genesis.
-func LoadWalletAddressAndKeysFromFile(file string) (map[TypesAddressInfo]types.KeyInfo, error) {
+func LoadWalletAddressAndKeysFromFile(file string) (map[TypesAddressInfo]crypto.KeyInfo, error) {
 	wf, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read wallet file")
@@ -166,7 +164,7 @@ func LoadWalletAddressAndKeysFromFile(file string) (map[TypesAddressInfo]types.K
 		return nil, errors.New("wallet file does not contain any addresses")
 	}
 
-	loadedAddrs := make(map[TypesAddressInfo]types.KeyInfo)
+	loadedAddrs := make(map[TypesAddressInfo]crypto.KeyInfo)
 	for _, akp := range wt.AddressKeyPairs {
 		addr, err := address.NewFromString(akp.AddressInfo.Address)
 		if err != nil {
@@ -196,11 +194,11 @@ func GenerateWalletFile(numAddrs int) (*File, error) {
 			panic("unknown public key type")
 		}
 
-		addrHash := address.Hash(cu.SerializeUncompressed(pub))
+		addrHash := address.Hash(crypto.SerializeUncompressed(pub))
 		// TODO: Use the address type we are running on from the config.
 		newAddr := address.NewMainnet(addrHash)
 
-		ki := &types.KeyInfo{
+		ki := &crypto.KeyInfo{
 			PrivateKey: crypto.ECDSAToBytes(prv),
 			Curve:      SECP256K1,
 		}

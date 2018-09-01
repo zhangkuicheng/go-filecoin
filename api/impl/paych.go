@@ -8,6 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/actor/builtin/paymentbroker"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -19,7 +20,7 @@ func newNodePaych(api *nodeAPI) *nodePaych {
 	return &nodePaych{api: api}
 }
 
-func (api *nodePaych) Create(ctx context.Context, fromAddr, target address.Address, eol *types.BlockHeight, amount *types.AttoFIL) (*cid.Cid, error) {
+func (api *nodePaych) Create(ctx context.Context, fromAddr, target address.Address, eol *chain.BlockHeight, amount *types.AttoFIL) (*cid.Cid, error) {
 	return api.api.Message().Send(
 		ctx,
 		fromAddr,
@@ -141,7 +142,7 @@ func (api *nodePaych) Close(ctx context.Context, fromAddr address.Address, vouch
 	)
 }
 
-func (api *nodePaych) Extend(ctx context.Context, fromAddr address.Address, channel *types.ChannelID, eol *types.BlockHeight, amount *types.AttoFIL) (*cid.Cid, error) {
+func (api *nodePaych) Extend(ctx context.Context, fromAddr address.Address, channel *types.ChannelID, eol *chain.BlockHeight, amount *types.AttoFIL) (*cid.Cid, error) {
 	return api.api.Message().Send(
 		ctx,
 		fromAddr,

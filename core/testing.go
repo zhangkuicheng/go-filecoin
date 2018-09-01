@@ -18,6 +18,8 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/state"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -27,7 +29,7 @@ import (
 )
 
 // MkChild creates a new block with parent, blk, and supplied nonce.
-func MkChild(blks []*types.Block, stateRoot *cid.Cid, nonce uint64) *types.Block {
+func MkChild(blks []*chain.Block, stateRoot *cid.Cid, nonce uint64) *chain.Block {
 	var weight uint64
 	var height uint64
 	var parents types.SortedCidSet
@@ -37,20 +39,20 @@ func MkChild(blks []*types.Block, stateRoot *cid.Cid, nonce uint64) *types.Block
 	for _, blk := range blks {
 		(&parents).Add(blk.Cid())
 	}
-	return &types.Block{
+	return &chain.Block{
 		Parents:           parents,
 		Height:            types.Uint64(height),
 		ParentWeightNum:   types.Uint64(weight),
 		ParentWeightDenom: types.Uint64(1),
 		Nonce:             types.Uint64(nonce),
 		StateRoot:         stateRoot,
-		Messages:          []*types.SignedMessage{},
-		MessageReceipts:   []*types.MessageReceipt{},
+		Messages:          []*chain.SignedMessage{},
+		MessageReceipts:   []*chain.MessageReceipt{},
 	}
 }
 
 // AddChain creates and processes new, empty chain of length, beginning from blks.
-func AddChain(ctx context.Context, processNewBlock NewBlockProcessor, loadStateTreeTS AggregateStateTreeComputer, blks []*types.Block, length int) (*types.Block, error) {
+func AddChain(ctx context.Context, processNewBlock NewBlockProcessor, loadStateTreeTS AggregateStateTreeComputer, blks []*chain.Block, length int) (*chain.Block, error) {
 	ts, err := NewTipSet(blks...)
 	if err != nil {
 		return nil, err
@@ -64,14 +66,14 @@ func AddChain(ctx context.Context, processNewBlock NewBlockProcessor, loadStateT
 		return nil, err
 	}
 	l := uint64(length)
-	var blk *types.Block
+	var blk *chain.Block
 	for i := uint64(0); i < l; i++ {
 		blk = MkChild(blks, stateRoot, i)
 		_, err := processNewBlock(ctx, blk)
 		if err != nil {
 			return nil, err
 		}
-		blks = []*types.Block{blk}
+		blks = []*chain.Block{blk}
 	}
 	return blks[0], nil
 }
@@ -215,7 +217,7 @@ func RequireRandomPeerID() peer.ID {
 
 // RequireNewTipSet instantiates and returns a new tipset of the given blocks
 // and requires that the setup validation succeed.
-func RequireNewTipSet(require *require.Assertions, blks ...*types.Block) TipSet {
+func RequireNewTipSet(require *require.Assertions, blks ...*chain.Block) TipSet {
 	ts, err := NewTipSet(blks...)
 	require.NoError(err)
 	return ts
@@ -223,14 +225,14 @@ func RequireNewTipSet(require *require.Assertions, blks ...*types.Block) TipSet 
 
 // RequireTipSetAdd adds the input block to the tipset and requires that no
 // errors occur.
-func RequireTipSetAdd(require *require.Assertions, blk *types.Block, ts TipSet) {
+func RequireTipSetAdd(require *require.Assertions, blk *chain.Block, ts TipSet) {
 	err := ts.AddBlock(blk)
 	require.NoError(err)
 }
 
 // RequireBestBlock ensures that there is a single block in the heaviest tipset
 // and returns it.
-func RequireBestBlock(cm *ChainManager, t *testing.T) *types.Block {
+func RequireBestBlock(cm *ChainManager, t *testing.T) *chain.Block {
 	require := require.New(t)
 	heaviest := cm.GetHeaviestTipSet()
 	require.Equal(1, len(heaviest))
@@ -249,7 +251,7 @@ func MustGetNonce(st state.Tree, a address.Address) uint64 {
 
 // MustAdd adds the given messages to the messagepool or panics if it
 // cannot.
-func MustAdd(p *MessagePool, msgs ...*types.SignedMessage) {
+func MustAdd(p *MessagePool, msgs ...*chain.SignedMessage) {
 	for _, m := range msgs {
 		if _, err := p.Add(m); err != nil {
 			panic(err)
@@ -259,10 +261,10 @@ func MustAdd(p *MessagePool, msgs ...*types.SignedMessage) {
 
 // MustSign signs a given address with the provided mocksigner or panics if it
 // cannot.
-func MustSign(s types.MockSigner, msgs ...*types.Message) []*types.SignedMessage {
-	var smsgs []*types.SignedMessage
+func MustSign(s crypto.MockSigner, msgs ...*chain.Message) []*chain.SignedMessage {
+	var smsgs []*chain.SignedMessage
 	for _, m := range msgs {
-		sm, err := types.NewSignedMessage(*m, &s)
+		sm, err := chain.NewSignedMessage(*m, &s)
 		if err != nil {
 			panic(err)
 		}
@@ -289,7 +291,7 @@ func MustConvertParams(params ...interface{}) []byte {
 // and stores them in the given store.  Note the msg arguments are slices of
 // slices of messages -- each slice of slices goes into a successive tipset,
 // and each slice within this slice goes into a block of that tipset
-func NewChainWithMessages(store *hamt.CborIpldStore, root TipSet, msgSets ...[][]*types.SignedMessage) []TipSet {
+func NewChainWithMessages(store *hamt.CborIpldStore, root TipSet, msgSets ...[][]*chain.SignedMessage) []TipSet {
 	tipSets := []TipSet{}
 	parents := root
 
@@ -307,7 +309,7 @@ func NewChainWithMessages(store *hamt.CborIpldStore, root TipSet, msgSets ...[][
 		// If a message set does not contain a slice of messages then
 		// add a tipset with no messages and a single block to the chain
 		if len(tsMsgs) == 0 {
-			child := &types.Block{
+			child := &chain.Block{
 				Height:  types.Uint64(height + 1),
 				Parents: parents.ToSortedCidSet(),
 			}
@@ -315,7 +317,7 @@ func NewChainWithMessages(store *hamt.CborIpldStore, root TipSet, msgSets ...[][
 			ts[child.Cid().String()] = child
 		}
 		for _, msgs := range tsMsgs {
-			child := &types.Block{
+			child := &chain.Block{
 				Messages: msgs,
 				Parents:  parents.ToSortedCidSet(),
 				Height:   types.Uint64(height + 1),
@@ -395,7 +397,7 @@ func (tv *TestView) HasPower(ctx context.Context, st state.Tree, bstore blocksto
 // CreateMinerWithPower uses storage market functionality to mine the messages needed to create a miner, ask, bid, and deal, and then commit that deal to give the miner power.
 // If the power is nil, this method will just create the miner.
 // The returned block and nonce should be used in subsequent calls to this method.
-func CreateMinerWithPower(ctx context.Context, t *testing.T, cm *ChainManager, lastBlock *types.Block, sn types.MockSigner, nonce uint64, rewardAddress address.Address, power *types.BytesAmount) (address.Address, *types.Block, uint64, error) {
+func CreateMinerWithPower(ctx context.Context, t *testing.T, cm *ChainManager, lastBlock *chain.Block, sn crypto.MockSigner, nonce uint64, rewardAddress address.Address, power *types.BytesAmount) (address.Address, *chain.Block, uint64, error) {
 	require := require.New(t)
 
 	pledge := power
@@ -426,14 +428,14 @@ func CreateMinerWithPower(ctx context.Context, t *testing.T, cm *ChainManager, l
 }
 
 // RequireMineOnce process one block and panic on error
-func RequireMineOnce(ctx context.Context, t *testing.T, cm *ChainManager, lastBlock *types.Block, rewardAddress address.Address, msg *types.SignedMessage) *types.Block {
+func RequireMineOnce(ctx context.Context, t *testing.T, cm *ChainManager, lastBlock *chain.Block, rewardAddress address.Address, msg *chain.SignedMessage) *chain.Block {
 	require := require.New(t)
 
 	st, err := state.LoadStateTree(ctx, cm.cstore, lastBlock.StateRoot, builtin.Actors)
 	vms := vm.NewStorageMap(cm.Blockstore)
 	require.NoError(err)
 
-	b := MkChild([]*types.Block{lastBlock}, lastBlock.StateRoot, 0)
+	b := MkChild([]*chain.Block{lastBlock}, lastBlock.StateRoot, 0)
 	b.Miner = rewardAddress
 	if msg != nil {
 		b.Messages = append(b.Messages, msg)
@@ -453,6 +455,6 @@ func RequireMineOnce(ctx context.Context, t *testing.T, cm *ChainManager, lastBl
 	return b
 }
 
-func mockSign(sn types.MockSigner, msg *types.Message) *types.SignedMessage {
+func mockSign(sn crypto.MockSigner, msg *chain.Message) *chain.SignedMessage {
 	return MustSign(sn, msg)[0]
 }

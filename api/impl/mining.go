@@ -3,10 +3,10 @@ package impl
 import (
 	"context"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/mining"
 	"github.com/filecoin-project/go-filecoin/state"
-	"github.com/filecoin-project/go-filecoin/types"
 )
 
 type nodeMining struct {
@@ -17,7 +17,7 @@ func newNodeMining(api *nodeAPI) *nodeMining {
 	return &nodeMining{api: api}
 }
 
-func (api *nodeMining) Once(ctx context.Context) (*types.Block, error) {
+func (api *nodeMining) Once(ctx context.Context) (*chain.Block, error) {
 	nd := api.api.node
 	ts := nd.ChainMgr.GetHeaviestTipSet()
 

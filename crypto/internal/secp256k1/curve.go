@@ -36,7 +36,7 @@ import (
 	"math/big"
 	"unsafe"
 
-	math "github.com/filecoin-project/go-filecoin/crypto/util"
+	math "github.com/filecoin-project/go-filecoin/crypto/internal/util"
 )
 
 /*

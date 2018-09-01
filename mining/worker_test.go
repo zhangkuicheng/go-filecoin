@@ -8,7 +8,9 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
@@ -24,9 +26,9 @@ import (
 func Test_Mine(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
-	newCid := types.NewCidForTestGetter()
+	newCid := chain.NewCidForTestGetter()
 	stateRoot := newCid()
-	baseBlock := &types.Block{Height: 2, StateRoot: stateRoot}
+	baseBlock := &chain.Block{Height: 2, StateRoot: stateRoot}
 	tipSet := core.RequireNewTipSet(require, baseBlock)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -130,7 +132,7 @@ func TestCreateChallenge(t *testing.T) {
 
 		parents := core.TipSet{}
 		for _, t := range c.parentTickets {
-			b := types.Block{Ticket: t}
+			b := chain.Block{Ticket: t}
 			parents.AddBlock(&b)
 		}
 		r, err := createChallenge(parents, c.nullBlockCount)
@@ -139,9 +141,9 @@ func TestCreateChallenge(t *testing.T) {
 	}
 }
 
-var seed = types.GenerateKeyInfoSeed()
-var ki = types.MustGenerateKeyInfo(10, seed)
-var mockSigner = types.NewMockSigner(ki)
+var seed = crypto.GenerateKeyInfoSeed()
+var ki = crypto.MustGenerateKeyInfo(10, seed)
+var mockSigner = crypto.NewMockSigner(ki)
 
 func TestGenerate(t *testing.T) {
 	// TODO use core.FakeActor for state/contract tests for generate:
@@ -206,27 +208,27 @@ func TestApplyMessagesForSuccessTempAndPermFailures(t *testing.T) {
 	// If a given message's category changes in the future, it needs to be replaced here in tests by another so we fully
 	// exercise the categorization.
 	// addr2 doesn't correspond to an extant account, so this will trigger errAccountNotFound -- a temporary failure.
-	msg1 := types.NewMessage(addr2, addr1, 0, nil, "", nil)
-	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
+	msg1 := chain.NewMessage(addr2, addr1, 0, nil, "", nil)
+	smsg1, err := chain.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
 
 	// This is actually okay and should result in a receipt
-	msg2 := types.NewMessage(addr1, addr2, 0, nil, "", nil)
-	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
+	msg2 := chain.NewMessage(addr1, addr2, 0, nil, "", nil)
+	smsg2, err := chain.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
 
 	// The following two are sending to self -- errSelfSend, a permanent error.
-	msg3 := types.NewMessage(addr1, addr1, 1, nil, "", nil)
-	smsg3, err := types.NewSignedMessage(*msg3, &mockSigner)
+	msg3 := chain.NewMessage(addr1, addr1, 1, nil, "", nil)
+	smsg3, err := chain.NewSignedMessage(*msg3, &mockSigner)
 	require.NoError(err)
 
-	msg4 := types.NewMessage(addr2, addr2, 1, nil, "", nil)
-	smsg4, err := types.NewSignedMessage(*msg4, &mockSigner)
+	msg4 := chain.NewMessage(addr2, addr2, 1, nil, "", nil)
+	smsg4, err := chain.NewSignedMessage(*msg4, &mockSigner)
 	require.NoError(err)
 
-	messages := []*types.SignedMessage{smsg1, smsg2, smsg3, smsg4}
+	messages := []*chain.SignedMessage{smsg1, smsg2, smsg3, smsg4}
 
-	res, err := core.ApplyMessages(ctx, messages, st, vms, types.NewBlockHeight(0))
+	res, err := core.ApplyMessages(ctx, messages, st, vms, chain.NewBlockHeight(0))
 
 	assert.Len(res.PermanentFailures, 2)
 	assert.Contains(res.PermanentFailures, smsg3)
@@ -246,7 +248,7 @@ func TestGenerateMultiBlockTipSet(t *testing.T) {
 	require := require.New(t)
 
 	ctx := context.Background()
-	newCid := types.NewCidForTestGetter()
+	newCid := chain.NewCidForTestGetter()
 	st, pool, addrs, cst, bs := sharedSetup(t)
 	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
 		return st, nil
@@ -255,13 +257,13 @@ func TestGenerateMultiBlockTipSet(t *testing.T) {
 
 	parents := types.NewSortedCidSet(newCid())
 	stateRoot := newCid()
-	baseBlock1 := types.Block{
+	baseBlock1 := chain.Block{
 		Parents:         parents,
 		Height:          types.Uint64(100),
 		ParentWeightNum: types.Uint64(1000),
 		StateRoot:       stateRoot,
 	}
-	baseBlock2 := types.Block{
+	baseBlock2 := chain.Block{
 		Parents:         parents,
 		Height:          types.Uint64(100),
 		ParentWeightNum: types.Uint64(1000),
@@ -282,7 +284,7 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 	require := require.New(t)
 
 	ctx := context.Background()
-	newCid := types.NewCidForTestGetter()
+	newCid := chain.NewCidForTestGetter()
 	st, pool, addrs, cst, bs := sharedSetup(t)
 
 	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
@@ -291,22 +293,22 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 	worker := NewDefaultWorker(pool, getStateTree, getWeightTest, core.ApplyMessages, &core.TestView{}, bs, cst, addrs[3], BlockTimeTest)
 
 	// addr3 doesn't correspond to an extant account, so this will trigger errAccountNotFound -- a temporary failure.
-	msg1 := types.NewMessage(addrs[2], addrs[0], 0, nil, "", nil)
-	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
+	msg1 := chain.NewMessage(addrs[2], addrs[0], 0, nil, "", nil)
+	smsg1, err := chain.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
 
 	// This is actually okay and should result in a receipt
-	msg2 := types.NewMessage(addrs[0], addrs[1], 0, nil, "", nil)
-	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
+	msg2 := chain.NewMessage(addrs[0], addrs[1], 0, nil, "", nil)
+	smsg2, err := chain.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
 
 	// The following two are sending to self -- errSelfSend, a permanent error.
-	msg3 := types.NewMessage(addrs[0], addrs[0], 1, nil, "", nil)
-	smsg3, err := types.NewSignedMessage(*msg3, &mockSigner)
+	msg3 := chain.NewMessage(addrs[0], addrs[0], 1, nil, "", nil)
+	smsg3, err := chain.NewSignedMessage(*msg3, &mockSigner)
 	require.NoError(err)
 
-	msg4 := types.NewMessage(addrs[1], addrs[1], 0, nil, "", nil)
-	smsg4, err := types.NewSignedMessage(*msg4, &mockSigner)
+	msg4 := chain.NewMessage(addrs[1], addrs[1], 0, nil, "", nil)
+	smsg4, err := chain.NewSignedMessage(*msg4, &mockSigner)
 	require.NoError(err)
 
 	pool.Add(smsg1)
@@ -315,7 +317,7 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 	pool.Add(smsg4)
 
 	assert.Len(pool.Pending(), 4)
-	baseBlock := types.Block{
+	baseBlock := chain.Block{
 		Parents:   types.NewSortedCidSet(newCid()),
 		Height:    types.Uint64(100),
 		StateRoot: newCid(),
@@ -337,7 +339,7 @@ func TestGenerateSetsBasicFields(t *testing.T) {
 	require := require.New(t)
 
 	ctx := context.Background()
-	newCid := types.NewCidForTestGetter()
+	newCid := chain.NewCidForTestGetter()
 
 	st, pool, addrs, cst, bs := sharedSetup(t)
 
@@ -349,7 +351,7 @@ func TestGenerateSetsBasicFields(t *testing.T) {
 	h := types.Uint64(100)
 	wNum := types.Uint64(1000)
 	wDenom := types.Uint64(1)
-	baseBlock := types.Block{
+	baseBlock := chain.Block{
 		Height:            h,
 		ParentWeightNum:   wNum,
 		ParentWeightDenom: wDenom,
@@ -376,7 +378,7 @@ func TestGenerateWithoutMessages(t *testing.T) {
 	require := require.New(t)
 
 	ctx := context.Background()
-	newCid := types.NewCidForTestGetter()
+	newCid := chain.NewCidForTestGetter()
 
 	st, pool, addrs, cst, bs := sharedSetup(t)
 	getStateTree := func(c context.Context, ts core.TipSet) (state.Tree, error) {
@@ -385,7 +387,7 @@ func TestGenerateWithoutMessages(t *testing.T) {
 	worker := NewDefaultWorker(pool, getStateTree, getWeightTest, core.ApplyMessages, &core.TestView{}, bs, cst, addrs[3], BlockTimeTest)
 
 	assert.Len(pool.Pending(), 0)
-	baseBlock := types.Block{
+	baseBlock := chain.Block{
 		Parents:   types.NewSortedCidSet(newCid()),
 		Height:    types.Uint64(100),
 		StateRoot: newCid(),
@@ -403,20 +405,20 @@ func TestGenerateError(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 	ctx := context.Background()
-	newCid := types.NewCidForTestGetter()
+	newCid := chain.NewCidForTestGetter()
 
 	st, pool, addrs, cst, bs := sharedSetup(t)
 
 	worker := NewDefaultWorker(pool, makeExplodingGetStateTree(st), getWeightTest, core.ApplyMessages, &core.TestView{}, bs, cst, addrs[3], BlockTimeTest)
 
 	// This is actually okay and should result in a receipt
-	msg := types.NewMessage(addrs[0], addrs[1], 0, nil, "", nil)
-	smsg, err := types.NewSignedMessage(*msg, &mockSigner)
+	msg := chain.NewMessage(addrs[0], addrs[1], 0, nil, "", nil)
+	smsg, err := chain.NewSignedMessage(*msg, &mockSigner)
 	require.NoError(err)
 	pool.Add(smsg)
 
 	assert.Len(pool.Pending(), 1)
-	baseBlock := types.Block{
+	baseBlock := chain.Block{
 		Parents:   types.NewSortedCidSet(newCid()),
 		Height:    types.Uint64(100),
 		StateRoot: newCid(),

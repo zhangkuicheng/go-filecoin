@@ -11,6 +11,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/paymentbroker"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
@@ -50,8 +51,8 @@ func NewEmptyConfig() *Config {
 }
 
 // MakeGenesisFunc is a method used to define a custom genesis function
-func MakeGenesisFunc(opts ...GenOption) func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*types.Block, error) {
-	gif := func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*types.Block, error) {
+func MakeGenesisFunc(opts ...GenOption) func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*chain.Block, error) {
+	gif := func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*chain.Block, error) {
 		genCfg := NewEmptyConfig()
 		for _, opt := range opts {
 			opt(genCfg) // nolint: errcheck
@@ -121,7 +122,7 @@ func MakeGenesisFunc(opts ...GenOption) func(cst *hamt.CborIpldStore, bs blockst
 			return nil, err
 		}
 
-		genesis := &types.Block{
+		genesis := &chain.Block{
 			StateRoot: c,
 			Nonce:     1337,
 		}

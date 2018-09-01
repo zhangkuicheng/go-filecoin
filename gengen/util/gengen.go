@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/state"
@@ -59,7 +60,7 @@ type GenesisCfg struct {
 // RenderedGenInfo contains information about a genesis block creation
 type RenderedGenInfo struct {
 	// Keys is the set of keys generated
-	Keys map[string]*types.KeyInfo
+	Keys map[string]*crypto.KeyInfo
 
 	// Miners is the list of addresses of miners created
 	Miners []RenderedMinerInfo
@@ -128,7 +129,7 @@ func GenGen(ctx context.Context, cfg *GenesisCfg, cst *hamt.CborIpldStore, bs bl
 		return nil, err
 	}
 
-	geneblk := &types.Block{
+	geneblk := &chain.Block{
 		StateRoot: stateRoot,
 	}
 
@@ -144,8 +145,8 @@ func GenGen(ctx context.Context, cfg *GenesisCfg, cst *hamt.CborIpldStore, bs bl
 	}, nil
 }
 
-func genKeys(cfgkeys []string) (map[string]*types.KeyInfo, error) {
-	keys := make(map[string]*types.KeyInfo)
+func genKeys(cfgkeys []string) (map[string]*crypto.KeyInfo, error) {
+	keys := make(map[string]*crypto.KeyInfo)
 	for _, k := range cfgkeys {
 		if _, ok := keys[k]; ok {
 			return nil, fmt.Errorf("duplicate key with name: %q", k)
@@ -155,9 +156,9 @@ func genKeys(cfgkeys []string) (map[string]*types.KeyInfo, error) {
 			return nil, err
 		}
 
-		ki := &types.KeyInfo{
+		ki := &crypto.KeyInfo{
 			PrivateKey: crypto.ECDSAToBytes(sk),
-			Curve:      types.SECP256K1,
+			Curve:      crypto.SECP256K1,
 		}
 
 		keys[k] = ki
@@ -166,7 +167,7 @@ func genKeys(cfgkeys []string) (map[string]*types.KeyInfo, error) {
 	return keys, nil
 }
 
-func setupPrealloc(st state.Tree, keys map[string]*types.KeyInfo, prealloc map[string]string) error {
+func setupPrealloc(st state.Tree, keys map[string]*crypto.KeyInfo, prealloc map[string]string) error {
 
 	for k, v := range prealloc {
 		ki, ok := keys[k]
@@ -201,7 +202,7 @@ func setupPrealloc(st state.Tree, keys map[string]*types.KeyInfo, prealloc map[s
 	return st.SetActor(context.Background(), address.NetworkAddress, netact)
 }
 
-func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo, miners []Miner) ([]RenderedMinerInfo, error) {
+func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*crypto.KeyInfo, miners []Miner) ([]RenderedMinerInfo, error) {
 	var minfos []RenderedMinerInfo
 	ctx := context.Background()
 
@@ -288,7 +289,7 @@ func applyMessage(ctx context.Context, st state.Tree, storageMap vm.StorageMap, 
 		return nil, err
 	}
 
-	message := types.NewMessage(from, to, uint64(fromActor.Nonce), value, method, encodedParams)
+	message := chain.NewMessage(from, to, uint64(fromActor.Nonce), value, method, encodedParams)
 
-	return core.ApplyMessage(ctx, st, storageMap, message, types.NewBlockHeight(0))
+	return core.ApplyMessage(ctx, st, storageMap, message, chain.NewBlockHeight(0))
 }

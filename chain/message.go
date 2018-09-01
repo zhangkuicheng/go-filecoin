@@ -1,4 +1,4 @@
-package types
+package chain
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/types"
 )
 
 func init() {
@@ -28,9 +29,9 @@ type Message struct {
 	// When receiving a message from a user account the nonce in
 	// the message must match the expected nonce in the from actor.
 	// This prevents replay attacks.
-	Nonce Uint64 `json:"nonce"`
+	Nonce types.Uint64 `json:"nonce"`
 
-	Value *AttoFIL `json:"value"`
+	Value *types.AttoFIL `json:"value"`
 
 	Method string `json:"method"`
 	Params []byte `json:"params"`
@@ -49,7 +50,7 @@ func (msg *Message) Marshal() ([]byte, error) {
 // Cid returns the canonical CID for the message.
 // TODO: can we avoid returning an error?
 func (msg *Message) Cid() (*cid.Cid, error) {
-	obj, err := cbor.WrapObject(msg, DefaultHashFunction, -1)
+	obj, err := cbor.WrapObject(msg, types.DefaultHashFunction, -1)
 	if err != nil {
 		return nil, errPkg.Wrap(err, "failed to marshal to cbor")
 	}
@@ -58,11 +59,11 @@ func (msg *Message) Cid() (*cid.Cid, error) {
 }
 
 // NewMessage creates a new message.
-func NewMessage(from, to address.Address, nonce uint64, value *AttoFIL, method string, params []byte) *Message {
+func NewMessage(from, to address.Address, nonce uint64, value *types.AttoFIL, method string, params []byte) *Message {
 	return &Message{
 		From:   from,
 		To:     to,
-		Nonce:  Uint64(nonce),
+		Nonce:  types.Uint64(nonce),
 		Value:  value,
 		Method: method,
 		Params: params,

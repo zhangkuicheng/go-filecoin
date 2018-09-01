@@ -11,13 +11,14 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/paymentbroker"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
 )
 
 // GenesisInitFunc is the signature for function that is used to create a genesis block.
-type GenesisInitFunc func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*types.Block, error)
+type GenesisInitFunc func(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*chain.Block, error)
 
 var (
 	defaultAccounts map[address.Address]*types.AttoFIL
@@ -32,7 +33,7 @@ func init() {
 }
 
 // InitGenesis is the default function to create the genesis block.
-func InitGenesis(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*types.Block, error) {
+func InitGenesis(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*chain.Block, error) {
 	ctx := context.Background()
 	st := state.NewEmptyStateTree(cst)
 	storageMap := vm.NewStorageMap(bs)
@@ -51,7 +52,7 @@ func InitGenesis(cst *hamt.CborIpldStore, bs blockstore.Blockstore) (*types.Bloc
 		return nil, err
 	}
 
-	genesis := &types.Block{
+	genesis := &chain.Block{
 		StateRoot: c,
 		Nonce:     1337,
 	}

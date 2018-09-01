@@ -9,6 +9,7 @@ import (
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -91,7 +92,7 @@ func (av *Value) String() string {
 	case ChannelID:
 		return av.Val.(*types.ChannelID).String()
 	case BlockHeight:
-		return av.Val.(*types.BlockHeight).String()
+		return av.Val.(*chain.BlockHeight).String()
 	case Integer:
 		return av.Val.(*big.Int).String()
 	case Bytes:
@@ -146,9 +147,9 @@ func (av *Value) Serialize() ([]byte, error) {
 		}
 		return ba.Bytes(), nil
 	case BlockHeight:
-		ba, ok := av.Val.(*types.BlockHeight)
+		ba, ok := av.Val.(*chain.BlockHeight)
 		if !ok {
-			return nil, &typeError{types.BlockHeight{}, av.Val}
+			return nil, &typeError{chain.BlockHeight{}, av.Val}
 		}
 		return ba.Bytes(), nil
 	case Integer:
@@ -207,7 +208,7 @@ func ToValues(i []interface{}) ([]*Value, error) {
 			out = append(out, &Value{Type: BytesAmount, Val: v})
 		case *types.ChannelID:
 			out = append(out, &Value{Type: ChannelID, Val: v})
-		case *types.BlockHeight:
+		case *chain.BlockHeight:
 			out = append(out, &Value{Type: BlockHeight, Val: v})
 		case *big.Int:
 			out = append(out, &Value{Type: Integer, Val: v})
@@ -277,7 +278,7 @@ func Deserialize(data []byte, t Type) (*Value, error) {
 	case BlockHeight:
 		return &Value{
 			Type: t,
-			Val:  types.NewBlockHeightFromBytes(data),
+			Val:  chain.NewBlockHeightFromBytes(data),
 		}, nil
 	case Integer:
 		return &Value{
@@ -321,7 +322,7 @@ var typeTable = map[Type]reflect.Type{
 	Bytes:       reflect.TypeOf([]byte{}),
 	BytesAmount: reflect.TypeOf(&types.BytesAmount{}),
 	ChannelID:   reflect.TypeOf(&types.ChannelID{}),
-	BlockHeight: reflect.TypeOf(&types.BlockHeight{}),
+	BlockHeight: reflect.TypeOf(&chain.BlockHeight{}),
 	Integer:     reflect.TypeOf(&big.Int{}),
 	String:      reflect.TypeOf(string("")),
 	UintArray:   reflect.TypeOf([]uint64{}),

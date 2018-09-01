@@ -7,8 +7,8 @@ import (
 
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
-	"github.com/filecoin-project/go-filecoin/types"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,9 +32,9 @@ func TestChainDaemon(t *testing.T) {
 		op2 := d.RunSuccess("chain", "ls", "--enc", "json")
 		result2 := op2.ReadStdoutTrimNewlines()
 
-		var bs [][]types.Block
+		var bs [][]chain.Block
 		for _, line := range bytes.Split([]byte(result2), []byte{'\n'}) {
-			var b []types.Block
+			var b []chain.Block
 			err := json.Unmarshal(line, &b)
 			require.NoError(err)
 			bs = append(bs, b)
@@ -62,7 +62,7 @@ func TestChainDaemon(t *testing.T) {
 		op := d.RunSuccess("chain", "ls", "--enc", "json")
 		result := op.ReadStdoutTrimNewlines()
 
-		var b []types.Block
+		var b []chain.Block
 		err := json.Unmarshal([]byte(result), &b)
 		require.NoError(err)
 

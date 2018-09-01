@@ -17,6 +17,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	cbu "github.com/filecoin-project/go-filecoin/cborutil"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -69,7 +70,7 @@ type StorageDealResponse struct {
 	//ProofInfo *ProofInfo
 
 	// Signature is a signature from the miner over the response
-	Signature types.Signature
+	Signature crypto.Signature
 }
 
 // ProofInfo is proof info
@@ -146,7 +147,7 @@ func (sm *StorageMiner) acceptProposal(ctx context.Context, p *StorageDealPropos
 	resp := &StorageDealResponse{
 		State:     Accepted,
 		Proposal:  propcid,
-		Signature: types.Signature("signaturrreee"),
+		Signature: crypto.Signature("signaturrreee"),
 	}
 
 	sm.dealsLk.Lock()

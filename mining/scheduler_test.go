@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ import (
 func newTestUtils(t *testing.T) (*assert.Assertions, *require.Assertions, core.TipSet) {
 	assert := assert.New(t)
 	require := require.New(t)
-	baseBlock := &types.Block{StateRoot: types.SomeCid()}
+	baseBlock := &chain.Block{StateRoot: chain.SomeCid()}
 
 	ts := core.TipSet{baseBlock.Cid().String(): baseBlock}
 	return assert, require, ts
@@ -57,9 +57,9 @@ func TestSchedulerPassesManyValues(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var checkTS core.TipSet
 	// make tipsets with progressively higher heights
-	blk2 := &types.Block{StateRoot: types.SomeCid(), Height: 1}
+	blk2 := &chain.Block{StateRoot: chain.SomeCid(), Height: 1}
 	ts2 := core.RequireNewTipSet(require, blk2)
-	blk3 := &types.Block{StateRoot: types.SomeCid(), Height: 2}
+	blk3 := &chain.Block{StateRoot: chain.SomeCid(), Height: 2}
 	ts3 := core.RequireNewTipSet(require, blk3)
 
 	checkValsMine := func(c context.Context, i Input, outCh chan<- Output) {
@@ -89,9 +89,9 @@ func TestSchedulerPassesManyValues(t *testing.T) {
 func TestSchedulerCollect(t *testing.T) {
 	assert, require, ts1 := newTestUtils(t)
 	ctx, cancel := context.WithCancel(context.Background())
-	blk2 := &types.Block{StateRoot: types.SomeCid(), Height: 1}
+	blk2 := &chain.Block{StateRoot: chain.SomeCid(), Height: 1}
 	ts2 := core.RequireNewTipSet(require, blk2)
-	blk3 := &types.Block{StateRoot: types.SomeCid(), Height: 1}
+	blk3 := &chain.Block{StateRoot: chain.SomeCid(), Height: 1}
 	ts3 := core.RequireNewTipSet(require, blk3)
 	checkValsMine := func(c context.Context, i Input, outCh chan<- Output) {
 		assert.Equal(i.TipSet, ts3)
@@ -114,7 +114,7 @@ func TestCannotInterruptMiner(t *testing.T) {
 	assert, require, ts1 := newTestUtils(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	blk1 := ts1.ToSlice()[0]
-	blk2 := &types.Block{StateRoot: types.SomeCid(), Height: 0}
+	blk2 := &chain.Block{StateRoot: chain.SomeCid(), Height: 0}
 	ts2 := core.RequireNewTipSet(require, blk2)
 	blockingMine := func(c context.Context, i Input, outCh chan<- Output) {
 		time.Sleep(BlockTimeTest)
@@ -160,9 +160,9 @@ func TestSchedulerMultiRoundWithCollect(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var checkTS core.TipSet
 	// make tipsets with progressively higher heights
-	blk2 := &types.Block{StateRoot: types.SomeCid(), Height: 1}
+	blk2 := &chain.Block{StateRoot: chain.SomeCid(), Height: 1}
 	ts2 := core.RequireNewTipSet(require, blk2)
-	blk3 := &types.Block{StateRoot: types.SomeCid(), Height: 2}
+	blk3 := &chain.Block{StateRoot: chain.SomeCid(), Height: 2}
 	ts3 := core.RequireNewTipSet(require, blk3)
 
 	checkValsMine := func(c context.Context, i Input, outCh chan<- Output) {

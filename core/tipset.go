@@ -5,6 +5,8 @@ import (
 
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -14,7 +16,7 @@ import (
 // memory is expensive. We could define a struct encompassing the subset
 // of Block needed for EC and embed it in the block or we could limit the
 // height we index or both.
-type Tip = types.Block
+type Tip = chain.Block
 
 // TipSet is a set of Tips, blocks at the same height with the same parent set,
 // keyed by Cid string.
@@ -31,7 +33,7 @@ var (
 
 // NewTipSet returns a TipSet wrapping the input blocks.
 // PRECONDITION: all blocks are the same height and have the same parent set.
-func NewTipSet(blks ...*types.Block) (TipSet, error) {
+func NewTipSet(blks ...*chain.Block) (TipSet, error) {
 	if len(blks) == 0 {
 		return nil, ErrBadTipSetCreate
 	}
@@ -46,7 +48,7 @@ func NewTipSet(blks ...*types.Block) (TipSet, error) {
 
 // AddBlock adds the provided block to this tipset.
 // PRECONDITION: this block has the same height parent set as other members of ts.
-func (ts TipSet) AddBlock(b *types.Block) error {
+func (ts TipSet) AddBlock(b *chain.Block) error {
 	if len(ts) == 0 {
 		id := b.Cid()
 		ts[id.String()] = b
@@ -107,8 +109,8 @@ func (ts TipSet) ToSortedCidSet() types.SortedCidSet {
 }
 
 // ToSlice returns the slice of *types.Block containing the tipset's blocks.
-func (ts TipSet) ToSlice() []*types.Block {
-	sl := make([]*types.Block, len(ts))
+func (ts TipSet) ToSlice() []*chain.Block {
+	sl := make([]*chain.Block, len(ts))
 	var i int
 	for _, b := range ts {
 		sl[i] = b
@@ -118,7 +120,7 @@ func (ts TipSet) ToSlice() []*types.Block {
 }
 
 // MinTicket returns the smallest ticket of all blocks in the tipset.
-func (ts TipSet) MinTicket() (types.Signature, error) {
+func (ts TipSet) MinTicket() (crypto.Signature, error) {
 	if len(ts) == 0 {
 		return nil, ErrEmptyTipSet
 	}

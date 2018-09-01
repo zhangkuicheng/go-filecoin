@@ -10,6 +10,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/actor/builtin/paymentbroker"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/types"
 )
 
@@ -61,7 +62,7 @@ message to be mined to get the channelID.`,
 			return
 		}
 
-		eol, ok := types.NewBlockHeightFromString(req.Arguments[2], 10)
+		eol, ok := chain.NewBlockHeightFromString(req.Arguments[2], 10)
 		if !ok {
 			re.SetError(ErrInvalidBlockHeight, cmdkit.ErrNormal)
 			return
@@ -317,7 +318,7 @@ var extendCmd = &cmds.Command{
 			return
 		}
 
-		eol, ok := types.NewBlockHeightFromString(req.Arguments[2], 10)
+		eol, ok := chain.NewBlockHeightFromString(req.Arguments[2], 10)
 		if !ok {
 			re.SetError(ErrInvalidBlockHeight, cmdkit.ErrNormal)
 			return

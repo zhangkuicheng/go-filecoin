@@ -1,4 +1,4 @@
-package types
+package chain
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/crypto"
+	"github.com/filecoin-project/go-filecoin/types"
 )
 
 func init() {
@@ -21,24 +23,24 @@ type Block struct {
 	Miner address.Address `json:"miner"`
 
 	// Ticket is the winning ticket that was submitted with this block.
-	Ticket Signature `json:"ticket"`
+	Ticket crypto.Signature `json:"ticket"`
 
 	// Parents is the set of parents this block was based on. Typically one,
 	// but can be several in the case where there were multiple winning ticket-
 	// holders for an epoch.
-	Parents SortedCidSet `json:"parents"`
+	Parents types.SortedCidSet `json:"parents"`
 
 	// ParentWeightNum is the numerator of the aggregate chain weight of the parent set.
-	ParentWeightNum Uint64 `json:"parentWeightNumerator"`
+	ParentWeightNum types.Uint64 `json:"parentWeightNumerator"`
 
 	// ParentWeightDenom is the denominator of the aggregate chain weight of the parent set
-	ParentWeightDenom Uint64 `json:"parentWeightDenominator"`
+	ParentWeightDenom types.Uint64 `json:"parentWeightDenominator"`
 
 	// Height is the chain height of this block.
-	Height Uint64 `json:"height"`
+	Height types.Uint64 `json:"height"`
 
 	// Nonce is a temporary field used to differentiate blocks for testing
-	Nonce Uint64 `json:"nonce"`
+	Nonce types.Uint64 `json:"nonce"`
 
 	// Messages is the set of messages included in this block
 	// TODO: should be a merkletree-ish thing
@@ -67,7 +69,7 @@ func (b Block) IsParentOf(c Block) bool {
 // ToNode converts the Block to an IPLD node.
 func (b *Block) ToNode() node.Node {
 	// Use 32 byte / 256 bit digest. TODO pull this out into a constant?
-	obj, err := cbor.WrapObject(b, DefaultHashFunction, -1)
+	obj, err := cbor.WrapObject(b, types.DefaultHashFunction, -1)
 	if err != nil {
 		panic(err)
 	}

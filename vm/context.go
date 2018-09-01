@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -21,10 +22,10 @@ import (
 type Context struct {
 	from        *actor.Actor
 	to          *actor.Actor
-	message     *types.Message
+	message     *chain.Message
 	state       *state.CachedTree
 	storageMap  StorageMap
-	blockHeight *types.BlockHeight
+	blockHeight *chain.BlockHeight
 
 	deps *deps // Inject external dependencies so we can unit test robustly.
 }
@@ -32,7 +33,7 @@ type Context struct {
 var _ exec.VMContext = (*Context)(nil)
 
 // NewVMContext returns an initialized context.
-func NewVMContext(from, to *actor.Actor, msg *types.Message, st *state.CachedTree, store StorageMap, bh *types.BlockHeight) *Context {
+func NewVMContext(from, to *actor.Actor, msg *chain.Message, st *state.CachedTree, store StorageMap, bh *chain.BlockHeight) *Context {
 	return &Context{
 		from:        from,
 		to:          to,
@@ -52,7 +53,7 @@ func (ctx *Context) Storage() exec.Storage {
 }
 
 // Message retrieves the message associated with this context.
-func (ctx *Context) Message() *types.Message {
+func (ctx *Context) Message() *chain.Message {
 	return ctx.message
 }
 
@@ -92,7 +93,7 @@ func (ctx *Context) WriteStorage(memory []byte) error {
 }
 
 // BlockHeight returns the block height of the block currently being processed
-func (ctx *Context) BlockHeight() *types.BlockHeight {
+func (ctx *Context) BlockHeight() *chain.BlockHeight {
 	return ctx.blockHeight
 }
 
@@ -120,7 +121,7 @@ func (ctx *Context) Send(to address.Address, method string, value *types.AttoFIL
 		return nil, 1, errors.RevertErrorWrap(err, "encoding params failed")
 	}
 
-	msg := types.NewMessage(from, to, 0, value, method, paramData)
+	msg := chain.NewMessage(from, to, 0, value, method, paramData)
 	if msg.From == msg.To {
 		// TODO: handle this
 		return nil, 1, errors.NewFaultErrorf("unhandled: sending to self (%s)", msg.From)

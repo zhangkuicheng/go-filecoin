@@ -7,7 +7,7 @@ import (
 	"gx/ipfs/QmPTfgFTo9PFr1PvPKyKoeMgBvYPh6cX3aDP7DHKVbnCbi/go-ipfs-cmds"
 	"gx/ipfs/QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky/go-ipfs-cmdkit"
 
-	"github.com/filecoin-project/go-filecoin/types"
+	"github.com/filecoin-project/go-filecoin/chain"
 )
 
 var mpoolCmd = &cmds.Command{
@@ -28,9 +28,9 @@ var mpoolCmd = &cmds.Command{
 
 		re.Emit(pending) // nolint: errcheck
 	},
-	Type: []*types.Message{},
+	Type: []*chain.Message{},
 	Encoders: cmds.EncoderMap{
-		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, msgs *[]*types.Message) error {
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, msgs *[]*chain.Message) error {
 			for _, msg := range *msgs {
 				c, err := msg.Cid()
 				if err != nil {

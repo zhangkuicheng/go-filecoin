@@ -1,4 +1,4 @@
-package types
+package chain
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 
+	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -58,7 +59,7 @@ func TestBlockHeightCborMarshaling(t *testing.T) {
 		out, err := cbor.DumpObject(np)
 		assert.NoError(err)
 
-		out2, err := cbor.DumpObject(ZeroAttoFIL)
+		out2, err := cbor.DumpObject(types.ZeroAttoFIL)
 		assert.NoError(err)
 
 		assert.NotEqual(out, out2)
@@ -92,7 +93,7 @@ func TestBlockHeightJsonMarshaling(t *testing.T) {
 		out, err := json.Marshal(np)
 		assert.NoError(err)
 
-		out2, err := json.Marshal(ZeroAttoFIL)
+		out2, err := json.Marshal(types.ZeroAttoFIL)
 		assert.NoError(err)
 
 		assert.NotEqual(out, out2)

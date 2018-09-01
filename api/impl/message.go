@@ -8,6 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -38,7 +39,7 @@ func (api *nodeMessage) Send(ctx context.Context, from, to address.Address, val 
 		return nil, err
 	}
 
-	smsg, err := types.NewSignedMessage(*msg, nd.Wallet)
+	smsg, err := chain.NewSignedMessage(*msg, nd.Wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -85,10 +86,10 @@ func (api *nodeMessage) Query(ctx context.Context, from, to address.Address, met
 	return retVals, signature, nil
 }
 
-func (api *nodeMessage) Wait(ctx context.Context, msgCid *cid.Cid, cb func(blk *types.Block, msg *types.SignedMessage, receipt *types.MessageReceipt, signature *exec.FunctionSignature) error) error {
+func (api *nodeMessage) Wait(ctx context.Context, msgCid *cid.Cid, cb func(blk *chain.Block, msg *chain.SignedMessage, receipt *chain.MessageReceipt, signature *exec.FunctionSignature) error) error {
 	nd := api.api.node
 
-	return nd.ChainMgr.WaitForMessage(ctx, msgCid, func(blk *types.Block, msg *types.SignedMessage, receipt *types.MessageReceipt) error {
+	return nd.ChainMgr.WaitForMessage(ctx, msgCid, func(blk *chain.Block, msg *chain.SignedMessage, receipt *chain.MessageReceipt) error {
 		signature, err := nd.GetSignature(ctx, msg.To, msg.Method)
 		if err != nil && err != node.ErrNoMethod {
 			return errors.Wrap(err, "unable to determine return type")

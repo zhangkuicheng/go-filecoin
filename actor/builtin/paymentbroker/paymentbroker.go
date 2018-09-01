@@ -6,6 +6,8 @@ import (
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
@@ -69,7 +71,7 @@ type PaymentChannel struct {
 	Target         address.Address    `json:"target"`
 	Amount         *types.AttoFIL     `json:"amount"`
 	AmountRedeemed *types.AttoFIL     `json:"amount_redeemed"`
-	Eol            *types.BlockHeight `json:"eol"`
+	Eol            *chain.BlockHeight `json:"eol"`
 }
 
 // PaymentVoucher is a voucher for a payment channel that can be transferred off-chain but guarantees a future payment.
@@ -152,7 +154,7 @@ var paymentBrokerExports = exec.Exports{
 // CreateChannel creates a new payment channel from the caller to the target.
 // The value attached to the invocation is used as the deposit, and the channel
 // will expire and return all of its money to the owner after the given block height.
-func (pb *Actor) CreateChannel(ctx *vm.Context, target address.Address, eol *types.BlockHeight) (*types.ChannelID, uint8, error) {
+func (pb *Actor) CreateChannel(ctx *vm.Context, target address.Address, eol *chain.BlockHeight) (*types.ChannelID, uint8, error) {
 	var state State
 	ret, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		// require that from account be an account actor to ensure nonce is a valid id
@@ -206,7 +208,7 @@ func (pb *Actor) Update(ctx *vm.Context, payer address.Address, chid *types.Chan
 	var state State
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		data := createVoucherSignatureData(chid, amt)
-		if !types.VerifySignature(data, payer, sig) {
+		if !crypto.VerifySignature(data, payer, sig) {
 			return nil, Errors[ErrInvalidSignature]
 		}
 
@@ -232,7 +234,7 @@ func (pb *Actor) Close(ctx *vm.Context, payer address.Address, chid *types.Chann
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 
 		data := createVoucherSignatureData(chid, amt)
-		if !types.VerifySignature(data, payer, sig) {
+		if !crypto.VerifySignature(data, payer, sig) {
 			return nil, Errors[ErrInvalidSignature]
 		}
 
@@ -259,7 +261,7 @@ func (pb *Actor) Close(ctx *vm.Context, payer address.Address, chid *types.Chann
 
 // Extend can be used by the owner of a channel to add more funds to it and
 // extend the Channels lifespan.
-func (pb *Actor) Extend(ctx *vm.Context, chid *types.ChannelID, eol *types.BlockHeight) (uint8, error) {
+func (pb *Actor) Extend(ctx *vm.Context, chid *types.ChannelID, eol *chain.BlockHeight) (uint8, error) {
 	var state State
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		channel, err := findChannel(&state, ctx.Message().From, chid)
@@ -442,7 +444,7 @@ const separator = 0x0
 // SignVoucher creates the signature for the given combination of
 // channel, amount and from address.
 // It does so by sign the following bytes: (channelID | 0x0 | amount)
-func SignVoucher(channelID *types.ChannelID, amount *types.AttoFIL, addr address.Address, signer types.Signer) (types.Signature, error) {
+func SignVoucher(channelID *types.ChannelID, amount *types.AttoFIL, addr address.Address, signer crypto.Signer) (crypto.Signature, error) {
 	data := createVoucherSignatureData(channelID, amount)
 	return signer.SignBytes(data, addr)
 }

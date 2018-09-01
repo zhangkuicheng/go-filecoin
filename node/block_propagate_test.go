@@ -7,6 +7,7 @@ import (
 
 	peerstore "gx/ipfs/QmeKD8YT7887Xu6Z86iZmpYNxrLogJexqxEugSmaf14k64/go-libp2p-peerstore"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +52,7 @@ func TestBlockPropTwoNodes(t *testing.T) {
 	connect(t, nodes[0], nodes[1])
 
 	baseBlk := core.RequireBestBlock(nodes[0].ChainMgr, t)
-	nextBlk := &types.Block{
+	nextBlk := &chain.Block{
 		Parents:           types.NewSortedCidSet(baseBlk.Cid()),
 		Height:            types.Uint64(1),
 		ParentWeightNum:   types.Uint64(10),
@@ -87,21 +88,21 @@ func TestChainSync(t *testing.T) {
 	defer stopNodes(nodes)
 
 	baseBlk := core.RequireBestBlock(nodes[0].ChainMgr, t)
-	nextBlk1 := &types.Block{
+	nextBlk1 := &chain.Block{
 		Parents:           types.NewSortedCidSet(baseBlk.Cid()),
 		Height:            types.Uint64(1),
 		ParentWeightNum:   types.Uint64(10),
 		ParentWeightDenom: types.Uint64(1),
 		StateRoot:         baseBlk.StateRoot,
 	}
-	nextBlk2 := &types.Block{
+	nextBlk2 := &chain.Block{
 		Parents:           types.NewSortedCidSet(nextBlk1.Cid()),
 		Height:            types.Uint64(2),
 		ParentWeightNum:   types.Uint64(20),
 		ParentWeightDenom: types.Uint64(1),
 		StateRoot:         baseBlk.StateRoot,
 	}
-	nextBlk3 := &types.Block{
+	nextBlk3 := &chain.Block{
 		Parents:           types.NewSortedCidSet(nextBlk2.Cid()),
 		Height:            types.Uint64(3),
 		ParentWeightNum:   types.Uint64(30),

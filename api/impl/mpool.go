@@ -3,8 +3,8 @@ package impl
 import (
 	"context"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/node"
-	"github.com/filecoin-project/go-filecoin/types"
 )
 
 type nodeMpool struct {
@@ -15,7 +15,7 @@ func newNodeMpool(api *nodeAPI) *nodeMpool {
 	return &nodeMpool{api: api}
 }
 
-func (api *nodeMpool) View(ctx context.Context, messageCount uint) ([]*types.SignedMessage, error) {
+func (api *nodeMpool) View(ctx context.Context, messageCount uint) ([]*chain.SignedMessage, error) {
 	nd := api.api.node
 
 	pending := nd.MsgPool.Pending()

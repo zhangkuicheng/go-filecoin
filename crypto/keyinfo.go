@@ -1,4 +1,4 @@
-package types
+package crypto
 
 import (
 	"bytes"
@@ -8,8 +8,8 @@ import (
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 
 	"github.com/filecoin-project/go-filecoin/address"
-	"github.com/filecoin-project/go-filecoin/crypto"
-	cu "github.com/filecoin-project/go-filecoin/crypto/util"
+	"github.com/filecoin-project/go-filecoin/crypto/internal"
+	cu "github.com/filecoin-project/go-filecoin/crypto/internal/util"
 )
 
 func init() {
@@ -74,7 +74,7 @@ func (ki *KeyInfo) Address() (address.Address, error) {
 
 // PublicKey returns the public key part as uncompressed bytes.
 func (ki *KeyInfo) PublicKey() ([]byte, error) {
-	prv, err := crypto.BytesToECDSA(ki.Key())
+	prv, err := internal.BytesToECDSA(ki.Key())
 	if err != nil {
 		return nil, err
 	}

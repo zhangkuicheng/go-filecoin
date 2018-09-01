@@ -14,8 +14,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/repo"
-	"github.com/filecoin-project/go-filecoin/types"
-	wutil "github.com/filecoin-project/go-filecoin/wallet/util"
 )
 
 const (
@@ -69,7 +67,7 @@ func NewDSBackend(ds repo.Datastore) (*DSBackend, error) {
 }
 
 // ImportKey loads the address in `ai` and KeyInfo `ki` into the backend
-func (backend *DSBackend) ImportKey(ki *types.KeyInfo) error {
+func (backend *DSBackend) ImportKey(ki *crypto.KeyInfo) error {
 	return backend.putKeyInfo(ki)
 }
 
@@ -103,8 +101,8 @@ func (backend *DSBackend) NewAddress() (address.Address, error) {
 		return address.Address{}, err
 	}
 
-	// TODO: maybe the above call should just return a keyinfo?
-	ki := &types.KeyInfo{
+	// TODO: maybe the abpove call should just return a keyinfo?
+	ki := &crypto.KeyInfo{
 		PrivateKey: crypto.ECDSAToBytes(prv),
 		Curve:      SECP256K1,
 	}
@@ -116,7 +114,7 @@ func (backend *DSBackend) NewAddress() (address.Address, error) {
 	return ki.Address()
 }
 
-func (backend *DSBackend) putKeyInfo(ki *types.KeyInfo) error {
+func (backend *DSBackend) putKeyInfo(ki *crypto.KeyInfo) error {
 	a, err := ki.Address()
 	if err != nil {
 		return err
@@ -139,7 +137,7 @@ func (backend *DSBackend) putKeyInfo(ki *types.KeyInfo) error {
 }
 
 // SignBytes cryptographically signs `data` using the private key `priv`.
-func (backend *DSBackend) SignBytes(data []byte, addr address.Address) (types.Signature, error) {
+func (backend *DSBackend) SignBytes(data []byte, addr address.Address) (crypto.Signature, error) {
 	ki, err := backend.GetKeyInfo(addr)
 	if err != nil {
 		return nil, err
@@ -150,18 +148,18 @@ func (backend *DSBackend) SignBytes(data []byte, addr address.Address) (types.Si
 		return nil, err
 	}
 
-	return wutil.Sign(privateKey, data)
+	return crypto.Sign(privateKey, data)
 }
 
 // Verify cryptographically verifies that 'sig' is the signed hash of 'data' with
 // the public key `pk`.
-func (backend *DSBackend) Verify(data []byte, pk []byte, sig types.Signature) (bool, error) {
-	return wutil.Verify(pk, data, sig)
+func (backend *DSBackend) Verify(data []byte, pk []byte, sig crypto.Signature) (bool, error) {
+	return crypto.Verify(pk, data, sig)
 }
 
 // GetKeyInfo will return the private & public keys associated with address `addr`
 // iff backend contains the addr.
-func (backend *DSBackend) GetKeyInfo(addr address.Address) (*types.KeyInfo, error) {
+func (backend *DSBackend) GetKeyInfo(addr address.Address) (*crypto.KeyInfo, error) {
 	if !backend.HasAddress(addr) {
 		return nil, errors.New("backend does not contain address")
 	}
@@ -172,7 +170,7 @@ func (backend *DSBackend) GetKeyInfo(addr address.Address) (*types.KeyInfo, erro
 		return nil, errors.Wrap(err, "failed to fetch private key from backend")
 	}
 
-	ki := &types.KeyInfo{}
+	ki := &crypto.KeyInfo{}
 	if err := ki.Unmarshal(kib); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal keyinfo from backend")
 	}
@@ -180,7 +178,7 @@ func (backend *DSBackend) GetKeyInfo(addr address.Address) (*types.KeyInfo, erro
 	return ki, nil
 }
 
-func keysFromInfo(ki *types.KeyInfo) (*ecdsa.PrivateKey, *ecdsa.PublicKey, error) {
+func keysFromInfo(ki *crypto.KeyInfo) (*ecdsa.PrivateKey, *ecdsa.PublicKey, error) {
 	// Developer error if we add a new type and don't update this method
 	if ki.Type() != SECP256K1 {
 		panic(fmt.Sprintf("unknown key type %s", ki.Type()))

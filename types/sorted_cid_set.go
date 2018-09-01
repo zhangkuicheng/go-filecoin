@@ -21,7 +21,7 @@ func init() {
 			func(s []*cid.Cid) (SortedCidSet, error) {
 				for i := 0; i < len(s)-1; i++ {
 					// Note that this will also catch duplicates.
-					if !cidLess(s[i], s[i+1]) {
+					if !CidLess(s[i], s[i+1]) {
 						return SortedCidSet{}, fmt.Errorf(
 							"invalid serialization of SortedCidSet - %s not less than %s", s[i].String(), s[i+1].String())
 					}
@@ -151,7 +151,7 @@ func (s *SortedCidSet) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	for i := 0; i < len(ts)-1; i++ {
-		if !cidLess(ts[i], ts[i+1]) {
+		if !CidLess(ts[i], ts[i+1]) {
 			return fmt.Errorf("invalid input - cids not sorted")
 		}
 	}
@@ -161,7 +161,7 @@ func (s *SortedCidSet) UnmarshalJSON(b []byte) error {
 
 func (s SortedCidSet) search(id *cid.Cid) int {
 	return sort.Search(len(s.s), func(i int) bool {
-		return !cidLess(s.s[i], id)
+		return !CidLess(s.s[i], id)
 	})
 }
 
@@ -200,9 +200,10 @@ func (si sortedCidSetIterator) Value() *cid.Cid {
 	}
 }
 
+// CidLess implements Less comparison between two cids.
 // Note: this relies on knowledge of internal layout of Cid.
 // TODO: ideally cid would just implement this. See: https://github.com/ipfs/go-cid/issues/46
-func cidLess(c1, c2 *cid.Cid) bool {
+func CidLess(c1, c2 *cid.Cid) bool {
 	p1 := c1.Prefix()
 	p2 := c2.Prefix()
 	return p1.Version < p2.Version || p1.Codec < p2.Codec || bytes.Compare(c1.Hash(), c2.Hash()) < 0

@@ -16,7 +16,7 @@
 
 // THIS WAS TAKEN FROM github.com/ethereum/go-ethereum MODIFY CAREFULLY
 
-package crypto
+package internal
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	cu "github.com/filecoin-project/go-filecoin/crypto/util"
+	cu "github.com/filecoin-project/go-filecoin/crypto/internal/util"
 )
 
 var (

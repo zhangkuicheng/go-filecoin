@@ -1,4 +1,4 @@
-package types
+package chain
 
 import (
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
@@ -6,6 +6,8 @@ import (
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/crypto"
+	"github.com/filecoin-project/go-filecoin/types"
 )
 
 var (
@@ -24,7 +26,7 @@ func init() {
 // `SignedMessage` with an empty signature.
 type SignedMessage struct {
 	Message   `json:"message"`
-	Signature Signature `json:"signature"`
+	Signature crypto.Signature `json:"signature"`
 }
 
 // Unmarshal a SignedMessage from the given bytes.
@@ -40,7 +42,7 @@ func (smsg *SignedMessage) Marshal() ([]byte, error) {
 // Cid returns the canonical CID for the SignedMessage.
 // TODO: can we avoid returning an error?
 func (smsg *SignedMessage) Cid() (*cid.Cid, error) {
-	obj, err := cbor.WrapObject(smsg, DefaultHashFunction, -1)
+	obj, err := cbor.WrapObject(smsg, types.DefaultHashFunction, -1)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal to cbor")
 	}
@@ -49,7 +51,7 @@ func (smsg *SignedMessage) Cid() (*cid.Cid, error) {
 }
 
 // RecoverAddress returns the address derived from the signature and message encapsulated in `SignedMessage`
-func (smsg *SignedMessage) RecoverAddress(r Recoverer) (address.Address, error) {
+func (smsg *SignedMessage) RecoverAddress(r crypto.Recoverer) (address.Address, error) {
 	if len(smsg.Signature) < 1 {
 		return address.Address{}, ErrMessageUnsigned
 	}
@@ -72,7 +74,7 @@ func (smsg *SignedMessage) RecoverAddress(r Recoverer) (address.Address, error) 
 
 // NewSignedMessage accepts a message `msg` and a signer `s`. NewSignedMessage returns a `SignedMessage` containing
 // a signature derived from the seralized `msg` and `msg.From`
-func NewSignedMessage(msg Message, s Signer) (*SignedMessage, error) {
+func NewSignedMessage(msg Message, s crypto.Signer) (*SignedMessage, error) {
 	bmsg, err := msg.Marshal()
 	if err != nil {
 		return nil, err

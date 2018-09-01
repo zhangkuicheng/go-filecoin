@@ -14,7 +14,9 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/mining"
 	"github.com/filecoin-project/go-filecoin/repo"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
@@ -25,10 +27,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var seed = types.GenerateKeyInfoSeed()
-var ki = types.MustGenerateKeyInfo(10, seed)
-var mockSigner = types.NewMockSigner(ki)
-var newSignedMessage = types.NewSignedMessageForTestGetter(mockSigner)
+var seed = crypto.GenerateKeyInfoSeed()
+var ki = crypto.MustGenerateKeyInfo(10, seed)
+var mockSigner = crypto.NewMockSigner(ki)
+var newSignedMessage = chain.NewSignedMessageForTestGetter(mockSigner)
 
 func TestNodeConstruct(t *testing.T) {
 	t.Parallel()
@@ -145,7 +147,7 @@ func TestNodeMining(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
-	newCid := types.NewCidForTestGetter()
+	newCid := chain.NewCidForTestGetter()
 	ctx := context.Background()
 
 	node := MakeNodesUnstarted(t, 1, true, true)[0]
@@ -166,7 +168,7 @@ func TestNodeMining(t *testing.T) {
 	go node.handleNewMiningOutput(oCh)
 
 	// Ensure that the initial input (the best tipset) is wired up properly.
-	b1 := &types.Block{StateRoot: newCid()}
+	b1 := &chain.Block{StateRoot: newCid()}
 	var chainMgrForTest *core.ChainManagerForTest // nolint: gosimple, megacheck
 	chainMgrForTest = node.ChainMgr
 	chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b1))
@@ -177,7 +179,7 @@ func TestNodeMining(t *testing.T) {
 	assert.True(b1.Cid().Equals(gotInput.TipSet.ToSlice()[0].Cid()))
 
 	// Ensure that the successive inputs (new best tipsets) are wired up properly.
-	b2 := core.MkChild([]*types.Block{b1}, newCid(), 0)
+	b2 := core.MkChild([]*chain.Block{b1}, newCid(), 0)
 	node.ChainMgr.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b2))
 	gotInput = <-inCh
 	require.Equal(1, len(gotInput.TipSet))
@@ -224,9 +226,9 @@ func TestNodeMining(t *testing.T) {
 	go node.handleNewMiningOutput(oCh)
 	assert.NoError(node.Start(ctx))
 
-	var gotBlock *types.Block
+	var gotBlock *chain.Block
 	gotBlockCh := make(chan struct{})
-	node.AddNewlyMinedBlock = func(ctx context.Context, b *types.Block) {
+	node.AddNewlyMinedBlock = func(ctx context.Context, b *chain.Block) {
 		gotBlock = b
 		go func() { gotBlockCh <- struct{}{} }()
 	}
@@ -249,10 +251,10 @@ func TestUpdateMessagePool(t *testing.T) {
 	// Msg pool: [m0, m1],   Chain: b[m2, m3]
 	// to
 	// Msg pool: [m0, m3],   Chain: b[] -> b[m1, m2]
-	m := types.NewSignedMsgs(4, mockSigner)
+	m := chain.NewSignedMsgs(4, mockSigner)
 	core.MustAdd(node.MsgPool, m[0], m[1])
-	oldChain := core.NewChainWithMessages(node.CborStore, nil, [][]*types.SignedMessage{{m[2], m[3]}})
-	newChain := core.NewChainWithMessages(node.CborStore, nil, [][]*types.SignedMessage{{}}, [][]*types.SignedMessage{{m[1], m[2]}})
+	oldChain := core.NewChainWithMessages(node.CborStore, nil, [][]*chain.SignedMessage{{m[2], m[3]}})
+	newChain := core.NewChainWithMessages(node.CborStore, nil, [][]*chain.SignedMessage{{}}, [][]*chain.SignedMessage{{m[1], m[2]}})
 	chainMgrForTest.SetHeaviestTipSetForTest(ctx, oldChain[len(oldChain)-1])
 	assert.NoError(node.Start(ctx))
 	updateMsgPoolDoneCh := make(chan struct{})
@@ -262,17 +264,17 @@ func TestUpdateMessagePool(t *testing.T) {
 	<-updateMsgPoolDoneCh
 	assert.Equal(2, len(node.MsgPool.Pending()))
 	pending := node.MsgPool.Pending()
-	assert.True(types.SmsgCidsEqual(m[0], pending[0]) || types.SmsgCidsEqual(m[0], pending[1]))
-	assert.True(types.SmsgCidsEqual(m[3], pending[0]) || types.SmsgCidsEqual(m[3], pending[1]))
+	assert.True(chain.SmsgCidsEqual(m[0], pending[0]) || chain.SmsgCidsEqual(m[0], pending[1]))
+	assert.True(chain.SmsgCidsEqual(m[3], pending[0]) || chain.SmsgCidsEqual(m[3], pending[1]))
 	node.Stop(ctx)
 }
 
-func testWaitHelp(wg *sync.WaitGroup, assert *assert.Assertions, cm *core.ChainManager, expectMsg *types.SignedMessage, expectError bool, cb func(*types.Block, *types.SignedMessage, *types.MessageReceipt) error) {
+func testWaitHelp(wg *sync.WaitGroup, assert *assert.Assertions, cm *core.ChainManager, expectMsg *chain.SignedMessage, expectError bool, cb func(*chain.Block, *chain.SignedMessage, *chain.MessageReceipt) error) {
 	expectCid, err := expectMsg.Cid()
 	if cb == nil {
-		cb = func(b *types.Block, msg *types.SignedMessage,
-			rcp *types.MessageReceipt) error {
-			assert.True(types.SmsgCidsEqual(expectMsg, msg))
+		cb = func(b *chain.Block, msg *chain.SignedMessage,
+			rcp *chain.MessageReceipt) error {
+			assert.True(chain.SmsgCidsEqual(expectMsg, msg))
 			if wg != nil {
 				wg.Done()
 			}
@@ -286,8 +288,8 @@ func testWaitHelp(wg *sync.WaitGroup, assert *assert.Assertions, cm *core.ChainM
 	assert.Equal(expectError, err != nil)
 }
 
-type smsgs []*types.SignedMessage
-type smsgsSet [][]*types.SignedMessage
+type smsgs []*chain.SignedMessage
+type smsgsSet [][]*chain.SignedMessage
 
 func TestWaitForMessage(t *testing.T) {
 	t.Parallel()
@@ -347,7 +349,7 @@ func testWaitNew(ctx context.Context, assert *assert.Assertions, node *Node,
 }
 
 func testWaitError(ctx context.Context, assert *assert.Assertions, node *Node, stm *core.ChainManagerForTest) {
-	stm.FetchBlock = func(ctx context.Context, cid *cid.Cid) (*types.Block, error) {
+	stm.FetchBlock = func(ctx context.Context, cid *cid.Cid) (*chain.Block, error) {
 		return nil, fmt.Errorf("error fetching block (in test)")
 	}
 
@@ -379,34 +381,34 @@ func TestWaitConflicting(t *testing.T) {
 	stm := (*core.ChainManagerForTest)(node.ChainMgr)
 
 	// Create conflicting messages
-	m1 := types.NewMessage(addr1, addr3, 0, types.NewAttoFILFromFIL(6000), "", nil)
-	sm1, err := types.NewSignedMessage(*m1, &mockSigner)
+	m1 := chain.NewMessage(addr1, addr3, 0, types.NewAttoFILFromFIL(6000), "", nil)
+	sm1, err := chain.NewSignedMessage(*m1, &mockSigner)
 	require.NoError(err)
 
-	m2 := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(6000), "", nil)
-	sm2, err := types.NewSignedMessage(*m2, &mockSigner)
+	m2 := chain.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(6000), "", nil)
+	sm2, err := chain.NewSignedMessage(*m2, &mockSigner)
 	require.NoError(err)
 
 	base := stm.GetHeaviestTipSet().ToSlice()
 	require.Equal(1, len(base))
 
 	b1 := core.MkChild(base, base[0].StateRoot, 0)
-	b1.Messages = []*types.SignedMessage{sm1}
+	b1.Messages = []*chain.SignedMessage{sm1}
 	b1.Ticket = []byte{0} // block 1 comes first in message application
 	core.MustPut(node.CborStore, b1)
 	b2 := core.MkChild(base, base[0].StateRoot, 1)
-	b2.Messages = []*types.SignedMessage{sm2}
+	b2.Messages = []*chain.SignedMessage{sm2}
 	b2.Ticket = []byte{1}
 	core.MustPut(node.CborStore, b2)
 
 	stm.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b1, b2))
-	msgApplySucc := func(b *types.Block, msg *types.SignedMessage,
-		rcp *types.MessageReceipt) error {
+	msgApplySucc := func(b *chain.Block, msg *chain.SignedMessage,
+		rcp *chain.MessageReceipt) error {
 		assert.NotNil(rcp)
 		return nil
 	}
-	msgApplyFail := func(b *types.Block, msg *types.SignedMessage,
-		rcp *types.MessageReceipt) error {
+	msgApplyFail := func(b *chain.Block, msg *chain.SignedMessage,
+		rcp *chain.MessageReceipt) error {
 		assert.Nil(rcp)
 		return nil
 	}
@@ -523,9 +525,9 @@ func TestNextNonce(t *testing.T) {
 		assert.NoError(node.Start(ctx))
 
 		// TODO: does sending a message to ourselves fit the spirit of the test?
-		msg := types.NewMessage(nodeAddr, nodeAddr, 0, nil, "foo", []byte{})
+		msg := chain.NewMessage(nodeAddr, nodeAddr, 0, nil, "foo", []byte{})
 		msg.Nonce = 42
-		smsg, err := types.NewSignedMessage(*msg, node.Wallet)
+		smsg, err := chain.NewSignedMessage(*msg, node.Wallet)
 		assert.NoError(err)
 		core.MustAdd(node.MsgPool, smsg)
 
@@ -553,7 +555,7 @@ func TestNewMessageWithNextNonce(t *testing.T) {
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
 
-		bb := types.NewBlockForTest(core.RequireBestBlock(node.ChainMgr, t), 1)
+		bb := chain.NewBlockForTest(core.RequireBestBlock(node.ChainMgr, t), 1)
 		var chainMgrForTest *core.ChainManagerForTest = node.ChainMgr // nolint: golint
 		chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, bb))
 

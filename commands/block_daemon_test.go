@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
-	"github.com/filecoin-project/go-filecoin/types"
 
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +26,7 @@ func TestBlockDaemon(t *testing.T) {
 		// get the mined block by its CID
 
 		blockGetLine := th.RunSuccessFirstLine(d, "show", "block", minedBlockCidStr, "--enc", "json")
-		var blockGetBlock types.Block
+		var blockGetBlock chain.Block
 		json.Unmarshal([]byte(blockGetLine), &blockGetBlock)
 
 		// ensure that we were returned the correct block

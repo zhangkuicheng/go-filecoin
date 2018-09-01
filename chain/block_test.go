@@ -1,4 +1,4 @@
-package types
+package chain
 
 import (
 	"encoding/json"
@@ -11,6 +11,7 @@ import (
 	cid "gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -78,7 +79,7 @@ func TestTriangleEncoding(t *testing.T) {
 		err = cbor.DecodeInto(ipldNodeOrig, &cborJSONRoundTrip)
 		assert.NoError(err)
 
-		AssertHaveSameCid(assert, &jsonRoundTrip, &cborJSONRoundTrip)
+		types.AssertHaveSameCid(assert, &jsonRoundTrip, &cborJSONRoundTrip)
 	}
 
 	t.Run("encoding block with zero fields works", func(t *testing.T) {
@@ -90,11 +91,11 @@ func TestTriangleEncoding(t *testing.T) {
 		// pass when non-zero values do not due to nil/null encoding.
 		b := &Block{
 			Miner:             newAddress(),
-			Ticket:            Bytes([]byte{0x01, 0x02, 0x03}),
-			Parents:           NewSortedCidSet(SomeCid()),
-			ParentWeightNum:   Uint64(1),
-			ParentWeightDenom: Uint64(1),
-			Height:            Uint64(2),
+			Ticket:            types.Bytes([]byte{0x01, 0x02, 0x03}),
+			Parents:           types.NewSortedCidSet(SomeCid()),
+			ParentWeightNum:   types.Uint64(1),
+			ParentWeightDenom: types.Uint64(1),
+			Height:            types.Uint64(2),
 			Nonce:             3,
 			Messages:          []*SignedMessage{newSignedMessage()},
 			StateRoot:         SomeCid(),
@@ -128,7 +129,7 @@ func TestBlockScore(t *testing.T) {
 			n := uint64(source.Int63())
 
 			var b Block
-			b.Height = Uint64(n)
+			b.Height = types.Uint64(n)
 
 			assert.Equal(uint64(b.Height), b.Score(), "block height: %d - block score %d", b.Height, b.Score())
 		}
@@ -136,7 +137,7 @@ func TestBlockScore(t *testing.T) {
 }
 
 func cidFromString(input string) (*cid.Cid, error) {
-	prefix := cid.NewPrefixV1(cid.DagCBOR, DefaultHashFunction)
+	prefix := cid.NewPrefixV1(cid.DagCBOR, types.DefaultHashFunction)
 	return prefix.Sum([]byte(input))
 }
 
@@ -153,13 +154,13 @@ func TestDecodeBlock(t *testing.T) {
 
 		before := &Block{
 			Miner:     addrGetter(),
-			Parents:   NewSortedCidSet(c1),
+			Parents:   types.NewSortedCidSet(c1),
 			Height:    2,
 			Messages:  []*SignedMessage{newSignedMessage(), newSignedMessage()},
 			StateRoot: c2,
 			MessageReceipts: []*MessageReceipt{
-				{ExitCode: 1, Return: []Bytes{[]byte{1, 2}}},
-				{ExitCode: 1, Return: []Bytes{[]byte{1, 2, 3}}},
+				{ExitCode: 1, Return: []types.Bytes{[]byte{1, 2}}},
+				{ExitCode: 1, Return: []types.Bytes{[]byte{1, 2, 3}}},
 			},
 		}
 
@@ -186,13 +187,13 @@ func TestEquals(t *testing.T) {
 	c2, err := cidFromString("b")
 	assert.NoError(err)
 
-	var n1 Uint64 = 1234
-	var n2 Uint64 = 9876
+	var n1 types.Uint64 = 1234
+	var n2 types.Uint64 = 9876
 
-	b1 := &Block{Parents: NewSortedCidSet(c1), Nonce: n1}
-	b2 := &Block{Parents: NewSortedCidSet(c1), Nonce: n1}
-	b3 := &Block{Parents: NewSortedCidSet(c1), Nonce: n2}
-	b4 := &Block{Parents: NewSortedCidSet(c2), Nonce: n1}
+	b1 := &Block{Parents: types.NewSortedCidSet(c1), Nonce: n1}
+	b2 := &Block{Parents: types.NewSortedCidSet(c1), Nonce: n1}
+	b3 := &Block{Parents: types.NewSortedCidSet(c1), Nonce: n2}
+	b4 := &Block{Parents: types.NewSortedCidSet(c2), Nonce: n1}
 	assert.True(b1.Equals(b1))
 	assert.True(b1.Equals(b2))
 	assert.False(b1.Equals(b3))
@@ -206,8 +207,8 @@ func TestBlockJsonMarshal(t *testing.T) {
 	var parent, child Block
 	child.Miner = address.NewForTestGetter()()
 	child.Height = 1
-	child.Nonce = Uint64(2)
-	child.Parents = NewSortedCidSet(parent.Cid())
+	child.Nonce = types.Uint64(2)
+	child.Parents = types.NewSortedCidSet(parent.Cid())
 	child.StateRoot = parent.Cid()
 
 	message := newSignedMessage()

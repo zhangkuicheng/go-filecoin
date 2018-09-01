@@ -19,9 +19,10 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/storagemarket"
 	"github.com/filecoin-project/go-filecoin/address"
 	cbu "github.com/filecoin-project/go-filecoin/cborutil"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/crypto"
 	"github.com/filecoin-project/go-filecoin/state"
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
 )
 
@@ -43,12 +44,12 @@ func init() {
 // their signature over the deal.
 type DealProposal struct {
 	Deal      *storagemarket.Deal
-	ClientSig types.Signature
+	ClientSig crypto.Signature
 }
 
 // NewDealProposal will return a DealProposal with a signature derived from Address `addr`
 // and Signer `s`. If the address is unknown to the signer an error is returned.
-func NewDealProposal(deal *storagemarket.Deal, signer types.Signer, addr address.Address) (*DealProposal, error) {
+func NewDealProposal(deal *storagemarket.Deal, signer crypto.Signer, addr address.Address) (*DealProposal, error) {
 	sig, err := storagemarket.SignDeal(deal, signer, addr)
 	if err != nil {
 		return nil, err
@@ -438,7 +439,7 @@ func (sm *StorageBroker) GetMarketPeeker() storageMarketPeeker { // nolint: goli
 type storageMarketPeeker interface {
 	GetStorageAsk(ctx context.Context, id uint64) (*storagemarket.Ask, error)
 	GetBid(ctx context.Context, id uint64) (*storagemarket.Bid, error)
-	AddDeal(ctx context.Context, from address.Address, bid, ask uint64, sig types.Signature, data *cid.Cid) (*cid.Cid, error)
+	AddDeal(ctx context.Context, from address.Address, bid, ask uint64, sig crypto.Signature, data *cid.Cid) (*cid.Cid, error)
 
 	// more of a gape than a peek..
 	GetStorageAskSet(ctx context.Context) (storagemarket.AskSet, error)
@@ -608,7 +609,7 @@ func (stsa *stateTreeMarketPeeker) GetMinerOwner(ctx context.Context, minerAddre
 }
 
 // AddDeal adds a deal by sending a message to the storage market actor on chain
-func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from address.Address, ask, bid uint64, sig types.Signature, data *cid.Cid) (c *cid.Cid, err error) {
+func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from address.Address, ask, bid uint64, sig crypto.Signature, data *cid.Cid) (c *cid.Cid, err error) {
 	ctx = log.Start(ctx, "StorageMarketPeerker.AddDeal")
 	log.SetTags(ctx, map[string]interface{}{
 		"from": from.String(),
@@ -634,7 +635,7 @@ func (stsa *stateTreeMarketPeeker) AddDeal(ctx context.Context, from address.Add
 		return nil, err
 	}
 
-	smsg, err := types.NewSignedMessage(*msg, stsa.nd.Wallet)
+	smsg, err := chain.NewSignedMessage(*msg, stsa.nd.Wallet)
 	if err != nil {
 		return nil, err
 	}

@@ -16,15 +16,15 @@
 
 // THIS WAS TAKEN FROM github.com/ethereum/go-ethereum MODIFY CAREFULLY
 
-package crypto
+package internal
 
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"fmt"
 
-	"github.com/filecoin-project/go-filecoin/crypto/secp256k1"
-	math "github.com/filecoin-project/go-filecoin/crypto/util"
+	"github.com/filecoin-project/go-filecoin/crypto/internal/secp256k1"
+	math "github.com/filecoin-project/go-filecoin/crypto/internal/util"
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.

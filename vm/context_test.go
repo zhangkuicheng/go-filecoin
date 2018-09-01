@@ -16,6 +16,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/exec"
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -40,11 +41,11 @@ func TestVMContextStorage(t *testing.T) {
 	toAddr := addrGetter()
 
 	assert.NoError(st.SetActor(ctx, toAddr, toActor))
-	msg := types.NewMessage(addrGetter(), toAddr, 0, nil, "hello", nil)
+	msg := chain.NewMessage(addrGetter(), toAddr, 0, nil, "hello", nil)
 
 	to, err := cstate.GetActor(ctx, toAddr)
 	assert.NoError(err)
-	vmCtx := NewVMContext(nil, to, msg, cstate, vms, types.NewBlockHeight(0))
+	vmCtx := NewVMContext(nil, to, msg, cstate, vms, chain.NewBlockHeight(0))
 
 	node, err := cbor.WrapObject([]byte("hello"), types.DefaultHashFunction, -1)
 	assert.NoError(err)
@@ -56,7 +57,7 @@ func TestVMContextStorage(t *testing.T) {
 	toActorBack, err := st.GetActor(ctx, toAddr)
 	assert.NoError(err)
 
-	storage, err := NewVMContext(nil, toActorBack, msg, cstate, vms, types.NewBlockHeight(0)).ReadStorage()
+	storage, err := NewVMContext(nil, toActorBack, msg, cstate, vms, chain.NewBlockHeight(0)).ReadStorage()
 	assert.NoError(err)
 	assert.Equal(storage, node.RawData())
 }
@@ -64,13 +65,13 @@ func TestVMContextStorage(t *testing.T) {
 func TestVMContextSendFailures(t *testing.T) {
 	actor1 := actor.NewActor(nil, types.NewAttoFILFromFIL(100))
 	actor2 := actor.NewActor(nil, types.NewAttoFILFromFIL(50))
-	newMsg := types.NewMessageForTestGetter()
+	newMsg := chain.NewMessageForTestGetter()
 	newAddress := address.NewForTestGetter()
 
 	mockStateTree := state.MockStateTree{
 		BuiltinActors: map[string]exec.ExecutableActor{},
 	}
-	fakeActorCid := types.NewCidForTestGetter()()
+	fakeActorCid := chain.NewCidForTestGetter()()
 	mockStateTree.BuiltinActors[fakeActorCid.KeyString()] = &actor.FakeActor{}
 	tree := state.NewCachedStateTree(&mockStateTree)
 	bs := blockstore.NewBlockstore(datastore.NewMapDatastore())
@@ -87,7 +88,7 @@ func TestVMContextSendFailures(t *testing.T) {
 			},
 		}
 
-		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
+		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, chain.NewBlockHeight(0))
 		ctx.deps = deps
 
 		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
@@ -113,7 +114,7 @@ func TestVMContextSendFailures(t *testing.T) {
 			},
 		}
 
-		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
+		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, chain.NewBlockHeight(0))
 		ctx.deps = deps
 
 		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
@@ -144,7 +145,7 @@ func TestVMContextSendFailures(t *testing.T) {
 			},
 		}
 
-		ctx := NewVMContext(actor1, actor2, msg, tree, vms, types.NewBlockHeight(0))
+		ctx := NewVMContext(actor1, actor2, msg, tree, vms, chain.NewBlockHeight(0))
 		ctx.deps = deps
 
 		_, code, err := ctx.Send(to, "foo", nil, []interface{}{})
@@ -175,7 +176,7 @@ func TestVMContextSendFailures(t *testing.T) {
 			},
 		}
 
-		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
+		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, chain.NewBlockHeight(0))
 		ctx.deps = deps
 
 		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
@@ -211,7 +212,7 @@ func TestVMContextSendFailures(t *testing.T) {
 			},
 		}
 
-		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
+		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, chain.NewBlockHeight(0))
 		ctx.deps = deps
 
 		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
@@ -227,7 +228,7 @@ func TestVMContextSendFailures(t *testing.T) {
 		require := require.New(t)
 
 		ctx := context.Background()
-		vmctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
+		vmctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, chain.NewBlockHeight(0))
 		addr, err := vmctx.AddressForNewActor()
 
 		require.NoError(err)
@@ -261,7 +262,7 @@ func TestVMContextIsAccountActor(t *testing.T) {
 	ctx := NewVMContext(accountActor, nil, nil, nil, vms, nil)
 	assert.True(ctx.IsFromAccountActor())
 
-	nonAccountActor := actor.NewActor(types.NewCidForTestGetter()(), types.NewAttoFILFromFIL(1000))
+	nonAccountActor := actor.NewActor(chain.NewCidForTestGetter()(), types.NewAttoFILFromFIL(1000))
 	ctx = NewVMContext(nonAccountActor, nil, nil, nil, vms, nil)
 	assert.False(ctx.IsFromAccountActor())
 }

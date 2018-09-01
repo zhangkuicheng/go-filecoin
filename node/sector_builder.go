@@ -21,8 +21,8 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/chain"
 	"github.com/filecoin-project/go-filecoin/proofs"
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/util/binpack"
 )
 
@@ -524,9 +524,9 @@ func (sb *SectorBuilder) AddCommitmentToMempool(ctx context.Context, ss *SealedS
 	if err != nil {
 		return nil, errors.Wrap(err, "received invalid mining owner")
 	}
-	msg := types.NewMessage(minerOwner, sb.MinerAddr, 0, nil, "commitSector", args)
+	msg := chain.NewMessage(minerOwner, sb.MinerAddr, 0, nil, "commitSector", args)
 
-	smsg, err := types.NewSignedMessage(*msg, sb.nd.Wallet)
+	smsg, err := chain.NewSignedMessage(*msg, sb.nd.Wallet)
 	if err != nil {
 		return nil, err
 	}

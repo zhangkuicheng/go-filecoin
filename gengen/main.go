@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/filecoin-project/go-filecoin/crypto"
 	gengen "github.com/filecoin-project/go-filecoin/gengen/util"
-	"github.com/filecoin-project/go-filecoin/types"
 )
 
-func writeKey(ki *types.KeyInfo, name string) error {
+func writeKey(ki *crypto.KeyInfo, name string) error {
 	addr, err := ki.Address()
 	if err != nil {
 		return err
