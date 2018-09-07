@@ -1,8 +1,10 @@
 package node
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"sync"
 
 	inet "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
@@ -66,7 +68,7 @@ type StorageDealResponse struct {
 
 	// ProofInfo is a collection of information needed to convince the client that
 	// the miner has sealed the data into a sector.
-	//ProofInfo *ProofInfo
+	// ProofInfo *ProofInfo
 
 	// Signature is a signature from the miner over the response
 	Signature types.Signature
@@ -80,8 +82,13 @@ type ProofInfo struct {
 type StorageMiner struct {
 	nd *Node
 
+	address address.Address
+
 	deals   map[string]*storageDealState
 	dealsLk sync.Mutex
+
+	unsealedDeals   map[string][]*cid.Cid
+	unsealedDealsLk sync.Mutex
 }
 
 type storageDealState struct {
@@ -93,8 +100,9 @@ type storageDealState struct {
 // NewStorageMiner is
 func NewStorageMiner(nd *Node) *StorageMiner {
 	sm := &StorageMiner{
-		nd:    nd,
-		deals: make(map[string]*storageDealState),
+		nd:            nd,
+		deals:         make(map[string]*storageDealState),
+		unsealedDeals: make(map[string][]*cid.Cid),
 	}
 	nd.Host.SetStreamHandler(StorageDealProtocolID, sm.handleProposalStream)
 	nd.Host.SetStreamHandler(StorageDealQueryProtocolID, sm.handleQuery)
@@ -111,7 +119,7 @@ func (sm *StorageMiner) handleProposalStream(s inet.Stream) {
 	}
 
 	ctx := context.Background()
-	resp, err := sm.ReceiveStorageProposal(ctx, &proposal)
+	resp, err := sm.ReceiveStorageProposal(ctx, &proposal, s)
 	if err != nil {
 		panic(err)
 	}
@@ -122,7 +130,7 @@ func (sm *StorageMiner) handleProposalStream(s inet.Stream) {
 }
 
 // ReceiveStorageProposal is the entry point for the miner storage protocol
-func (sm *StorageMiner) ReceiveStorageProposal(ctx context.Context, p *StorageDealProposal) (*StorageDealResponse, error) {
+func (sm *StorageMiner) ReceiveStorageProposal(ctx context.Context, p *StorageDealProposal, s inet.Stream) (*StorageDealResponse, error) {
 	// TODO: Check signature
 
 	// TODO: check size, duration, totalprice match up with the payment info
@@ -132,10 +140,10 @@ func (sm *StorageMiner) ReceiveStorageProposal(ctx context.Context, p *StorageDe
 	// TODO: decide if we want to accept this thingy
 
 	// Payment is valid, everything else checks out, let's accept this proposal
-	return sm.acceptProposal(ctx, p)
+	return sm.acceptProposal(ctx, p, s)
 }
 
-func (sm *StorageMiner) acceptProposal(ctx context.Context, p *StorageDealProposal) (*StorageDealResponse, error) {
+func (sm *StorageMiner) acceptProposal(ctx context.Context, p *StorageDealProposal, s inet.Stream) (*StorageDealResponse, error) {
 	// TODO: we don't really actually want to put this in our general storage
 	// but we just want to get its cid, as a way to uniquely track it
 	propcid, err := sm.nd.CborStore.Put(ctx, p)
@@ -157,7 +165,7 @@ func (sm *StorageMiner) acceptProposal(ctx context.Context, p *StorageDealPropos
 	}
 
 	// TODO: use some sort of nicer scheduler
-	go sm.processStorageDeal(propcid)
+	go sm.processStorageDeal(propcid, s)
 
 	return resp, nil
 }
@@ -174,42 +182,65 @@ func (sm *StorageMiner) updateDealState(c *cid.Cid, f func(*StorageDealResponse)
 	f(sm.deals[c.KeyString()].state)
 }
 
-func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
+func (sm *StorageMiner) sectorBuilder() *SectorBuilder {
+	return sm.nd.SectorBuilders[sm.address]
+}
+
+func (sm *StorageMiner) processStorageDeal(c *cid.Cid, s inet.Stream) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	errorHandler := func(err string) {
+		log.Error(err)
+		sm.updateDealState(c, func(resp *StorageDealResponse) {
+			resp.Message = "Transfer failed"
+			resp.State = Failed
+		})
+	}
 
 	d := sm.getStorageDeal(c)
 	if d.state.State != Accepted {
 		// TODO: handle resumption of deal processing across miner restarts
-		log.Error("attempted to process an already started deal")
+		errorHandler("attempted to process an already started deal")
 		return
 	}
 
-	// 'Receive' the data, this could also be a truck full of hard drives. (TODO: proper abstraction)
-	// TODO: this is not a great way to do this. At least use a session
-	// Also, this needs to be fetched into a staging area for miners to prepare and seal in data
-	if err := dag.FetchGraph(ctx, d.proposal.PieceRef, dag.NewDAGService(sm.nd.Blockservice)); err != nil {
-		log.Errorf("failed to fetch data: %s", err)
-		sm.updateDealState(c, func(resp *StorageDealResponse) {
-			resp.Message = "Transfer failed"
-			resp.State = Failed
-			// TODO: signature?
-		})
+	pieceWriter, sectorID, err := sm.sectorBuilder().NewPieceWriter(sizeOfData)
+	if err != nil {
+		errorHandler(fmt.Sprintf("failed to create piece writer: %s", err))
 		return
 	}
 
-	// TODO: add the data to a sector
+	if _, err := io.Copy(pieceWriter, bufio.NewReader(s)); err != nil {
+		errorHandler("failed to write piece data")
+		return
+	}
+
+	// TODO: get hashOfData
+	if hashOfData != d.proposal.PieceRef {
+		errorHandler("invalid data received")
+		return
+	}
+
 	sm.updateDealState(c, func(resp *StorageDealResponse) {
 		resp.State = Staged
 	})
 
-	// TODO: wait for sector to get filled up
+	sm.waitForSeal(sectorID, c)
+}
 
-	// TODO: seal the data
-	sm.updateDealState(c, func(resp *StorageDealResponse) {
-		resp.State = Complete
-		//resp.ProofInfo = new(ProofInfo)
-	})
+func (sm *StorageMiner) waitForSeal(sectorID string, c *cid.Cid) {
+	sm.unsealedDealsLk.Lock()
+	defer sm.unsealedDealsLk.Unlock()
+
+	sectors, ok := sm.unsealedDeals[sectorID]
+	if ok {
+		sectors = append(sectors, c)
+	} else {
+		sectors = []*cid.Cid{c}
+	}
+
+	sm.unsealedDeals[sectorID] = sectors
 }
 
 // Query responds to a query for the proposal referenced by the given cid

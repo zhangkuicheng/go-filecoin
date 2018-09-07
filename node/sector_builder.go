@@ -326,8 +326,8 @@ func configureFreshSectorBuilder(sb *SectorBuilder) error {
 }
 
 func (sb *SectorBuilder) onCommitmentAddedToMempool(*SealedSector, *cid.Cid, error) {
-	// TODO: wait for commitSector message to be included in a block so that we
-	// can update sealed sector metadata with the miner-created SectorID
+	// TODO: wait for commitSector message to be included in a block
+	// so that we can update sealed sector metadata with the miner-created SectorID
 }
 
 // AddPiece writes the given piece into a sector
