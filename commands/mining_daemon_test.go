@@ -26,9 +26,9 @@ func TestMiningGenBlock(t *testing.T) {
 
 	t.Log("[success] address in local wallet")
 	// TODO: use `config` cmd once it exists
-	//addr := th.TestAddress1
+	addr := th.TestAddress1
 
-	s := d.RunSuccess("wallet", "balance", "fcqkayf52q8n4zrr90cg6dkz9vuss4a2xzu5drp7l")
+	s := d.RunSuccess("wallet", "balance", addr)
 	beforeBalance := parseInt(assert, s.ReadStdout())
 
 	s = d.RunSuccess("actor", "ls")
@@ -47,7 +47,7 @@ func TestMiningGenBlock(t *testing.T) {
 	fmt.Println("LSED AND GOT BACK ERR OF: ")
 	fmt.Print(s.ReadStderr())
 
-	s = d.RunSuccess("wallet", "balance", "fcqkayf52q8n4zrr90cg6dkz9vuss4a2xzu5drp7l")
+	s = d.RunSuccess("wallet", "balance", addr)
 	afterBalance := parseInt(assert, s.ReadStdout())
 	sum := new(big.Int)
 	assert.Equal(sum.Add(beforeBalance, big.NewInt(1000)), afterBalance)
