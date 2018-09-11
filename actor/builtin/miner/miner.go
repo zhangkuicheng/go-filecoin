@@ -24,6 +24,9 @@ func init() {
 // MaximumPublicKeySize is a limit on how big a public key can be.
 const MaximumPublicKeySize = 100
 
+// ProvingPeriodBlocks defines how long a proving period is for
+var ProvingPeriodBlocks = types.NewBlockHeight(200)
+
 const (
 	// ErrPublicKeyTooBig indicates an invalid public key.
 	ErrPublicKeyTooBig = 33
@@ -70,10 +73,13 @@ type State struct {
 	// the miners pledge.
 	Collateral *types.AttoFIL
 
-	Sectors map[string]*types.BytesAmount
+	Sectors map[string][]byte
+
+	ProvingPeriodStart *types.BlockHeight
+	LastPoSt           *types.BlockHeight
 
 	LockedStorage *types.BytesAmount // LockedStorage is the amount of the miner's storage that is used.
-	Power         *types.BytesAmount
+	Power         *big.Int
 }
 
 // NewActor returns a new miner actor
@@ -90,7 +96,7 @@ func NewState(owner address.Address, key []byte, pledge *types.BytesAmount, pid 
 		PledgeBytes:   pledge,
 		Collateral:    collateral,
 		LockedStorage: types.NewBytesAmount(0),
-		Sectors:       make(map[string]*types.BytesAmount),
+		Sectors:       make(map[string][]byte),
 	}
 }
 
@@ -150,6 +156,10 @@ var minerExports = exec.Exports{
 	"getStorage": &exec.FunctionSignature{
 		Params: []abi.Type{},
 		Return: []abi.Type{abi.BytesAmount},
+	},
+	"submitPoSt": &exec.FunctionSignature{
+		Params: []abi.Type{abi.Bytes},
+		Return: []abi.Type{},
 	},
 }
 
@@ -226,7 +236,7 @@ func (ma *Actor) GetOwner(ctx exec.VMContext) (address.Address, uint8, error) {
 // CommitSector adds a commitment to the specified sector
 // The sector must not already be committed
 // 'size' is the total number of bytes stored in the sector
-func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR []byte, size *types.BytesAmount) (uint8, error) {
+func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD []byte) (uint8, error) {
 	var state State
 
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
@@ -236,12 +246,13 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR []byte,
 			return nil, Errors[ErrSectorCommitted]
 		}
 
-		// TODO: Validate 'size'
+		if state.Power.Cmp(big.NewInt(0)) == 0 {
+			state.ProvingPeriodStart = ctx.BlockHeight()
+		}
+		state.Power = state.Power.Add(state.Power, big.NewInt(1))
+		state.Sectors[commRstr] = commD
 
-		state.Power = state.Power.Add(size)
-		state.Sectors[commRstr] = size
-
-		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{size})
+		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{1})
 		if err != nil {
 			return nil, err
 		}
@@ -328,4 +339,36 @@ func (ma *Actor) GetStorage(ctx exec.VMContext) (*types.BytesAmount, uint8, erro
 	}
 
 	return count, 0, nil
+}
+
+func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
+	var state State
+	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
+		// verify that the caller is authorized to perform update
+		if ctx.Message().From != state.Owner {
+			return nil, Errors[ErrCallerUnauthorized]
+		}
+
+		// TODO: validate the PoSt
+
+		// Check if we submitted it in time
+		provingPeriodEnd := state.ProvingPeriodStart.Add(ProvingPeriodBlocks)
+
+		if ctx.BlockHeight().LessEqual(provingPeriodEnd) {
+			state.ProvingPeriodStart = provingPeriodEnd
+			state.LastPoSt = ctx.BlockHeight()
+		} else {
+			// Not great.
+			// TODO: charge penalty
+			return nil, errors.NewRevertErrorf("submitted PoSt late, need to pay a fee")
+		}
+
+		return nil, nil
+	})
+	if err != nil {
+		return errors.CodeError(err), err
+	}
+
+	return 0, nil
+
 }

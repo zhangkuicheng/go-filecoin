@@ -99,3 +99,10 @@ func (z *BlockHeight) LessEqual(y *BlockHeight) bool {
 func (z *BlockHeight) GreaterEqual(y *BlockHeight) bool {
 	return z.val.Cmp(y.val) >= 0
 }
+
+// Add adds the given value to the current value and returns a copy
+func (z *BlockHeight) Add(y *BlockHeight) *BlockHeight {
+	a := big.NewInt(0).Set(z.val)
+	a = a.Add(a, y.val)
+	return &BlockHeight{val: a}
+}

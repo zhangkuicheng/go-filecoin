@@ -82,7 +82,7 @@ type State struct {
 
 	Orderbook *Orderbook
 
-	TotalCommittedStorage *types.BytesAmount
+	TotalCommittedStorage *big.Int
 }
 
 // NewActor returns a new storage market actor.
@@ -138,7 +138,7 @@ var storageMarketExports = exec.Exports{
 	},
 	"getTotalStorage": &exec.FunctionSignature{
 		Params: []abi.Type{},
-		Return: []abi.Type{abi.BytesAmount},
+		Return: []abi.Type{abi.Integer},
 	},
 	"getAsk": &exec.FunctionSignature{
 		Params: []abi.Type{abi.Integer},
@@ -313,7 +313,7 @@ func SignDeal(deal *Deal, signer types.Signer, addr address.Address) (types.Sign
 // UpdatePower is called to reflect a change in the overall power of the network.
 // This occurs either when a miner adds a new commitment, or when one is removed
 // (via slashing or willful removal)
-func (sma *Actor) UpdatePower(vmctx exec.VMContext, delta *types.BytesAmount) (uint8, error) {
+func (sma *Actor) UpdatePower(vmctx exec.VMContext, delta *big.Int) (uint8, error) {
 	var state State
 	_, err := actor.WithState(vmctx, &state, func() (interface{}, error) {
 		miner := vmctx.Message().From
@@ -332,7 +332,7 @@ func (sma *Actor) UpdatePower(vmctx exec.VMContext, delta *types.BytesAmount) (u
 			return nil, errors.FaultErrorWrapf(err, "could not load lookup for miner with address: %s", miner)
 		}
 
-		state.TotalCommittedStorage = state.TotalCommittedStorage.Add(delta)
+		state.TotalCommittedStorage = state.TotalCommittedStorage.Add(state.TotalCommittedStorage, delta)
 		return nil, nil
 	})
 	if err != nil {
@@ -343,7 +343,7 @@ func (sma *Actor) UpdatePower(vmctx exec.VMContext, delta *types.BytesAmount) (u
 }
 
 // GetTotalStorage returns the total amount of proven storage in the system.
-func (sma *Actor) GetTotalStorage(vmctx exec.VMContext) (*types.BytesAmount, uint8, error) {
+func (sma *Actor) GetTotalStorage(vmctx exec.VMContext) (*big.Int, uint8, error) {
 	var state State
 	ret, err := actor.WithState(vmctx, &state, func() (interface{}, error) {
 		return state.TotalCommittedStorage, nil
@@ -352,7 +352,7 @@ func (sma *Actor) GetTotalStorage(vmctx exec.VMContext) (*types.BytesAmount, uin
 		return nil, errors.CodeError(err), err
 	}
 
-	count, ok := ret.(*types.BytesAmount)
+	count, ok := ret.(*big.Int)
 	if !ok {
 		return nil, 1, fmt.Errorf("expected *BytesAmount to be returned, but got %T instead", ret)
 	}
