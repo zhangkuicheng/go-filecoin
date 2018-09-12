@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
@@ -258,6 +259,14 @@ func (sb *SectorBuilder) NewSealedSector(commR [32]byte, commD [32]byte, proof [
 	sb.sealedSectors = append(sb.sealedSectors, ss)
 
 	return ss
+}
+
+// SealedSectors returns a list of all currently sealed sectors.
+func (sb *SectorBuilder) SealedSectors() []*SealedSector {
+	sb.sealedSectorsLk.RLock()
+	defer sb.sealedSectorsLk.RUnlock()
+
+	return sb.sealedSectors
 }
 
 // InitSectorBuilder creates a new sector builder for the given miner. If a SectorBuilder had previously been created
@@ -636,6 +645,13 @@ func (sb *SectorBuilder) Seal(ctx context.Context, s *UnsealedSector, minerAddr 
 	}
 
 	return sb.NewSealedSector(res2.CommR, res2.CommD, res2.Proof, res1.SectorAccess, res1.SectorAccess, s), nil
+}
+
+func (sb *SectorBuilder) GeneratePoSt(sectors [][]byte, seeds [][]byte) ([]byte, []uint, error) {
+	// TODO: call into rust-proofs
+	time.Sleep(time.Second)
+
+	return []byte("my cool post"), []uint{}, nil
 }
 
 // proverID creates a prover id by padding an address hash to 31 bytes

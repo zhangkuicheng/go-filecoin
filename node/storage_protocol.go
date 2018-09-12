@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"sync"
 
@@ -15,9 +16,12 @@ import (
 
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
 
+	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
 	"github.com/filecoin-project/go-filecoin/address"
 	cbu "github.com/filecoin-project/go-filecoin/cborutil"
+	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/types"
+	vmErrors "github.com/filecoin-project/go-filecoin/vm/errors"
 )
 
 const StorageDealProtocolID = protocol.ID("/fil/storage/mk/1.0.0")       // nolint: golint
@@ -45,9 +49,8 @@ type StorageDealProposal struct {
 	// Duration is the number of blocks to make a deal for
 	Duration uint64
 
-	//Payment PaymentInfo
-
-	//Signature types.Signature
+	// Payment PaymentInfo
+	// Signature types.Signature
 }
 
 // PaymentInfo is
@@ -80,8 +83,14 @@ type ProofInfo struct {
 type StorageMiner struct {
 	nd *Node
 
+	minerAddr      address.Address
+	minerOwnerAddr address.Address
+
 	deals   map[string]*storageDealState
 	dealsLk sync.Mutex
+
+	postInProcessLk sync.Mutex
+	postInProcess   *types.BlockHeight
 }
 
 type storageDealState struct {
@@ -91,15 +100,29 @@ type storageDealState struct {
 }
 
 // NewStorageMiner is
-func NewStorageMiner(nd *Node) *StorageMiner {
+func NewStorageMiner(nd *Node, minerAddr address.Address) (*StorageMiner, error) {
+	res, code, err := nd.CallQueryMethod(context.TODO(), minerAddr, "getOwner", []byte{}, nil)
+	if err != nil {
+		return nil, err
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("failed to getOwner from the miner: exitCode = %d", code)
+	}
+	minerOwnerAddr, err := address.NewFromBytes(res[0])
+	if err != nil {
+		return nil, err
+	}
+
 	sm := &StorageMiner{
-		nd:    nd,
-		deals: make(map[string]*storageDealState),
+		nd:             nd,
+		minerAddr:      minerAddr,
+		minerOwnerAddr: minerOwnerAddr,
+		deals:          make(map[string]*storageDealState),
 	}
 	nd.Host.SetStreamHandler(StorageDealProtocolID, sm.handleProposalStream)
 	nd.Host.SetStreamHandler(StorageDealQueryProtocolID, sm.handleQuery)
 
-	return sm
+	return sm, nil
 }
 
 func (sm *StorageMiner) handleProposalStream(s inet.Stream) {
@@ -205,11 +228,137 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 
 	// TODO: wait for sector to get filled up
 
-	// TODO: seal the data
-	sm.updateDealState(c, func(resp *StorageDealResponse) {
-		resp.State = Complete
-		//resp.ProofInfo = new(ProofInfo)
+	// TODO: get an actual seal proof from the sector builder
+	seal := []byte("my cool seal")
+
+	fail := func(message, logerr string) {
+		log.Errorf(logerr)
+		sm.updateDealState(c, func(resp *StorageDealResponse) {
+			resp.Message = message
+			resp.State = Failed
+		})
+	}
+	// posting the seal on chain
+	msgCid, err := sm.nd.SendMessage(ctx, sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(nil), "commitSector", seal)
+	if err != nil {
+		fail("Failed to submit seal proof", fmt.Sprintf("failed to commitSector: %s", err))
+		return
+	}
+
+	err = sm.nd.ChainMgr.WaitForMessage(ctx, msgCid, func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
+		if receipt.ExitCode != uint8(0) {
+			return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
+		}
+
+		// Success, our seal is posted on chain
+		sm.updateDealState(c, func(resp *StorageDealResponse) {
+			resp.State = Complete
+			//resp.ProofInfo = new(ProofInfo)
+		})
+
+		return nil
 	})
+	if err != nil {
+		log.Errorf("failed to commitSector: %s", err)
+		sm.updateDealState(c, func(resp *StorageDealResponse) {
+			resp.Message = "Failed to submit seal proof"
+			resp.State = Failed
+		})
+		return
+	}
+}
+
+// NewHeaviestTipSet is a callback called by node, everytime the the latest head is updated.
+// It is used to check if we are in a new proving period and need to trigger PoSt submission.
+func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
+	sectors := sm.sectorBuilder().SealedSectors()
+
+	if len(sectors) == 0 {
+		// no sector sealed, nothing to do
+		return
+	}
+
+	provingPeriodStart, err := sm.getProvingPeriodStart()
+	if err != nil {
+		log.Errorf("failed to get provingPeriodStart: %s", err)
+		return
+	}
+
+	sm.postInProcessLk.Lock()
+	defer sm.postInProcessLk.Unlock()
+
+	if sm.postInProcess == provingPeriodStart {
+		// post is already being generated for this period, nothing to do
+		return
+	}
+
+	height, err := ts.Height()
+	if err != nil {
+		log.Errorf("failed to get block height: %s", err)
+		return
+	}
+
+	if types.NewBlockHeight(height).GreaterEqual(provingPeriodStart) {
+		// we are in a new proving period, lets get this post going
+		sm.postInProcess = provingPeriodStart
+		go sm.submitPoSt()
+	}
+}
+
+func (sm *StorageMiner) getProvingPeriodStart() (*types.BlockHeight, error) {
+	res, code, err := sm.nd.CallQueryMethod(context.Background(), sm.minerAddr, "getProvingPeriodStart", []byte{}, nil)
+	if err != nil {
+		return nil, err
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("exitCode %d != 0", code)
+	}
+
+	return types.NewBlockHeightFromBytes(res[0]), nil
+}
+
+func (sm *StorageMiner) submitPoSt() {
+	sectors := sm.sectorBuilder().SealedSectors()
+
+	seeds := make([][]byte, len(sectors))
+	sectorIDs := make([][]byte, len(sectors))
+	for i, sector := range sectors {
+		// TODO: real seed generation
+		binary.LittleEndian.PutUint64(seeds[i], uint64(i))
+		sectorIDs[i] = sector.SectorID()
+	}
+
+	proof, faults, err := sm.sectorBuilder().GeneratePoSt(sectorIDs, seeds)
+	if err != nil {
+		log.Errorf("failed to generate PoSts: %s", err)
+		return
+	}
+	if len(faults) != 0 {
+		log.Errorf("some faults when generating PoSt: %v", faults)
+		// TODO: proper fault handling
+	}
+
+	msgCid, err := sm.nd.SendMessage(context.TODO(), sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(nil), "submitPoSt", proof)
+	if err != nil {
+		log.Errorf("failed to submit PoSt: %s", err)
+		return
+	}
+
+	err = sm.nd.ChainMgr.WaitForMessage(context.TODO(), msgCid, func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
+		if receipt.ExitCode != uint8(0) {
+			return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
+		}
+		log.Infof("submitted PoSt")
+		return nil
+	})
+
+	if err != nil {
+		log.Errorf("failed to submit PoSt: %s", err)
+	}
+}
+
+func (sm *StorageMiner) sectorBuilder() *SectorBuilder {
+	return sm.nd.SectorBuilders[sm.minerAddr]
 }
 
 // Query responds to a query for the proposal referenced by the given cid

@@ -84,7 +84,8 @@ func TestStorageProtocolBasic(t *testing.T) {
 	seed.GiveKey(t, client, "bar")
 
 	c := NewStorageMinerClient(client)
-	m := NewStorageMiner(miner)
+	m, err := NewStorageMiner(miner, mineraddr)
+	assert.NoError(err)
 	_ = m
 
 	assert.NoError(miner.Start(ctx))
@@ -94,8 +95,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 
 	data := dag.NewRawNode([]byte("cats"))
 
-	err := client.Blockservice.AddBlock(data)
-	assert.NoError(err)
+	assert.NoError(client.Blockservice.AddBlock(data))
 
 	ref, err := c.TryToStoreData(ctx, mineraddr, data.Cid(), 10, types.NewAttoFILFromFIL(60))
 	assert.NoError(err)

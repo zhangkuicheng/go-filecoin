@@ -19,6 +19,7 @@ import (
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	"gx/ipfs/QmWw71Mz9PXKgYG8ZfTYN7Ax2Zm48Eurbne3wC2y7CKmLz/go-ipfs-exchange-interface"
 	nonerouting "gx/ipfs/QmYYXrfYh14XcN5jhmK31HhdAG85HjHAg5czk3Eb9cGML4/go-ipfs-routing/none"
+	cid "gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 	bstore "gx/ipfs/QmcmpX42gtDv1fz24kau4wjS9hfwWj5VexWBKgGnWzsyag/go-ipfs-blockstore"
 
 	"github.com/filecoin-project/go-filecoin/abi"
@@ -282,7 +283,18 @@ func (node *Node) Start(ctx context.Context) error {
 
 	node.StorageClient = NewStorageClient(node)
 	node.StorageBroker = NewStorageBroker(node)
-	node.StorageMiner = NewStorageMiner(node)
+
+	// TODO: only enable if mining is enabled
+
+	miningAddr, err := node.MiningAddress()
+	if err != nil {
+		return errors.Wrap(err, "invalid mining address")
+	}
+	node.StorageMiner, err = NewStorageMiner(node, miningAddr)
+	if err != nil {
+		return errors.Wrap(err, "failed to instantiate storage miner")
+	}
+
 	node.StorageMinerClient = NewStorageMinerClient(node)
 
 	// subscribe to block notifications
@@ -389,6 +401,7 @@ func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head core.TipSet)
 				}
 			}()
 		}
+		node.StorageMiner.NewHeaviestTipSet(newHead)
 		node.HeaviestTipSetHandled()
 	}
 	currentBestCancel() // keep the linter happy
@@ -760,4 +773,28 @@ func (node *Node) defaultWalletAddress() (address.Address, error) {
 		return address.Address{}, err
 	}
 	return addr.(address.Address), nil
+}
+
+// SendMessage is a convinent helper around adding a new message to the message pool.
+func (node *Node) SendMessage(ctx context.Context, from, to address.Address, val *types.AttoFIL, method string, params ...interface{}) (*cid.Cid, error) {
+	encodedParams, err := abi.ToEncodedValues(params...)
+	if err != nil {
+		return nil, err
+	}
+
+	msg, err := NewMessageWithNextNonce(ctx, node, from, to, val, method, encodedParams)
+	if err != nil {
+		return nil, err
+	}
+
+	smsg, err := types.NewSignedMessage(*msg, node.Wallet)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := node.AddNewMessage(ctx, smsg); err != nil {
+		return nil, err
+	}
+
+	return smsg.Cid()
 }

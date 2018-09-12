@@ -161,6 +161,10 @@ var minerExports = exec.Exports{
 		Params: []abi.Type{abi.Bytes},
 		Return: []abi.Type{},
 	},
+	"getProvingPeriodStart": &exec.FunctionSignature{
+		Params: []abi.Type{},
+		Return: []abi.Type{abi.BlockHeight},
+	},
 }
 
 // Exports returns the miner actors exported functions.
@@ -341,6 +345,8 @@ func (ma *Actor) GetStorage(ctx exec.VMContext) (*types.BytesAmount, uint8, erro
 	return count, 0, nil
 }
 
+// SubmitPoSt is used to submit a coalesced PoST to the chain to convince the chain
+// that you have been actually storing the files you claim to be.
 func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
 	var state State
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
@@ -370,5 +376,19 @@ func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
 	}
 
 	return 0, nil
+}
 
+// GetProvingPeriodStart returns the current ProvingPeriodStart value.
+func (ma *Actor) GetProvingPeriodStart(ctx exec.VMContext) (*types.BlockHeight, uint8, error) {
+	chunk, err := ctx.ReadStorage()
+	if err != nil {
+		return nil, errors.CodeError(err), err
+	}
+
+	var state State
+	if err := actor.UnmarshalStorage(chunk, &state); err != nil {
+		return nil, errors.CodeError(err), err
+	}
+
+	return state.ProvingPeriodStart, 0, nil
 }
