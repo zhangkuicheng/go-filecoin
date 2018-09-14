@@ -91,6 +91,9 @@ type StorageMiner struct {
 
 	postInProcessLk sync.Mutex
 	postInProcess   *types.BlockHeight
+
+	dealsAwaitingSeal   map[[]byte][]*cid.Cid
+	dealsAwaitingSealLk sync.Mutex
 }
 
 type storageDealState struct {
@@ -102,10 +105,11 @@ type storageDealState struct {
 // NewStorageMiner is
 func NewStorageMiner(ctx context.Context, nd *Node, minerAddr, minerOwnerAddr address.Address) (*StorageMiner, error) {
 	sm := &StorageMiner{
-		nd:             nd,
-		minerAddr:      minerAddr,
-		minerOwnerAddr: minerOwnerAddr,
-		deals:          make(map[string]*storageDealState),
+		nd:                nd,
+		minerAddr:         minerAddr,
+		minerOwnerAddr:    minerOwnerAddr,
+		deals:             make(map[string]*storageDealState),
+		dealsAwaitingSeal: make(map[[]byte][]*cid.Cid),
 	}
 	nd.Host.SetStreamHandler(StorageDealProtocolID, sm.handleProposalStream)
 	nd.Host.SetStreamHandler(StorageDealQueryProtocolID, sm.handleQuery)
@@ -222,35 +226,71 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		})
 	}
 
-	// TODO: wait for sector to get filled up
-	sb := sm.sectorBuilder()
-	sector, err := sb.NewSector()
+	pi, err := NewPieceInfo(d.proposal.PieceRef, d.proposal.Size)
 	if err != nil {
-		fail("Failed to submit seal proof", fmt.Sprintf("failed to create new sector: %s", err))
-		return
-	}
-	msgCid, err := sb.SealAndAddCommitmentToMempool(ctx, sector)
-	if err != nil {
-		fail("Failed to submit seal proof", fmt.Sprintf("failed to seal and add message: %s", err))
-		return
+		fail("Failed to submit seal proof", fmt.Sprintf("failed to create piece info: %s", err))
 	}
 
-	err = sm.nd.ChainMgr.WaitForMessage(ctx, msgCid, func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
-		if receipt.ExitCode != uint8(0) {
-			return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
-		}
-
-		// Success, our seal is posted on chain
-		sm.updateDealState(c, func(resp *StorageDealResponse) {
-			resp.State = Posted
-			//resp.ProofInfo = new(ProofInfo)
-		})
-
-		return nil
-	})
+	sectorID, err := sm.sectorBuilder().AddPiece(ctx, pi)
 	if err != nil {
-		fail("Failed to submit seal proof", fmt.Sprintf("failed to commitSector: %s", err))
+		fail("Failed to submit seal proof", fmt.Sprintf("failed to add piece: %s", err))
+	}
+
+	sm.dealsAwaitingSealLk.Lock()
+	defer sm.dealsAwaitingSealLk.Unlock()
+	deals, ok := sm.dealsAwaitingSeal[sectorID]
+	if ok {
+		sm.dealsAwaitingSeal[sectorID] = append(sm.dealsAwaitingSeal, c)
+	} else {
+		sm.dealsAwaitingSeal[sectorID] = []*cid.Cid{c}
+	}
+}
+
+// OnCommitmentAddedToMempool is a callback, called when a sector seal was commited to the chain.
+func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, err error) {
+	if err != nil {
+		// TODO: cleanup
 		return
+	}
+
+	sectorID := sector.SectorID()
+
+	sm.dealsAwaitingSealLk.Lock()
+	defer sm.dealsAwaitingSealLk.Unlock()
+	deals, ok := sm.dealsAwaitingSeal[sectorID]
+	if !ok {
+		// nothing to do
+		return
+	}
+
+	for _, c := range deals {
+		go func(c *cid.Cid, sectorID []byte) {
+			err = sm.nd.ChainMgr.WaitForMessage(
+				context.Background(),
+				msgCid,
+				func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
+					if receipt.ExitCode != uint8(0) {
+						return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
+					}
+
+					// Success, our seal is posted on chain
+					sm.updateDealState(c, func(resp *StorageDealResponse) {
+						resp.State = Posted
+						//resp.ProofInfo = new(ProofInfo)
+					})
+
+					return nil
+				},
+			)
+			if err != nil {
+				log.Errorf("failed to commitSector: %s", err)
+				sm.updateDealState(c, func(resp *StorageDealResponse) {
+					resp.Message = "Failed to submit seal proof"
+					resp.State = Failed
+				})
+				return
+			}
+		}(c, sectorID)
 	}
 }
 

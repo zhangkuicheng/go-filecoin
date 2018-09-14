@@ -528,7 +528,7 @@ func (node *Node) initSectorBuilder(ctx context.Context, minerAddr address.Addre
 
 	node.SectorBuilder = sb
 
-	miningOwnerAddr, err := node.miningOwnerAddress(ctx, minerAddr)
+	miningOwnerAddr, err := node.MiningOwnerAddress(ctx, minerAddr)
 	if err != nil {
 		fmt.Println("no mining owner", err, minerAddr)
 		log.Warningf("no mining owner available, skipping storage miner setup: %s", err)
@@ -801,8 +801,9 @@ func (node *Node) SendMessage(ctx context.Context, from, to address.Address, val
 	return smsg.Cid()
 }
 
+// MiningOwnerAddress returns the owner of the passed in mining address.
 // TODO: find a better home for this method
-func (node *Node) miningOwnerAddress(ctx context.Context, miningAddr address.Address) (address.Address, error) {
+func (node *Node) MiningOwnerAddress(ctx context.Context, miningAddr address.Address) (address.Address, error) {
 	res, code, err := node.CallQueryMethod(ctx, miningAddr, "getOwner", nil, nil)
 	if err != nil {
 		return address.Address{}, errors.Wrap(err, "failed to getOwner")

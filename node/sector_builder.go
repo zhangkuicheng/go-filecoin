@@ -18,7 +18,6 @@ import (
 	uio "gx/ipfs/Qmdg2crJzNUF1mLPnLPSCCaDdLDqE4Qrh9QEiDooSYkvuB/go-unixfs/io"
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
 
-	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/proofs"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -59,9 +58,21 @@ type SectorDirs interface {
 
 // PieceInfo is information about a filecoin piece
 type PieceInfo struct {
-	Ref    *cid.Cid `json:"ref"`
-	Size   uint64   `json:"size"`
-	DealID uint64   `json:"deal_id"`
+	Ref  *cid.Cid           `json:"ref"`
+	Size *types.BytesAmount `json:"size"` // TODO: use BytesAmount
+}
+
+// NewPieceInfo constructs a piece info, ensuring all parameters are valid.
+func NewPieceInfo(ref *cid.Cid, size *types.BytesAmount) (*PieceInfo, error) {
+	// TODO: use proper value
+	if size.GreaterThan(types.NewBytesAmount(1024 * 1024 * 1024)) {
+		return nil, ErrPieceTooLarge
+	}
+
+	return &PieceInfo{
+		Ref:  ref,
+		Size: size,
+	}, nil
 }
 
 // SectorBuilder manages packing deals into sectors
@@ -205,18 +216,18 @@ func (sb *SectorBuilder) NewBin() (binpack.Bin, error) {
 }
 
 // BinSize implements binpack.Binner.
-func (sb *SectorBuilder) BinSize() binpack.Space {
-	return binpack.Space(sb.sectorSize)
+func (sb *SectorBuilder) BinSize() *types.BytesAmount {
+	return sb.sectorSize
 }
 
 // ItemSize implements binpack.Binner.
-func (sb *SectorBuilder) ItemSize(item binpack.Item) binpack.Space {
-	return binpack.Space(item.(*PieceInfo).Size)
+func (sb *SectorBuilder) ItemSize(item binpack.Item) *types.BytesAmount {
+	return item.(*PieceInfo).Size
 }
 
 // SpaceAvailable implements binpack.Binner.
-func (sb *SectorBuilder) SpaceAvailable(bin binpack.Bin) binpack.Space {
-	return binpack.Space(bin.(*UnsealedSector).numBytesFree)
+func (sb *SectorBuilder) SpaceAvailable(bin binpack.Bin) *types.BytesAmount {
+	return types.NewBytesAmount(bin.(*UnsealedSector).numBytesFree)
 }
 
 // End binpack.Binner implementation
@@ -365,9 +376,10 @@ func configureFreshSectorBuilder(sb *SectorBuilder) error {
 	return nil
 }
 
-func (sb *SectorBuilder) onCommitmentAddedToMempool(*SealedSector, *cid.Cid, error) {
-	// TODO: wait for commitSector message to be included in a block so that we
-	// can update sealed sector metadata with the miner-created SectorID
+func (sb *SectorBuilder) onCommitmentAddedToMempool(sector *SealedSector, msg *cid.Cid, err error) {
+	if sb.nd.StorageMiner != nil {
+		sb.nd.StorageMiner.OnCommitmentAddedToMempool(sector, msg, err)
+	}
 }
 
 // AddPiece writes the given piece into an unsealed sector and returns the id of that unsealed sector.
@@ -512,56 +524,12 @@ func (sb *SectorBuilder) AddCommitmentToMempool(ctx context.Context, ss *SealedS
 		log.FinishWithErr(ctx, err)
 	}()
 
-	// TODO: The sealed sector, due to padding in rust-proofs, may contain more
-	// bytes than we determine by summing the size of each piece. This argument
-	// does not exist in the spec, so perhaps it's not something we need to
-	// worry about right now.
-	numBytesInSealedSector := uint64(0)
-	for _, p := range ss.pieces {
-		numBytesInSealedSector += p.Size
-	}
-
-	// TODO: These arguments are divergent from the spec, but at least match up
-	// with the Actor#CommitSector signature.
-	args, err := abi.ToEncodedValues(
-		ss.sectorID,
-		ss.commR[:],
-		types.NewBytesAmount(numBytesInSealedSector),
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to ABI encode commitSector arguments")
-	}
-
-	res, exitCode, err := sb.nd.CallQueryMethod(ctx, sb.MinerAddr, "getOwner", nil, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get miner owner")
-	}
-
-	if exitCode != uint8(0) {
-		return nil, fmt.Errorf("failed to get miner owner, exitCode: %d", exitCode)
-	}
-
-	minerOwner, err := address.NewFromBytes(res[0])
-	if err != nil {
-		return nil, errors.Wrap(err, "received invalid mining owner")
-	}
-	msg := types.NewMessage(minerOwner, sb.MinerAddr, 0, nil, "commitSector", args)
-
-	smsg, err := types.NewSignedMessage(*msg, sb.nd.Wallet)
+	minerOwnerAddr, err := sb.nd.MiningOwnerAddress(ctx, sb.MinerAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := sb.nd.AddNewMessage(ctx, smsg); err != nil {
-		return nil, errors.Wrap(err, "pushing out commitSector message failed")
-	}
-
-	smsgCid, err := smsg.Cid()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get commitSector message CID")
-	}
-
-	return smsgCid, nil
+	return sb.nd.SendMessage(ctx, minerOwnerAddr, sb.MinerAddr, nil, "commitSector", ss.GetID(), ss.commR[:], ss.commD[:])
 }
 
 // WritePiece writes data from the given reader to the sectors underlying storage
