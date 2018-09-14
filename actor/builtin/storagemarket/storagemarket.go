@@ -82,6 +82,8 @@ type State struct {
 
 	Orderbook *Orderbook
 
+	// TotalCommitedStorage is the number of sectors that are currently commited
+	// in the whole network.
 	TotalCommittedStorage *big.Int
 }
 
@@ -93,7 +95,8 @@ func NewActor() (*actor.Actor, error) {
 // InitializeState stores the actor's initial data structure.
 func (sma *Actor) InitializeState(storage exec.Storage, _ interface{}) error {
 	initStorage := &State{
-		Orderbook: &Orderbook{},
+		Orderbook:             &Orderbook{},
+		TotalCommittedStorage: big.NewInt(0),
 	}
 	stateBytes, err := cbor.DumpObject(initStorage)
 	if err != nil {
@@ -133,7 +136,7 @@ var storageMarketExports = exec.Exports{
 		Return: []abi.Type{abi.Integer},
 	},
 	"updatePower": &exec.FunctionSignature{
-		Params: []abi.Type{abi.BytesAmount},
+		Params: []abi.Type{abi.Integer},
 		Return: nil,
 	},
 	"getTotalStorage": &exec.FunctionSignature{
@@ -312,7 +315,7 @@ func SignDeal(deal *Deal, signer types.Signer, addr address.Address) (types.Sign
 
 // UpdatePower is called to reflect a change in the overall power of the network.
 // This occurs either when a miner adds a new commitment, or when one is removed
-// (via slashing or willful removal)
+// (via slashing or willful removal). The delat is in number of sectors
 func (sma *Actor) UpdatePower(vmctx exec.VMContext, delta *big.Int) (uint8, error) {
 	var state State
 	_, err := actor.WithState(vmctx, &state, func() (interface{}, error) {

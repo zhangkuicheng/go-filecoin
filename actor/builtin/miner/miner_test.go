@@ -126,7 +126,7 @@ func TestCBOREncodeState(t *testing.T) {
 	assert := assert.New(t)
 	state := NewState(address.TestAddress, []byte{}, types.NewBytesAmount(1), core.RequireRandomPeerID(), types.NewZeroAttoFIL())
 
-	state.Sectors["foo"] = types.NewBytesAmount(4454)
+	state.Sectors["foo"] = []byte{123}
 
 	_, err := actor.MarshalStorage(state)
 	assert.NoError(err)
@@ -210,4 +210,81 @@ func getPeerIdSuccess(ctx context.Context, t *testing.T, st state.Tree, vms vm.S
 	require.NoError(t, err)
 
 	return pid
+}
+
+func TestMinerCommitSector(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+	st, vms := core.CreateStorages(ctx, t)
+
+	origPid := core.RequireRandomPeerID()
+	minerAddr := createTestMiner(assert.New(t), st, vms, address.TestAddress, []byte("my public key"), origPid)
+
+	commR := []byte("commR")
+	commD := []byte("commD")
+
+	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", commR, commD)
+	require.NoError(err)
+	require.NoError(res.ExecutionError)
+	require.Equal(uint8(0), res.Receipt.ExitCode)
+
+	// check that the proving period matches
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 3, "getProvingPeriodStart")
+	require.NoError(err)
+	require.NoError(res.ExecutionError)
+	// blockheight was 3
+	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(3))
+
+	// fail because commR already exists
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", commR, commD)
+	require.NoError(err)
+	require.EqualError(res.ExecutionError, "sector already committed")
+	require.Equal(uint8(0x23), res.Receipt.ExitCode)
+}
+
+func TestMinerSubmitPoSt(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+	st, vms := core.CreateStorages(ctx, t)
+
+	origPid := core.RequireRandomPeerID()
+	minerAddr := createTestMiner(assert.New(t), st, vms, address.TestAddress, []byte("my public key"), origPid)
+
+	// add a sector
+	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", []byte("commR1"), []byte("commD1"))
+	require.NoError(err)
+	require.NoError(res.ExecutionError)
+	require.Equal(uint8(0), res.Receipt.ExitCode)
+
+	// add another sector
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", []byte("commR2"), []byte("commD2"))
+	require.NoError(err)
+	require.NoError(res.ExecutionError)
+	require.Equal(uint8(0), res.Receipt.ExitCode)
+
+	// submit post
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 8, "submitPoSt", []byte("proof"))
+	require.NoError(err)
+	require.NoError(res.ExecutionError)
+	require.Equal(uint8(0), res.Receipt.ExitCode)
+
+	// check that the proving period is now the next one
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 3, "getProvingPeriodStart")
+	require.NoError(err)
+	require.NoError(res.ExecutionError)
+	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(203))
+
+	// fail to submit inside the proving period
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 408, "submitPoSt", []byte("proof"))
+	require.NoError(err)
+	require.EqualError(res.ExecutionError, "submitted PoSt late, need to pay a fee")
+}
+
+func applyMessage(t *testing.T, st state.Tree, vms vm.StorageMap, to address.Address, val, bh uint64, method string, params ...interface{}) (*core.ApplicationResult, error) {
+	t.Helper()
+
+	pdata := actor.MustConvertParams(params...)
+	nonce := core.MustGetNonce(st, address.TestAddress)
+	msg := types.NewMessage(address.TestAddress, to, nonce, types.NewAttoFILFromFIL(val), method, pdata)
+	return core.ApplyMessage(context.Background(), st, vms, msg, types.NewBlockHeight(bh))
 }

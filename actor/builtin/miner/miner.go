@@ -73,6 +73,7 @@ type State struct {
 	// the miners pledge.
 	Collateral *types.AttoFIL
 
+	// Sectors maps commR to commD, for all sectors this miner has commited.
 	Sectors map[string][]byte
 
 	ProvingPeriodStart *types.BlockHeight
@@ -97,6 +98,7 @@ func NewState(owner address.Address, key []byte, pledge *types.BytesAmount, pid 
 		Collateral:    collateral,
 		LockedStorage: types.NewBytesAmount(0),
 		Sectors:       make(map[string][]byte),
+		Power:         big.NewInt(0),
 	}
 }
 
@@ -138,7 +140,7 @@ var minerExports = exec.Exports{
 		Return: []abi.Type{abi.Address},
 	},
 	"commitSector": &exec.FunctionSignature{
-		Params: []abi.Type{abi.SectorID, abi.Bytes, abi.BytesAmount},
+		Params: []abi.Type{abi.SectorID, abi.Bytes, abi.Bytes},
 		Return: []abi.Type{},
 	},
 	"getKey": &exec.FunctionSignature{
@@ -253,10 +255,11 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 		if state.Power.Cmp(big.NewInt(0)) == 0 {
 			state.ProvingPeriodStart = ctx.BlockHeight()
 		}
-		state.Power = state.Power.Add(state.Power, big.NewInt(1))
+		inc := big.NewInt(1)
+		state.Power = state.Power.Add(state.Power, inc)
 		state.Sectors[commRstr] = commD
 
-		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{1})
+		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{inc})
 		if err != nil {
 			return nil, err
 		}
