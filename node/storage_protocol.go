@@ -248,18 +248,31 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 
 // OnCommitmentAddedToMempool is a callback, called when a sector seal was commited to the chain.
 func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, err error) {
-	if err != nil {
-		// TODO: cleanup
-		return
-	}
-
 	sectorID := sector.SectorID()
-
 	sm.dealsAwaitingSealLk.Lock()
 	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
 	if !ok {
 		// nothing to do
+		return
+	}
+
+	// remove the deals
+	// TODO: reevaluate if this should be done inside the loops below
+	sm.dealsAwaitingSeal[sectorID] = make([]*cid.Cid)
+
+	if err != nil {
+		// we failed to seal this sector, cancel all the deals
+		log.Errorf("failed sealing sector: %v: %s", sectorID, err)
+		for _, c := range deals {
+			go func(c *cid.Cid) {
+				sm.updateDealState(c, func(resp *StorageDealResponse) {
+					resp.Message = "Failed to seal sector"
+					resp.State = Failed
+				})
+			}(c)
+		}
+
 		return
 	}
 
