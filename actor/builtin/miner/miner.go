@@ -73,7 +73,7 @@ type State struct {
 	// the miners pledge.
 	Collateral *types.AttoFIL
 
-	// Sectors maps commR to commD, for all sectors this miner has commited.
+	// Sectors maps commR to commD, for all sectors this miner has committed.
 	Sectors map[string][]byte
 
 	ProvingPeriodStart *types.BlockHeight

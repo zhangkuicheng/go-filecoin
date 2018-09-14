@@ -647,11 +647,14 @@ func (sb *SectorBuilder) Seal(ctx context.Context, s *UnsealedSector, minerAddr 
 	return sb.NewSealedSector(res2.CommR, res2.CommD, res2.Proof, res1.SectorAccess, res1.SectorAccess, s), nil
 }
 
-func (sb *SectorBuilder) GeneratePoSt(sectors [][]byte, seeds [][]byte) ([]byte, []uint, error) {
+// GeneratePoSt creates the required posts, given a list of sector ids and matching seeds.
+// It returns the Snark Proof for the posts, and a list of sectors that faulted, if there were any faults.
+func (sb *SectorBuilder) GeneratePoSt(sectors [][]byte, seeds [][]byte) ([]byte, [][]byte, error) {
+	// TODO: assert len(sectors) == len(seeds)
 	// TODO: call into rust-proofs
 	time.Sleep(time.Second)
 
-	return []byte("my cool post"), []uint{}, nil
+	return []byte("my cool post"), [][]byte{}, nil
 }
 
 // proverID creates a prover id by padding an address hash to 31 bytes

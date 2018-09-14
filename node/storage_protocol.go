@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"sync"
 
 	inet "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
@@ -227,7 +228,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		})
 	}
 	// posting the seal on chain
-	msgCid, err := sm.nd.SendMessage(ctx, sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(nil), "commitSector", seal)
+	msgCid, err := sm.nd.SendMessage(ctx, sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(big.NewInt(0)), "commitSector", seal)
 	if err != nil {
 		fail("Failed to submit seal proof", fmt.Sprintf("failed to commitSector: %s", err))
 		return
@@ -240,7 +241,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 
 		// Success, our seal is posted on chain
 		sm.updateDealState(c, func(resp *StorageDealResponse) {
-			resp.State = Complete
+			resp.State = Posted
 			//resp.ProofInfo = new(ProofInfo)
 		})
 

@@ -105,5 +105,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 	resp, err := c.Query(ctx, ref)
 	assert.NoError(err)
 
-	assert.Equal(Complete, resp.State)
+	assert.Equal(Staged, resp.State)
+
+	// TODO: add tests for moving from staged -> posted
 }

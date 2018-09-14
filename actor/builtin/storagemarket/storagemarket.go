@@ -82,7 +82,7 @@ type State struct {
 
 	Orderbook *Orderbook
 
-	// TotalCommitedStorage is the number of sectors that are currently commited
+	// TotalCommitedStorage is the number of sectors that are currently committed
 	// in the whole network.
 	TotalCommittedStorage *big.Int
 }
