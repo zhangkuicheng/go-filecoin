@@ -459,12 +459,12 @@ func (node *Node) MiningAddress() (address.Address, error) {
 	}
 	r := node.Repo
 	newConfig := r.Config()
-	if len(newConfig.Mining.MinerAddresses) == 0 {
+	if newConfig.Mining.MinerAddress == (address.Address{}) {
 		return address.Address{}, ErrNoMinerAddress
 	}
 	// TODO: mining start should include a flag to specify a specific
 	// mining addr.  For now default to the first created.
-	return newConfig.Mining.MinerAddresses[0], nil
+	return newConfig.Mining.MinerAddress, nil
 }
 
 // MiningTimes returns the configured time it takes to mine a block, and also
@@ -740,7 +740,7 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, 
 func (node *Node) saveMinerAddressToConfig(addr address.Address) error {
 	r := node.Repo
 	newConfig := r.Config()
-	newConfig.Mining.MinerAddresses = append(newConfig.Mining.MinerAddresses, addr)
+	newConfig.Mining.MinerAddress = addr
 
 	return r.ReplaceConfig(newConfig)
 }

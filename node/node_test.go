@@ -615,7 +615,7 @@ func TestCreateMiner(t *testing.T) {
 		require.NoError(result.Err)
 		assert.NotNil(result.MinerAddress)
 
-		assert.Equal(*result.MinerAddress, node.Repo.Config().Mining.MinerAddresses[0])
+		assert.Equal(*result.MinerAddress, node.Repo.Config().Mining.MinerAddress)
 	})
 
 	t.Run("fail with pledge too low", func(t *testing.T) {
@@ -690,7 +690,7 @@ func TestCreateSectorBuilders(t *testing.T) {
 	assert.NotNil(node.SectorBuilder)
 
 	// ensure that that the sector builder has been configured with the mining address
-	assert.Equal(node.Repo.Config().Mining.MinerAddresses, []address.Address{node.SectorBuilder.MinerAddr})
+	assert.Equal(node.Repo.Config().Mining.MinerAddress, node.SectorBuilder.MinerAddr)
 }
 
 func TestLookupMinerAddress(t *testing.T) {
