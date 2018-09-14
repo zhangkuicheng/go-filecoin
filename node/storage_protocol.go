@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"sync"
 
 	inet "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
@@ -215,11 +214,6 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		resp.State = Staged
 	})
 
-	// TODO: wait for sector to get filled up
-
-	// TODO: get an actual seal proof from the sector builder
-	seal := []byte("my cool seal")
-
 	fail := func(message, logerr string) {
 		log.Errorf(logerr)
 		sm.updateDealState(c, func(resp *StorageDealResponse) {
@@ -227,10 +221,17 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 			resp.State = Failed
 		})
 	}
-	// posting the seal on chain
-	msgCid, err := sm.nd.SendMessage(ctx, sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(big.NewInt(0)), "commitSector", seal)
+
+	// TODO: wait for sector to get filled up
+	sb := sm.sectorBuilder()
+	sector, err := sb.NewSector()
 	if err != nil {
-		fail("Failed to submit seal proof", fmt.Sprintf("failed to commitSector: %s", err))
+		fail("Failed to submit seal proof", fmt.Sprintf("failed to create new sector: %s", err))
+		return
+	}
+	msgCid, err := sb.SealAndAddCommitmentToMempool(ctx, sector)
+	if err != nil {
+		fail("Failed to submit seal proof", fmt.Sprintf("failed to seal and add message: %s", err))
 		return
 	}
 
@@ -248,11 +249,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		return nil
 	})
 	if err != nil {
-		log.Errorf("failed to commitSector: %s", err)
-		sm.updateDealState(c, func(resp *StorageDealResponse) {
-			resp.Message = "Failed to submit seal proof"
-			resp.State = Failed
-		})
+		fail("Failed to submit seal proof", fmt.Sprintf("failed to commitSector: %s", err))
 		return
 	}
 }
@@ -261,6 +258,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 // It is used to check if we are in a new proving period and need to trigger PoSt submission.
 func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
 	sectors := sm.sectorBuilder().SealedSectors()
+	fmt.Println("new heaviest tip set", sectors)
 
 	if len(sectors) == 0 {
 		// no sector sealed, nothing to do

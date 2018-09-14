@@ -244,7 +244,6 @@ func (ma *Actor) GetOwner(ctx exec.VMContext) (address.Address, uint8, error) {
 // 'size' is the total number of bytes stored in the sector
 func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD []byte) (uint8, error) {
 	var state State
-
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		commRstr := string(commR) // proper fixed length array encoding in cbor is apparently 'hard'.
 		_, ok := state.Sectors[commRstr]
@@ -266,7 +265,6 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 		if ret != 0 {
 			return nil, Errors[ErrStoragemarketCallFailed]
 		}
-
 		return nil, nil
 	})
 	if err != nil {

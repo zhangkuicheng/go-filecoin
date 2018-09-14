@@ -388,6 +388,7 @@ func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head core.TipSet)
 				}
 			}()
 		}
+
 		if node.StorageMiner != nil {
 			node.StorageMiner.NewHeaviestTipSet(newHead)
 		}
@@ -453,17 +454,13 @@ func (node *Node) addNewlyMinedBlock(ctx context.Context, b *types.Block) {
 // MiningAddress returns the address of the mining actor mining on behalf of
 // the node.
 func (node *Node) MiningAddress() (address.Address, error) {
-	// TODO: this is a temporary workaround to permit nodes to mine without setup.
-	if node.mockMineMode {
-		return node.DefaultSenderAddress()
-	}
 	r := node.Repo
 	newConfig := r.Config()
 	if newConfig.Mining.MinerAddress == (address.Address{}) {
 		return address.Address{}, ErrNoMinerAddress
 	}
 	// TODO: mining start should include a flag to specify a specific
-	// mining addr.  For now default to the first created.
+	// mining addr.
 	return newConfig.Mining.MinerAddress, nil
 }
 
@@ -533,6 +530,7 @@ func (node *Node) initSectorBuilder(ctx context.Context, minerAddr address.Addre
 
 	miningOwnerAddr, err := node.miningOwnerAddress(ctx, minerAddr)
 	if err != nil {
+		fmt.Println("no mining owner", err, minerAddr)
 		log.Warningf("no mining owner available, skipping storage miner setup: %s", err)
 	} else {
 		node.StorageMiner, err = NewStorageMiner(ctx, node, minerAddr, miningOwnerAddr)
@@ -783,21 +781,21 @@ func (node *Node) defaultWalletAddress() (address.Address, error) {
 func (node *Node) SendMessage(ctx context.Context, from, to address.Address, val *types.AttoFIL, method string, params ...interface{}) (*cid.Cid, error) {
 	encodedParams, err := abi.ToEncodedValues(params...)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "invalid params")
 	}
 
 	msg, err := NewMessageWithNextNonce(ctx, node, from, to, val, method, encodedParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "invalid message")
 	}
 
 	smsg, err := types.NewSignedMessage(*msg, node.Wallet)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to sign message")
 	}
 
 	if err := node.AddNewMessage(ctx, smsg); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to submit message")
 	}
 
 	return smsg.Cid()

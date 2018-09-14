@@ -1,20 +1,24 @@
-package node
+package node_test
 
 import (
 	"context"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
-
-	"github.com/filecoin-project/go-filecoin/gengen/util"
-	"github.com/filecoin-project/go-filecoin/types"
-	"github.com/stretchr/testify/assert"
 
 	crypto "gx/ipfs/QmPvyPwuCgJ7pDmrKDxRtsScJgBaM5h4EpRL2qQJsmXf4n/go-libp2p-crypto"
 	peer "gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
+
+	"github.com/filecoin-project/go-filecoin/api/impl"
+	"github.com/filecoin-project/go-filecoin/gengen/util"
+	. "github.com/filecoin-project/go-filecoin/node"
+	"github.com/filecoin-project/go-filecoin/types"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSerializeProposal(t *testing.T) {
@@ -75,6 +79,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 	// make two nodes, one of which is the miner (and gets the miner peer key)
 	miner := NodeWithChainSeed(t, seed, PeerKeyOpt(peerKeys[0]))
 	client := NodeWithChainSeed(t, seed)
+	minerAPI := impl.New(miner)
 
 	// Give the miner node the right private key, and set them up with
 	// the miner actor
@@ -104,8 +109,46 @@ func TestStorageProtocolBasic(t *testing.T) {
 
 	resp, err := c.Query(ctx, ref)
 	assert.NoError(err)
-
 	assert.Equal(Staged, resp.State)
 
-	// TODO: add tests for moving from staged -> posted
+	var foundSeal bool
+	var foundPoSt bool
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	err = minerAPI.Mining().Start(ctx)
+	assert.NoError(err)
+	defer minerAPI.Mining().Stop(ctx)
+
+	// TODO: remove this hack to get new blocks
+	old := miner.AddNewlyMinedBlock
+	miner.AddNewlyMinedBlock = func(ctx context.Context, blk *types.Block) {
+		old(ctx, blk)
+
+		if !foundSeal {
+			for _, msg := range blk.Messages {
+				if msg.Method == "commitSector" {
+					foundSeal = true
+					wg.Done()
+				}
+			}
+		}
+		if !foundPoSt {
+			for _, msg := range blk.Messages {
+				if msg.Method == "submitPoSt" {
+					assert.False(foundPoSt, "multiple post submissions must not happen")
+					foundPoSt = true
+					wg.Done()
+				}
+			}
+		}
+	}
+
+	wg.Wait()
+
+	// Now all things should be ready
+	resp, err = c.Query(ctx, ref)
+	assert.NoError(err)
+	assert.Equal(Posted, resp.State)
 }

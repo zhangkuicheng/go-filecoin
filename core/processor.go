@@ -358,6 +358,7 @@ func attemptApplyMessage(ctx context.Context, st *state.CachedTree, store vm.Sto
 
 	vmCtx := vm.NewVMContext(fromActor, toActor, msg, st, store, bh)
 	ret, exitCode, vmErr := vm.Send(ctx, vmCtx)
+
 	if errors.IsFault(vmErr) {
 		return nil, vmErr
 	}
