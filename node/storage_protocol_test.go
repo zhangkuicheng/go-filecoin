@@ -79,12 +79,12 @@ func TestStorageProtocolBasic(t *testing.T) {
 	// Give the miner node the right private key, and set them up with
 	// the miner actor
 	seed.GiveKey(t, miner, "foo")
-	mineraddr := seed.GiveMiner(t, miner, 0)
+	mineraddr, minerOwnerAddr := seed.GiveMiner(t, miner, 0)
 
 	seed.GiveKey(t, client, "bar")
 
 	c := NewStorageMinerClient(client)
-	m, err := NewStorageMiner(miner, mineraddr)
+	m, err := NewStorageMiner(ctx, miner, mineraddr, minerOwnerAddr)
 	assert.NoError(err)
 	_ = m
 

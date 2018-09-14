@@ -100,15 +100,19 @@ func (cs *ChainSeed) GiveKey(t *testing.T, nd *Node, key string) address.Address
 	return addr
 }
 
-// GiveMiner gives the specified miner to the node
-func (cs *ChainSeed) GiveMiner(t *testing.T, nd *Node, which int) address.Address {
+// GiveMiner gives the specified miner to the node. Returns the address and the owner addresss
+func (cs *ChainSeed) GiveMiner(t *testing.T, nd *Node, which int) (address.Address, address.Address) {
 	t.Helper()
 	cfg := nd.Repo.Config()
 	m := cs.info.Miners[which]
 
 	cfg.Mining.MinerAddresses = append(cfg.Mining.MinerAddresses, m.Address)
 	require.NoError(t, nd.Repo.ReplaceConfig(cfg))
-	return m.Address
+
+	ownerAddr, err := cs.info.Keys[m.Owner].Address()
+	require.NoError(t, err)
+
+	return m.Address, ownerAddr
 }
 
 // Addr returns the address for the given key

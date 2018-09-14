@@ -74,7 +74,7 @@ func TestMinerCreate(t *testing.T) {
 			wg.Wait()
 
 			// expect address to have been written in config
-			config := d.RunSuccess("config mining.minerAddresses")
+			config := d.RunSuccess("config mining.minerAddress")
 			assert.Contains(config.ReadStdout(), addr.String())
 		}
 

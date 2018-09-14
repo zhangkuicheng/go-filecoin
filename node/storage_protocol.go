@@ -100,19 +100,7 @@ type storageDealState struct {
 }
 
 // NewStorageMiner is
-func NewStorageMiner(nd *Node, minerAddr address.Address) (*StorageMiner, error) {
-	res, code, err := nd.CallQueryMethod(context.TODO(), minerAddr, "getOwner", []byte{}, nil)
-	if err != nil {
-		return nil, err
-	}
-	if code != 0 {
-		return nil, fmt.Errorf("failed to getOwner from the miner: exitCode = %d", code)
-	}
-	minerOwnerAddr, err := address.NewFromBytes(res[0])
-	if err != nil {
-		return nil, err
-	}
-
+func NewStorageMiner(ctx context.Context, nd *Node, minerAddr, minerOwnerAddr address.Address) (*StorageMiner, error) {
 	sm := &StorageMiner{
 		nd:             nd,
 		minerAddr:      minerAddr,
@@ -358,7 +346,7 @@ func (sm *StorageMiner) submitPoSt() {
 }
 
 func (sm *StorageMiner) sectorBuilder() *SectorBuilder {
-	return sm.nd.SectorBuilders[sm.minerAddr]
+	return sm.nd.SectorBuilder
 }
 
 // Query responds to a query for the proposal referenced by the given cid

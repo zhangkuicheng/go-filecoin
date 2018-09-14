@@ -609,7 +609,7 @@ func TestCreateMiner(t *testing.T) {
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
 
-		assert.Equal(0, len(node.SectorBuilders))
+		assert.Nil(node.SectorBuilder)
 
 		result := <-RunCreateMiner(t, node, nodeAddr, *types.NewBytesAmount(100000), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(100))
 		require.NoError(result.Err)
@@ -631,7 +631,7 @@ func TestCreateMiner(t *testing.T) {
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
 
-		assert.Equal(0, len(node.SectorBuilders))
+		assert.Nil(node.SectorBuilder)
 
 		result := <-RunCreateMiner(t, node, nodeAddr, *types.NewBytesAmount(10), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(10))
 		assert.Error(result.Err)
@@ -651,7 +651,7 @@ func TestCreateMiner(t *testing.T) {
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
 
-		assert.Equal(0, len(node.SectorBuilders))
+		assert.Nil(node.SectorBuilder)
 
 		result := <-RunCreateMiner(t, node, nodeAddr, *types.NewBytesAmount(20000), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(1000000))
 		assert.Error(result.Err)
@@ -679,30 +679,18 @@ func TestCreateSectorBuilders(t *testing.T) {
 	assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 	assert.NoError(node.Start(ctx))
 
-	assert.Equal(0, len(node.SectorBuilders))
+	assert.Nil(node.SectorBuilder)
 
 	result := <-RunCreateMiner(t, node, minerAddr1, *types.NewBytesAmount(100000), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(100))
 	require.NoError(result.Err)
 
-	assert.Equal(0, len(node.SectorBuilders))
+	assert.Nil(node.SectorBuilder)
 
 	node.StartMining(ctx)
-	assert.Equal(1, len(node.SectorBuilders))
+	assert.NotNil(node.SectorBuilder)
 
-	// ensure that that the sector builders have been configured
-	// with the mining address of each of the node's miners
-
-	sbaddrs := make(map[address.Address]struct{})
-	for _, sb := range node.SectorBuilders {
-		sbaddrs[sb.MinerAddr] = struct{}{}
-	}
-
-	cfaddrs := make(map[address.Address]struct{})
-	for _, addr := range node.Repo.Config().Mining.MinerAddresses {
-		cfaddrs[addr] = struct{}{}
-	}
-
-	assert.Equal(cfaddrs, sbaddrs)
+	// ensure that that the sector builder has been configured with the mining address
+	assert.Equal(node.Repo.Config().Mining.MinerAddresses, []address.Address{node.SectorBuilder.MinerAddr})
 }
 
 func TestLookupMinerAddress(t *testing.T) {

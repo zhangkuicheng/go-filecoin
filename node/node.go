@@ -99,8 +99,8 @@ type Node struct {
 	// it contains all persistent artifacts of the filecoin node
 	Repo repo.Repo
 
-	// SectorBuilders are used by the miners to fill and seal sectors
-	SectorBuilders map[address.Address]*SectorBuilder
+	// SectorBuilder is used by the miner to fill and seal sectors.
+	SectorBuilder *SectorBuilder
 
 	// Exchange is the interface for fetching data from other nodes.
 	Exchange exchange.Interface
@@ -241,21 +241,20 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	fcWallet := wallet.New(backend)
 
 	nd := &Node{
-		Blockservice:   bserv,
-		Blockstore:     bs,
-		CborStore:      cst,
-		ChainMgr:       chainMgr,
-		Exchange:       bswap,
-		Host:           host,
-		MsgPool:        msgPool,
-		OfflineMode:    nc.OfflineMode,
-		Ping:           pinger,
-		PubSub:         fsub,
-		Repo:           nc.Repo,
-		SectorBuilders: make(map[address.Address]*SectorBuilder),
-		Wallet:         fcWallet,
-		mockMineMode:   nc.MockMineMode,
-		blockTime:      nc.BlockTime,
+		Blockservice: bserv,
+		Blockstore:   bs,
+		CborStore:    cst,
+		ChainMgr:     chainMgr,
+		Exchange:     bswap,
+		Host:         host,
+		MsgPool:      msgPool,
+		OfflineMode:  nc.OfflineMode,
+		Ping:         pinger,
+		PubSub:       fsub,
+		Repo:         nc.Repo,
+		Wallet:       fcWallet,
+		mockMineMode: nc.MockMineMode,
+		blockTime:    nc.BlockTime,
 	}
 
 	// Bootstrapping network peers.
@@ -283,18 +282,6 @@ func (node *Node) Start(ctx context.Context) error {
 
 	node.StorageClient = NewStorageClient(node)
 	node.StorageBroker = NewStorageBroker(node)
-
-	// TODO: only enable if mining is enabled
-
-	miningAddr, err := node.MiningAddress()
-	if err != nil {
-		return errors.Wrap(err, "invalid mining address")
-	}
-	node.StorageMiner, err = NewStorageMiner(node, miningAddr)
-	if err != nil {
-		return errors.Wrap(err, "failed to instantiate storage miner")
-	}
-
 	node.StorageMinerClient = NewStorageMinerClient(node)
 
 	// subscribe to block notifications
@@ -401,7 +388,9 @@ func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head core.TipSet)
 				}
 			}()
 		}
-		node.StorageMiner.NewHeaviestTipSet(newHead)
+		if node.StorageMiner != nil {
+			node.StorageMiner.NewHeaviestTipSet(newHead)
+		}
 		node.HeaviestTipSetHandled()
 	}
 	currentBestCancel() // keep the linter happy
@@ -488,7 +477,7 @@ func (node *Node) MiningTimes() (time.Duration, time.Duration) {
 }
 
 // StartMining causes the node to start feeding blocks to the mining worker and initializes
-// a SectorBuilder for each mining address.
+// the SectorBuilder for the mining address.
 func (node *Node) StartMining(ctx context.Context) error {
 	miningAddress, err := node.MiningAddress()
 	if err != nil {
@@ -511,7 +500,7 @@ func (node *Node) StartMining(ctx context.Context) error {
 		go node.handleNewMiningOutput(outCh)
 	}
 
-	if err := node.initSectorBuilder(miningAddress); err != nil {
+	if err := node.initSectorBuilder(ctx, miningAddress); err != nil {
 		return errors.Wrap(err, "failed to initialize sector builder")
 	}
 
@@ -530,7 +519,7 @@ func (node *Node) StartMining(ctx context.Context) error {
 	return nil
 }
 
-func (node *Node) initSectorBuilder(minerAddr address.Address) error {
+func (node *Node) initSectorBuilder(ctx context.Context, minerAddr address.Address) error {
 	dirs := node.Repo.(SectorDirs)
 
 	sstore := proofs.NewProofTestSectorStore(dirs.SealedDir(), dirs.SealedDir())
@@ -540,7 +529,17 @@ func (node *Node) initSectorBuilder(minerAddr address.Address) error {
 		return errors.Wrap(err, fmt.Sprintf("failed to initialize sector builder for miner %s", minerAddr.String()))
 	}
 
-	node.SectorBuilders[minerAddr] = sb
+	node.SectorBuilder = sb
+
+	miningOwnerAddr, err := node.miningOwnerAddress(ctx, minerAddr)
+	if err != nil {
+		log.Warningf("no mining owner available, skipping storage miner setup: %s", err)
+	} else {
+		node.StorageMiner, err = NewStorageMiner(ctx, node, minerAddr, miningOwnerAddr)
+		if err != nil {
+			return errors.Wrap(err, "failed to instantiate storage miner")
+		}
+	}
 
 	return nil
 }
@@ -667,9 +666,14 @@ func (node *Node) CallQueryMethod(ctx context.Context, to address.Address, metho
 }
 
 // CreateMiner creates a new miner actor for the given account and returns its address.
-// It will wait for the the actor to appear on-chain and add its address to mining.minerAddresses in the config.
+// It will wait for the the actor to appear on-chain and add set the address to mining.minerAddress in the config.
 // TODO: This should live in a MinerAPI or some such. It's here until we have a proper API layer.
 func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, pledge types.BytesAmount, pid libp2ppeer.ID, collateral types.AttoFIL) (_ *address.Address, err error) {
+	// Only create a miner if we don't already have one. For now only a single miner per node can exist.
+	if _, err := node.MiningAddress(); err != ErrNoMinerAddress {
+		return nil, fmt.Errorf("Can only have on miner per node")
+	}
+
 	ctx = log.Start(ctx, "Node.CreateMiner")
 	defer func() {
 		log.FinishWithErr(ctx, err)
@@ -797,4 +801,17 @@ func (node *Node) SendMessage(ctx context.Context, from, to address.Address, val
 	}
 
 	return smsg.Cid()
+}
+
+// TODO: find a better home for this method
+func (node *Node) miningOwnerAddress(ctx context.Context, miningAddr address.Address) (address.Address, error) {
+	res, code, err := node.CallQueryMethod(ctx, miningAddr, "getOwner", nil, nil)
+	if err != nil {
+		return address.Address{}, errors.Wrap(err, "failed to getOwner")
+	}
+	if code != 0 {
+		return address.Address{}, fmt.Errorf("failed to getOwner from the miner: exitCode = %d", code)
+	}
+
+	return address.NewFromBytes(res[0])
 }
