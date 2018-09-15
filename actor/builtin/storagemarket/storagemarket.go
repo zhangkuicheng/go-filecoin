@@ -315,7 +315,7 @@ func SignDeal(deal *Deal, signer types.Signer, addr address.Address) (types.Sign
 
 // UpdatePower is called to reflect a change in the overall power of the network.
 // This occurs either when a miner adds a new commitment, or when one is removed
-// (via slashing or willful removal). The delat is in number of sectors
+// (via slashing or willful removal). The delta is in number of sectors.
 func (sma *Actor) UpdatePower(vmctx exec.VMContext, delta *big.Int) (uint8, error) {
 	var state State
 	_, err := actor.WithState(vmctx, &state, func() (interface{}, error) {

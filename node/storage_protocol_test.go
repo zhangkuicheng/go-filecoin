@@ -101,25 +101,15 @@ func TestStorageProtocolBasic(t *testing.T) {
 	data := dag.NewRawNode([]byte("cats"))
 
 	assert.NoError(client.Blockservice.AddBlock(data))
-
-	ref, err := c.TryToStoreData(ctx, mineraddr, data.Cid(), 10, types.NewAttoFILFromFIL(60))
+	err = minerAPI.Mining().Start(ctx)
 	assert.NoError(err)
-
-	time.Sleep(time.Millisecond * 100) // Bad whyrusleeping, bad!
-
-	resp, err := c.Query(ctx, ref)
-	assert.NoError(err)
-	assert.Equal(Staged, resp.State)
+	defer minerAPI.Mining().Stop(ctx)
 
 	var foundSeal bool
 	var foundPoSt bool
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-
-	err = minerAPI.Mining().Start(ctx)
-	assert.NoError(err)
-	defer minerAPI.Mining().Stop(ctx)
 
 	// TODO: remove this hack to get new blocks
 	old := miner.AddNewlyMinedBlock
@@ -144,6 +134,15 @@ func TestStorageProtocolBasic(t *testing.T) {
 			}
 		}
 	}
+
+	ref, err := c.TryToStoreData(ctx, mineraddr, data.Cid(), 10, types.NewAttoFILFromFIL(60))
+	assert.NoError(err)
+
+	time.Sleep(time.Millisecond * 100) // Bad whyrusleeping, bad!
+
+	resp, err := c.Query(ctx, ref)
+	assert.NoError(err)
+	assert.Equal(Staged, resp.State)
 
 	wg.Wait()
 

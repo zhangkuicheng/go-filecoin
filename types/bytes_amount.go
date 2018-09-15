@@ -165,3 +165,8 @@ func (z *BytesAmount) String() string {
 	ensureBytesAmounts(&z)
 	return z.val.String()
 }
+
+// Uint64 returns the uint64 representation of x. If x cannot be represented in a uint64, the result is undefined.
+func (z *BytesAmount) Uint64() uint64 {
+	return z.val.Uint64()
+}

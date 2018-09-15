@@ -3,8 +3,6 @@ package binpack
 import (
 	"context"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
-
-	"github.com/filecoin-project/go-filecoin/types"
 )
 
 // Bin-packing problem: https://en.wikipedia.org/wiki/Bin_packing_problem
@@ -19,6 +17,14 @@ type Bin interface {
 
 // Item is implemented by types which are packed into Bins.
 type Item interface{}
+
+// Space is the size unit.
+type Space uint
+
+// GetID returns 0.
+func (Space) GetID() uint64 {
+	return 0
+}
 
 // NaivePacker implements a single-bin packing strategy.
 type NaivePacker struct {
@@ -40,11 +46,11 @@ type Packer interface {
 // Binner is implemented by types which handle concrete binning of items.
 type Binner interface {
 	AddItem(context.Context, Item, Bin) error
-	BinSize() *types.BytesAmount
+	BinSize() Space
 	CloseBin(Bin)
-	ItemSize(Item) *types.BytesAmount
+	ItemSize(Item) Space
 	NewBin() (Bin, error)
-	SpaceAvailable(bin Bin) *types.BytesAmount
+	SpaceAvailable(bin Bin) Space
 	GetCurrentBin() Bin
 }
 
@@ -86,13 +92,13 @@ func (np *NaivePacker) AddItem(ctx context.Context, item Item) (AddItemResult, e
 	bin := np.bin
 	size := binner.ItemSize(item)
 
-	if size.GreaterThan(binner.BinSize()) {
+	if size > binner.BinSize() {
 		return AddItemResult{}, ErrItemTooLarge
 	}
 
 	var result AddItemResult
 
-	if size.GreaterThan(binner.SpaceAvailable(bin)) {
+	if size > binner.SpaceAvailable(bin) {
 		newBin, err := np.closeBinAndOpenNew(ctx, bin)
 		if err != nil {
 			return AddItemResult{}, err
@@ -106,7 +112,7 @@ func (np *NaivePacker) AddItem(ctx context.Context, item Item) (AddItemResult, e
 			AddedToBin: newBin,
 			NextBin:    newBin,
 		}
-	} else if size.Equal(binner.SpaceAvailable(bin)) {
+	} else if size == binner.SpaceAvailable(bin) {
 		if err := np.addItemToBin(ctx, item, bin); err != nil {
 			return AddItemResult{}, err
 		}

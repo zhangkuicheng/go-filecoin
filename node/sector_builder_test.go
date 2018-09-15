@@ -94,8 +94,7 @@ func TestSectorBuilderSimple(t *testing.T) {
 
 	d1Data := []byte("hello world")
 	d1 := &PieceInfo{
-		DealID: 5,
-		Size:   uint64(len(d1Data)),
+		Size: uint64(len(d1Data)),
 	}
 
 	if err := sb.WritePiece(ctx, sector, d1, bytes.NewReader(d1Data)); err != nil {
@@ -154,9 +153,8 @@ func requirePieceInfo(require *require.Assertions, nd *Node, bytes []byte) *Piec
 	err := nd.Blockservice.AddBlock(data)
 	require.NoError(err)
 	return &PieceInfo{
-		Ref:    data.Cid(),
-		Size:   uint64(len(bytes)),
-		DealID: 0, // FIXME parameterize
+		Ref:  data.Cid(),
+		Size: uint64(len(bytes)),
 	}
 }
 
@@ -622,10 +620,6 @@ func metadataMustMatch(require *require.Assertions, sb *SectorBuilder, sector *U
 func pieceInfoMustEqual(t *testing.T, p1 *PieceInfo, p2 *PieceInfo) {
 	if p1.Size != p2.Size {
 		t.Fatalf("p1.size(%d) != p2.size(%d)\n", p1.Size, p2.Size)
-	}
-
-	if p1.DealID != p2.DealID {
-		t.Fatalf("p1.DealID(%d) != p2.DealID(%d)\n", p1.DealID, p2.DealID)
 	}
 
 	if !p1.Ref.Equals(p2.Ref) {

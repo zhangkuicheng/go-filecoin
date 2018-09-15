@@ -92,7 +92,7 @@ type StorageMiner struct {
 	postInProcessLk sync.Mutex
 	postInProcess   *types.BlockHeight
 
-	dealsAwaitingSeal   map[[]byte][]*cid.Cid
+	dealsAwaitingSeal   map[uint64][]*cid.Cid
 	dealsAwaitingSealLk sync.Mutex
 }
 
@@ -109,7 +109,7 @@ func NewStorageMiner(ctx context.Context, nd *Node, minerAddr, minerOwnerAddr ad
 		minerAddr:         minerAddr,
 		minerOwnerAddr:    minerOwnerAddr,
 		deals:             make(map[string]*storageDealState),
-		dealsAwaitingSeal: make(map[[]byte][]*cid.Cid),
+		dealsAwaitingSeal: make(map[uint64][]*cid.Cid),
 	}
 	nd.Host.SetStreamHandler(StorageDealProtocolID, sm.handleProposalStream)
 	nd.Host.SetStreamHandler(StorageDealQueryProtocolID, sm.handleQuery)
@@ -151,6 +151,10 @@ func (sm *StorageMiner) ReceiveStorageProposal(ctx context.Context, p *StorageDe
 }
 
 func (sm *StorageMiner) acceptProposal(ctx context.Context, p *StorageDealProposal) (*StorageDealResponse, error) {
+	if sm.sectorBuilder() == nil {
+		return nil, errors.New("Mining disabled, can not proccess proposal")
+	}
+
 	// TODO: we don't really actually want to put this in our general storage
 	// but we just want to get its cid, as a way to uniquely track it
 	propcid, err := sm.nd.CborStore.Put(ctx, p)
@@ -226,7 +230,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		})
 	}
 
-	pi, err := NewPieceInfo(d.proposal.PieceRef, d.proposal.Size)
+	pi, err := NewPieceInfo(d.proposal.PieceRef, d.proposal.Size.Uint64())
 	if err != nil {
 		fail("Failed to submit seal proof", fmt.Sprintf("failed to create piece info: %s", err))
 	}
@@ -240,7 +244,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
 	if ok {
-		sm.dealsAwaitingSeal[sectorID] = append(sm.dealsAwaitingSeal, c)
+		sm.dealsAwaitingSeal[sectorID] = append(deals, c)
 	} else {
 		sm.dealsAwaitingSeal[sectorID] = []*cid.Cid{c}
 	}
@@ -248,7 +252,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 
 // OnCommitmentAddedToMempool is a callback, called when a sector seal was commited to the chain.
 func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, err error) {
-	sectorID := sector.SectorID()
+	sectorID := sector.GetID()
 	sm.dealsAwaitingSealLk.Lock()
 	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
@@ -259,7 +263,7 @@ func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid 
 
 	// remove the deals
 	// TODO: reevaluate if this should be done inside the loops below
-	sm.dealsAwaitingSeal[sectorID] = make([]*cid.Cid)
+	sm.dealsAwaitingSeal[sectorID] = nil
 
 	if err != nil {
 		// we failed to seal this sector, cancel all the deals
@@ -277,7 +281,7 @@ func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid 
 	}
 
 	for _, c := range deals {
-		go func(c *cid.Cid, sectorID []byte) {
+		go func(c *cid.Cid, sectorID uint64) {
 			err = sm.nd.ChainMgr.WaitForMessage(
 				context.Background(),
 				msgCid,
@@ -361,11 +365,11 @@ func (sm *StorageMiner) submitPoSt() {
 	sectors := sm.sectorBuilder().SealedSectors()
 
 	seeds := make([][]byte, len(sectors))
-	sectorIDs := make([][]byte, len(sectors))
+	sectorIDs := make([]uint64, len(sectors))
 	for i, sector := range sectors {
 		// TODO: real seed generation
 		binary.LittleEndian.PutUint64(seeds[i], uint64(i))
-		sectorIDs[i] = sector.SectorID()
+		sectorIDs[i] = sector.GetID()
 	}
 
 	proof, faults, err := sm.sectorBuilder().GeneratePoSt(sectorIDs, seeds)

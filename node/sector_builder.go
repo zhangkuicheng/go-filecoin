@@ -20,7 +20,6 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/proofs"
-	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/util/binpack"
 )
 
@@ -58,14 +57,14 @@ type SectorDirs interface {
 
 // PieceInfo is information about a filecoin piece
 type PieceInfo struct {
-	Ref  *cid.Cid           `json:"ref"`
-	Size *types.BytesAmount `json:"size"` // TODO: use BytesAmount
+	Ref  *cid.Cid `json:"ref"`
+	Size uint64   `json:"size"` // TODO: use BytesAmount
 }
 
 // NewPieceInfo constructs a piece info, ensuring all parameters are valid.
-func NewPieceInfo(ref *cid.Cid, size *types.BytesAmount) (*PieceInfo, error) {
+func NewPieceInfo(ref *cid.Cid, size uint64) (*PieceInfo, error) {
 	// TODO: use proper value
-	if size.GreaterThan(types.NewBytesAmount(1024 * 1024 * 1024)) {
+	if size > 1024*1024*1024 {
 		return nil, ErrPieceTooLarge
 	}
 
@@ -147,6 +146,11 @@ type SealedSector struct {
 	unsealedSectorAccess string
 }
 
+// GetID returns the identity of the sector.
+func (s *SealedSector) GetID() uint64 {
+	return s.sectorID
+}
+
 // GetNextSectorID atomically increments the SectorBuilder's sector ID nonce and returns the incremented value.
 func (sb *SectorBuilder) GetNextSectorID() uint64 {
 	sb.sectorIDNonceLk.Lock()
@@ -216,18 +220,18 @@ func (sb *SectorBuilder) NewBin() (binpack.Bin, error) {
 }
 
 // BinSize implements binpack.Binner.
-func (sb *SectorBuilder) BinSize() *types.BytesAmount {
-	return sb.sectorSize
+func (sb *SectorBuilder) BinSize() binpack.Space {
+	return binpack.Space(sb.sectorSize)
 }
 
 // ItemSize implements binpack.Binner.
-func (sb *SectorBuilder) ItemSize(item binpack.Item) *types.BytesAmount {
-	return item.(*PieceInfo).Size
+func (sb *SectorBuilder) ItemSize(item binpack.Item) binpack.Space {
+	return binpack.Space(item.(*PieceInfo).Size)
 }
 
 // SpaceAvailable implements binpack.Binner.
-func (sb *SectorBuilder) SpaceAvailable(bin binpack.Bin) *types.BytesAmount {
-	return types.NewBytesAmount(bin.(*UnsealedSector).numBytesFree)
+func (sb *SectorBuilder) SpaceAvailable(bin binpack.Bin) binpack.Space {
+	return binpack.Space(bin.(*UnsealedSector).numBytesFree)
 }
 
 // End binpack.Binner implementation
@@ -617,12 +621,12 @@ func (sb *SectorBuilder) Seal(ctx context.Context, s *UnsealedSector, minerAddr 
 
 // GeneratePoSt creates the required posts, given a list of sector ids and matching seeds.
 // It returns the Snark Proof for the posts, and a list of sectors that faulted, if there were any faults.
-func (sb *SectorBuilder) GeneratePoSt(sectors [][]byte, seeds [][]byte) ([]byte, [][]byte, error) {
+func (sb *SectorBuilder) GeneratePoSt(sectors []uint64, seeds [][]byte) ([]byte, []uint64, error) {
 	// TODO: assert len(sectors) == len(seeds)
 	// TODO: call into rust-proofs
 	time.Sleep(time.Second)
 
-	return []byte("my cool post"), [][]byte{}, nil
+	return []byte("my cool post"), []uint64{}, nil
 }
 
 // proverID creates a prover id by padding an address hash to 31 bytes
