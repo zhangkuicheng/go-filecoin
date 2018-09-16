@@ -2,6 +2,7 @@ package binpack
 
 import (
 	"context"
+	"fmt"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 )
 
@@ -91,13 +92,13 @@ func (np *NaivePacker) AddItem(ctx context.Context, item Item) (AddItemResult, e
 	binner := np.binner
 	bin := np.bin
 	size := binner.ItemSize(item)
+	fmt.Println("additem", size, binner.SpaceAvailable(bin), binner.BinSize())
 
 	if size > binner.BinSize() {
 		return AddItemResult{}, ErrItemTooLarge
 	}
 
 	var result AddItemResult
-
 	if size > binner.SpaceAvailable(bin) {
 		newBin, err := np.closeBinAndOpenNew(ctx, bin)
 		if err != nil {

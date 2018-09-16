@@ -61,19 +61,6 @@ type PieceInfo struct {
 	Size uint64   `json:"size"` // TODO: use BytesAmount
 }
 
-// NewPieceInfo constructs a piece info, ensuring all parameters are valid.
-func NewPieceInfo(ref *cid.Cid, size uint64) (*PieceInfo, error) {
-	// TODO: use proper value
-	if size > 1024*1024*1024 {
-		return nil, ErrPieceTooLarge
-	}
-
-	return &PieceInfo{
-		Ref:  ref,
-		Size: size,
-	}, nil
-}
-
 // SectorBuilder manages packing deals into sectors
 // maybe this belongs somewhere else as part of a different thing?
 type SectorBuilder struct {
@@ -149,6 +136,19 @@ type SealedSector struct {
 // GetID returns the identity of the sector.
 func (s *SealedSector) GetID() uint64 {
 	return s.sectorID
+}
+
+// NewPieceInfo constructs a piece info, ensuring all parameters are valid.
+func (sb *SectorBuilder) NewPieceInfo(ref *cid.Cid, size uint64) (*PieceInfo, error) {
+	// TODO: use proper value
+	if binpack.Space(size) > sb.BinSize() {
+		return nil, ErrPieceTooLarge
+	}
+
+	return &PieceInfo{
+		Ref:  ref,
+		Size: size,
+	}, nil
 }
 
 // GetNextSectorID atomically increments the SectorBuilder's sector ID nonce and returns the incremented value.
@@ -398,6 +398,7 @@ func (sb *SectorBuilder) AddPiece(ctx context.Context, pi *PieceInfo) (sectorID 
 	if err == binpack.ErrItemTooLarge {
 		return 0, ErrPieceTooLarge
 	}
+	fmt.Println(bin.AddedToBin, bin.NextBin, err)
 
 	// If, during piece-writing, a greater-than-zero-amount of piece-bytes were
 	// written to the unsealed sector file and we were unable to revert to the
@@ -408,14 +409,14 @@ func (sb *SectorBuilder) AddPiece(ctx context.Context, pi *PieceInfo) (sectorID 
 		panic(err)
 	}
 
-	if err == nil {
-		sb.curUnsealedSectorLk.Lock()
-		sb.curUnsealedSector = bin.NextBin.(*UnsealedSector)
-		sb.curUnsealedSectorLk.Unlock()
+	if err != nil {
+		return 0, err
 	}
 
-	sb.curUnsealedSectorLk.RLock()
-	defer sb.curUnsealedSectorLk.RUnlock()
+	sb.curUnsealedSectorLk.Lock()
+	defer sb.curUnsealedSectorLk.Unlock()
+
+	sb.curUnsealedSector = bin.NextBin.(*UnsealedSector)
 
 	// checkpoint after we've added the piece and updated the sector builder's
 	// "current sector"

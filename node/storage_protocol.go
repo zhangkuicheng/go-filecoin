@@ -217,11 +217,6 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		return
 	}
 
-	// TODO: add the data to a sector
-	sm.updateDealState(c, func(resp *StorageDealResponse) {
-		resp.State = Staged
-	})
-
 	fail := func(message, logerr string) {
 		log.Errorf(logerr)
 		sm.updateDealState(c, func(resp *StorageDealResponse) {
@@ -229,17 +224,20 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 			resp.State = Failed
 		})
 	}
-
-	pi, err := NewPieceInfo(d.proposal.PieceRef, d.proposal.Size.Uint64())
+	fmt.Println("adding piece", d.proposal.PieceRef)
+	pi, err := sm.sectorBuilder().NewPieceInfo(d.proposal.PieceRef, d.proposal.Size.Uint64())
 	if err != nil {
 		fail("Failed to submit seal proof", fmt.Sprintf("failed to create piece info: %s", err))
+		return
 	}
 
 	sectorID, err := sm.sectorBuilder().AddPiece(ctx, pi)
 	if err != nil {
 		fail("Failed to submit seal proof", fmt.Sprintf("failed to add piece: %s", err))
+		return
 	}
 
+	fmt.Println("added piece to sector", sectorID)
 	sm.dealsAwaitingSealLk.Lock()
 	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
@@ -248,11 +246,16 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 	} else {
 		sm.dealsAwaitingSeal[sectorID] = []*cid.Cid{c}
 	}
+
+	sm.updateDealState(c, func(resp *StorageDealResponse) {
+		resp.State = Staged
+	})
 }
 
 // OnCommitmentAddedToMempool is a callback, called when a sector seal was commited to the chain.
 func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, err error) {
 	sectorID := sector.GetID()
+	fmt.Println("commitment added", sectorID)
 	sm.dealsAwaitingSealLk.Lock()
 	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
@@ -315,7 +318,9 @@ func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid 
 // It is used to check if we are in a new proving period and need to trigger PoSt submission.
 func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
 	sectors := sm.sectorBuilder().SealedSectors()
-	fmt.Println("new heaviest tip set", sectors)
+	if len(sectors) > 0 {
+		fmt.Println("new heaviest tip set", sectors)
+	}
 
 	if len(sectors) == 0 {
 		// no sector sealed, nothing to do

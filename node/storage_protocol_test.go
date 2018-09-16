@@ -11,6 +11,7 @@ import (
 	peer "gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
+	unixfs "gx/ipfs/Qmdg2crJzNUF1mLPnLPSCCaDdLDqE4Qrh9QEiDooSYkvuB/go-unixfs"
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
 
 	"github.com/filecoin-project/go-filecoin/api/impl"
@@ -98,9 +99,18 @@ func TestStorageProtocolBasic(t *testing.T) {
 
 	ConnectNodes(t, miner, client)
 
-	data := dag.NewRawNode([]byte("cats"))
+	data := unixfs.NewFSNode(unixfs.TFile)
+	bytes := make([]byte, 128)
+	for i := 0; i < 128; i++ {
+		bytes[i] = byte(i)
+	}
+	data.SetData(bytes)
 
-	assert.NoError(client.Blockservice.AddBlock(data))
+	raw, err := data.GetBytes()
+	assert.NoError(err)
+	protonode := dag.NodeWithData(raw)
+
+	assert.NoError(client.Blockservice.AddBlock(protonode))
 	err = minerAPI.Mining().Start(ctx)
 	assert.NoError(err)
 	defer minerAPI.Mining().Stop(ctx)
@@ -115,7 +125,10 @@ func TestStorageProtocolBasic(t *testing.T) {
 	old := miner.AddNewlyMinedBlock
 	miner.AddNewlyMinedBlock = func(ctx context.Context, blk *types.Block) {
 		old(ctx, blk)
-
+		// fmt.Println("messages:")
+		// for _, msg := range blk.Messages {
+		// 	fmt.Println(msg.Method)
+		// }
 		if !foundSeal {
 			for _, msg := range blk.Messages {
 				if msg.Method == "commitSector" {
@@ -135,7 +148,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 		}
 	}
 
-	ref, err := c.TryToStoreData(ctx, mineraddr, data.Cid(), 10, types.NewAttoFILFromFIL(60))
+	ref, err := c.TryToStoreData(ctx, mineraddr, protonode.Cid(), 10, types.NewAttoFILFromFIL(60))
 	assert.NoError(err)
 
 	time.Sleep(time.Millisecond * 100) // Bad whyrusleeping, bad!
