@@ -223,7 +223,7 @@ func TestMinerCommitSector(t *testing.T) {
 	commR := []byte("commR")
 	commD := []byte("commD")
 
-	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", commR, commD)
+	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", uint64(1), commR, commD)
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	require.Equal(uint8(0), res.Receipt.ExitCode)
@@ -236,7 +236,7 @@ func TestMinerCommitSector(t *testing.T) {
 	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(3))
 
 	// fail because commR already exists
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", commR, commD)
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", uint64(1), commR, commD)
 	require.NoError(err)
 	require.EqualError(res.ExecutionError, "sector already committed")
 	require.Equal(uint8(0x23), res.Receipt.ExitCode)
@@ -251,13 +251,13 @@ func TestMinerSubmitPoSt(t *testing.T) {
 	minerAddr := createTestMiner(assert.New(t), st, vms, address.TestAddress, []byte("my public key"), origPid)
 
 	// add a sector
-	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", []byte("commR1"), []byte("commD1"))
+	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", uint64(1), []byte("commR1"), []byte("commD1"))
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	require.Equal(uint8(0), res.Receipt.ExitCode)
 
 	// add another sector
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", []byte("commR2"), []byte("commD2"))
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", uint64(2), []byte("commR2"), []byte("commD2"))
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	require.Equal(uint8(0), res.Receipt.ExitCode)
@@ -272,10 +272,10 @@ func TestMinerSubmitPoSt(t *testing.T) {
 	res, err = applyMessage(t, st, vms, minerAddr, 0, 3, "getProvingPeriodStart")
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
-	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(203))
+	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(2003))
 
 	// fail to submit inside the proving period
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 408, "submitPoSt", []byte("proof"))
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 4008, "submitPoSt", []byte("proof"))
 	require.NoError(err)
 	require.EqualError(res.ExecutionError, "submitted PoSt late, need to pay a fee")
 }
