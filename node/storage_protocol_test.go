@@ -130,17 +130,19 @@ func TestStorageProtocolBasic(t *testing.T) {
 		// 	fmt.Println(msg.Method)
 		// }
 		if !foundSeal {
-			for _, msg := range blk.Messages {
-				if msg.Method == "commitSector" {
+			for i, msg := range blk.Messages {
+				if msg.Message.Method == "commitSector" {
+					assert.Equal(uint8(0), blk.MessageReceipts[i].ExitCode, "seal submission failed")
 					foundSeal = true
 					wg.Done()
 				}
 			}
 		}
 		if !foundPoSt {
-			for _, msg := range blk.Messages {
-				if msg.Method == "submitPoSt" {
+			for i, msg := range blk.Messages {
+				if msg.Message.Method == "submitPoSt" {
 					assert.False(foundPoSt, "multiple post submissions must not happen")
+					assert.Equal(uint8(0), blk.MessageReceipts[i].ExitCode, "post submission failed")
 					foundPoSt = true
 					wg.Done()
 				}

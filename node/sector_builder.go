@@ -19,6 +19,7 @@ import (
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
 
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/mining"
 	"github.com/filecoin-project/go-filecoin/proofs"
 	"github.com/filecoin-project/go-filecoin/util/binpack"
 )
@@ -203,6 +204,7 @@ func (sb *SectorBuilder) CloseBin(bin binpack.Bin) {
 	go func() {
 		sector := bin.(*UnsealedSector)
 		msgCid, err := sb.SealAndAddCommitmentToMempool(context.Background(), sector)
+		fmt.Println(msgCid, err)
 		if err != nil {
 			sb.OnCommitmentAddedToMempool(nil, nil, errors.Wrap(err, "failed to seal and commit sector"))
 			return
@@ -270,8 +272,8 @@ func (sb *SectorBuilder) NewSealedSector(commR [32]byte, commD [32]byte, proof [
 	}
 
 	sb.sealedSectorsLk.Lock()
-	defer sb.sealedSectorsLk.Unlock()
 	sb.sealedSectors = append(sb.sealedSectors, ss)
+	sb.sealedSectorsLk.Unlock()
 
 	return ss
 }
@@ -314,17 +316,19 @@ func InitSectorBuilder(nd *Node, minerAddr address.Address, sstore proofs.Sector
 		}
 
 		sb.curUnsealedSectorLk.RLock()
-		defer sb.curUnsealedSectorLk.RUnlock()
+		sectors := sb.curUnsealedSector
+		sb.curUnsealedSectorLk.RUnlock()
 
-		return sb, sb.checkpoint(sb.curUnsealedSector)
+		return sb, sb.checkpoint(sectors)
 	} else if strings.Contains(err.Error(), "not found") {
 		if err1 := configureFreshSectorBuilder(sb); err1 != nil {
 			return nil, err1
 		}
 		sb.curUnsealedSectorLk.RLock()
-		defer sb.curUnsealedSectorLk.RUnlock()
+		sectors := sb.curUnsealedSector
+		sb.curUnsealedSectorLk.RUnlock()
 
-		return sb, sb.checkpoint(sb.curUnsealedSector)
+		return sb, sb.checkpoint(sectors)
 	} else {
 		return nil, err
 	}
@@ -354,6 +358,7 @@ func configureSectorBuilderFromMetadata(store *sectorMetadataStore, sb *SectorBu
 			return err
 		}
 
+		fmt.Println("locking sealed sectors")
 		sb.sealedSectorsLk.Lock()
 		sb.sealedSectors = append(sb.sealedSectors, sealed)
 		sb.sealedSectorsLk.Unlock()
@@ -381,6 +386,7 @@ func configureFreshSectorBuilder(sb *SectorBuilder) error {
 }
 
 func (sb *SectorBuilder) onCommitmentAddedToMempool(sector *SealedSector, msg *cid.Cid, err error) {
+	fmt.Println("commited", sector, msg, err)
 	if sb.nd.StorageMiner != nil {
 		sb.nd.StorageMiner.OnCommitmentAddedToMempool(sector, msg, err)
 	}
@@ -414,9 +420,8 @@ func (sb *SectorBuilder) AddPiece(ctx context.Context, pi *PieceInfo) (sectorID 
 	}
 
 	sb.curUnsealedSectorLk.Lock()
-	defer sb.curUnsealedSectorLk.Unlock()
-
 	sb.curUnsealedSector = bin.NextBin.(*UnsealedSector)
+	sb.curUnsealedSectorLk.Unlock()
 
 	// checkpoint after we've added the piece and updated the sector builder's
 	// "current sector"
@@ -491,6 +496,7 @@ func (sb *SectorBuilder) SealAndAddCommitmentToMempool(ctx context.Context, s *U
 	}()
 
 	ss, err := sb.Seal(ctx, s, sb.MinerAddr)
+	fmt.Println("sealed", ss, err)
 	if err != nil {
 		// Hard to say what to do in this case.
 		// Depending on the error, it could be "try again"
@@ -499,10 +505,11 @@ func (sb *SectorBuilder) SealAndAddCommitmentToMempool(ctx context.Context, s *U
 	}
 
 	s.sealed = ss
+	fmt.Println("checkpointing")
 	if err := sb.checkpoint(s); err != nil {
 		return nil, errors.Wrap(err, "failed to create checkpoint")
 	}
-
+	fmt.Println("adding to mempool")
 	msgCid, err := sb.AddCommitmentToMempool(ctx, ss)
 	if err != nil {
 		// 'try again'
@@ -533,7 +540,7 @@ func (sb *SectorBuilder) AddCommitmentToMempool(ctx context.Context, ss *SealedS
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("adding commitment to mempool", ss)
 	return sb.nd.SendMessage(ctx, minerOwnerAddr, sb.MinerAddr, nil, "commitSector", ss.GetID(), ss.commR[:], ss.commD[:])
 }
 
@@ -564,8 +571,9 @@ func (sb *SectorBuilder) WritePiece(ctx context.Context, s *UnsealedSector, pi *
 		return errors.Wrapf(err, "failed to write bytes to unsealed sector %s", s.unsealedSectorAccess)
 	}
 
-	if res.NumBytesWritten != pi.Size {
-		err := fmt.Errorf("did not write all piece-bytes to file (pi.size=%d, wrote=%d)", pi.Size, n)
+	// NumBytesWritten can be larger, due to padding
+	if res.NumBytesWritten < pi.Size {
+		err := fmt.Errorf("did not write all piece-bytes to file (pi.size=%d, wrote=%d)", pi.Size, res.NumBytesWritten)
 
 		if err1 := sb.SyncFile(s); err1 != nil {
 			return NewErrCouldNotRevertUnsealedSector(err1, err)
@@ -623,9 +631,12 @@ func (sb *SectorBuilder) Seal(ctx context.Context, s *UnsealedSector, minerAddr 
 // GeneratePoSt creates the required posts, given a list of sector ids and matching seeds.
 // It returns the Snark Proof for the posts, and a list of sectors that faulted, if there were any faults.
 func (sb *SectorBuilder) GeneratePoSt(sectors []uint64, seeds [][]byte) ([]byte, []uint64, error) {
-	// TODO: assert len(sectors) == len(seeds)
+	if len(sectors) != len(seeds) {
+		return nil, nil, fmt.Errorf("sectors and seeds must be of the same length %d != %d", len(sectors), len(seeds))
+	}
+
 	// TODO: call into rust-proofs
-	time.Sleep(time.Second)
+	time.Sleep(2 * mining.DefaultBlockTime)
 
 	return []byte("my cool post"), []uint64{}, nil
 }

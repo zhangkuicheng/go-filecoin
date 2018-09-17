@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"sync"
 
 	inet "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
@@ -318,9 +319,6 @@ func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid 
 // It is used to check if we are in a new proving period and need to trigger PoSt submission.
 func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
 	sectors := sm.sectorBuilder().SealedSectors()
-	if len(sectors) > 0 {
-		fmt.Println("new heaviest tip set", sectors)
-	}
 
 	if len(sectors) == 0 {
 		// no sector sealed, nothing to do
@@ -336,7 +334,7 @@ func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
 	sm.postInProcessLk.Lock()
 	defer sm.postInProcessLk.Unlock()
 
-	if sm.postInProcess == provingPeriodStart {
+	if sm.postInProcess != nil && sm.postInProcess.Equal(provingPeriodStart) {
 		// post is already being generated for this period, nothing to do
 		return
 	}
@@ -350,7 +348,7 @@ func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
 	if types.NewBlockHeight(height).GreaterEqual(provingPeriodStart) {
 		// we are in a new proving period, lets get this post going
 		sm.postInProcess = provingPeriodStart
-		go sm.submitPoSt()
+		go sm.submitPoSt(sectors)
 	}
 }
 
@@ -366,14 +364,15 @@ func (sm *StorageMiner) getProvingPeriodStart() (*types.BlockHeight, error) {
 	return types.NewBlockHeightFromBytes(res[0]), nil
 }
 
-func (sm *StorageMiner) submitPoSt() {
-	sectors := sm.sectorBuilder().SealedSectors()
-
+func (sm *StorageMiner) submitPoSt(sectors []*SealedSector) {
+	fmt.Println("submit PoSt")
 	seeds := make([][]byte, len(sectors))
 	sectorIDs := make([]uint64, len(sectors))
 	for i, sector := range sectors {
 		// TODO: real seed generation
-		binary.LittleEndian.PutUint64(seeds[i], uint64(i))
+		seed := make([]byte, 8)
+		binary.LittleEndian.PutUint64(seed, uint64(i))
+		seeds[i] = seed
 		sectorIDs[i] = sector.GetID()
 	}
 
@@ -387,13 +386,14 @@ func (sm *StorageMiner) submitPoSt() {
 		// TODO: proper fault handling
 	}
 
-	msgCid, err := sm.nd.SendMessage(context.TODO(), sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(nil), "submitPoSt", proof)
+	msgCid, err := sm.nd.SendMessage(context.TODO(), sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(big.NewInt(0)), "submitPoSt", proof)
 	if err != nil {
 		log.Errorf("failed to submit PoSt: %s", err)
 		return
 	}
 
 	err = sm.nd.ChainMgr.WaitForMessage(context.TODO(), msgCid, func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
+		fmt.Println(receipt)
 		if receipt.ExitCode != uint8(0) {
 			return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
 		}

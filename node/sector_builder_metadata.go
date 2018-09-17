@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	ds "gx/ipfs/QmVG5gxteQNEMhrS8prJSmU2C9rebtFuTd3SYZ5kE3YZ5k/go-datastore"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
@@ -76,9 +77,11 @@ func (ss *SealedSector) SealedSectorMetadata() *SealedSectorMetadata {
 // SectorBuilderMetadata returns the metadata associated with a SectorBuilderMetadata.
 func (sb *SectorBuilder) SectorBuilderMetadata() *SectorBuilderMetadata {
 	sb.sealedSectorsLk.RLock()
-	defer sb.sealedSectorsLk.RUnlock()
 	sb.curUnsealedSectorLk.RLock()
-	defer sb.curUnsealedSectorLk.RUnlock()
+	defer func() {
+		sb.sealedSectorsLk.RUnlock()
+		sb.curUnsealedSectorLk.RUnlock()
+	}()
 
 	meta := SectorBuilderMetadata{
 		CurUnsealedSectorAccess: sb.curUnsealedSector.unsealedSectorAccess,
@@ -234,6 +237,7 @@ func (st *sectorMetadataStore) setSectorBuilderMetadata(minerAddress address.Add
 // doing. As the SectorBuilder evolves, we will introduce some checks which
 // will optimize away redundant writes to the datastore.
 func (sb *SectorBuilder) checkpoint(s *UnsealedSector) error {
+	fmt.Println("checkpoint")
 	if err := sb.metadataStore.setSectorBuilderMetadata(sb.MinerAddr, sb.SectorBuilderMetadata()); err != nil {
 		return errors.Wrap(err, "failed to save builder metadata")
 	}
