@@ -459,8 +459,8 @@ func (node *Node) MiningAddress() (address.Address, error) {
 	if newConfig.Mining.MinerAddress == (address.Address{}) {
 		return address.Address{}, ErrNoMinerAddress
 	}
-	// TODO: mining start should include a flag to specify a specific
-	// mining addr.
+
+	// TODO: mining start should include a flag to specify a specific mining addr.
 	return newConfig.Mining.MinerAddress, nil
 }
 

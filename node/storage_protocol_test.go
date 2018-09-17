@@ -2,20 +2,16 @@ package node_test
 
 import (
 	"context"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
 
-	crypto "gx/ipfs/QmPvyPwuCgJ7pDmrKDxRtsScJgBaM5h4EpRL2qQJsmXf4n/go-libp2p-crypto"
-	peer "gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 	unixfs "gx/ipfs/Qmdg2crJzNUF1mLPnLPSCCaDdLDqE4Qrh9QEiDooSYkvuB/go-unixfs"
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
 
 	"github.com/filecoin-project/go-filecoin/api/impl"
-	"github.com/filecoin-project/go-filecoin/gengen/util"
 	. "github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/types"
 
@@ -33,52 +29,15 @@ func TestSerializeProposal(t *testing.T) {
 	}
 }
 
-func mustGenKey(seed int64) crypto.PrivKey {
-	r := rand.New(rand.NewSource(seed))
-	priv, _, err := crypto.GenerateEd25519Key(r)
-	if err != nil {
-		panic(err)
-	}
-
-	return priv
-}
-
-func mustPeerID(k crypto.PrivKey) peer.ID {
-	pid, err := peer.IDFromPrivateKey(k)
-	if err != nil {
-		panic(err)
-	}
-	return pid
-}
-
-var peerKeys = []crypto.PrivKey{
-	mustGenKey(101),
-}
-
-var testGenCfg = &gengen.GenesisCfg{
-	Keys: []string{"foo", "bar"},
-	Miners: []gengen.Miner{
-		{
-			Owner:  "foo",
-			Power:  100,
-			PeerID: mustPeerID(peerKeys[0]).Pretty(),
-		},
-	},
-	PreAlloc: map[string]string{
-		"foo": "10000",
-		"bar": "10000",
-	},
-}
-
 func TestStorageProtocolBasic(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	ctx := context.Background()
 
-	seed := MakeChainSeed(t, testGenCfg)
+	seed := MakeChainSeed(t, TestGenCfg)
 
 	// make two nodes, one of which is the miner (and gets the miner peer key)
-	miner := NodeWithChainSeed(t, seed, PeerKeyOpt(peerKeys[0]))
+	miner := NodeWithChainSeed(t, seed, PeerKeyOpt(PeerKeys[0]))
 	client := NodeWithChainSeed(t, seed)
 	minerAPI := impl.New(miner)
 
@@ -160,10 +119,26 @@ func TestStorageProtocolBasic(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(Staged, resp.State)
 
-	wg.Wait()
+	assert.False(waitTimeout(&wg, 20*time.Second), "waiting for submission timed out")
 
 	// Now all things should be ready
 	resp, err = c.Query(ctx, ref)
 	assert.NoError(err)
 	assert.Equal(Posted, resp.State)
+}
+
+// waitTimeout waits for the waitgroup for the specified max timeout.
+// Returns true if waiting timed out.
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false // completed normally
+	case <-time.After(timeout):
+		return true // timed out
+	}
 }

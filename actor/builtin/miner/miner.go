@@ -23,8 +23,9 @@ func init() {
 // MaximumPublicKeySize is a limit on how big a public key can be.
 const MaximumPublicKeySize = 100
 
-// ProvingPeriodBlocks defines how long a proving period is for
-var ProvingPeriodBlocks = types.NewBlockHeight(2000)
+// ProvingPeriodBlocks defines how long a proving period is for.
+// TODO: what is an actual workable value? currently set very high to avoid race conditions in test.
+var ProvingPeriodBlocks = types.NewBlockHeight(20000)
 
 const (
 	// ErrPublicKeyTooBig indicates an invalid public key.

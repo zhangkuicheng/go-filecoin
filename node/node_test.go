@@ -148,7 +148,7 @@ func TestNodeMining(t *testing.T) {
 	newCid := types.NewCidForTestGetter()
 	ctx := context.Background()
 
-	node := MakeNodesUnstarted(t, 1, true, true)[0]
+	node := MakeNodeUnstartedSeed(t, true, true)
 
 	mockScheduler := &mining.MockScheduler{}
 	inCh, outCh, doneWg := make(chan mining.Input), make(chan mining.Output), new(sync.WaitGroup)
@@ -193,7 +193,7 @@ func TestNodeMining(t *testing.T) {
 	// Ensure we're tearing down cleanly.
 	// Part of stopping cleanly is waiting for the worker to be done.
 	// Kinda lame to test this way, but better than not testing.
-	node = MakeNodesUnstarted(t, 1, true, true)[0]
+	node = MakeNodeUnstartedSeed(t, true, true)
 
 	chainMgrForTest = node.ChainMgr
 	chainMgrForTest.SetHeaviestTipSetForTest(ctx, core.RequireNewTipSet(require, b1))
@@ -210,7 +210,7 @@ func TestNodeMining(t *testing.T) {
 	assert.True(workerDone)
 
 	// Ensure that the output is wired up correctly.
-	node = MakeNodesUnstarted(t, 1, true, true)[0]
+	node = MakeNodeUnstartedSeed(t, true, true)
 
 	mockScheduler = &mining.MockScheduler{}
 	inCh, outCh, doneWg = make(chan mining.Input), make(chan mining.Output), new(sync.WaitGroup)
