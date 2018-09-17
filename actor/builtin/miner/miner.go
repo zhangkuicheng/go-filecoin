@@ -1,13 +1,12 @@
 package miner
 
 import (
+	"fmt"
 	"math/big"
 
 	"gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	xerrors "gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
-
-	"fmt"
 
 	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor"
@@ -25,7 +24,7 @@ func init() {
 const MaximumPublicKeySize = 100
 
 // ProvingPeriodBlocks defines how long a proving period is for
-var ProvingPeriodBlocks = types.NewBlockHeight(200)
+var ProvingPeriodBlocks = types.NewBlockHeight(2000)
 
 const (
 	// ErrPublicKeyTooBig indicates an invalid public key.
