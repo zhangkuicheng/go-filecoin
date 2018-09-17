@@ -645,6 +645,7 @@ func (node *Node) CallQueryMethod(ctx context.Context, to address.Address, metho
 	if err != nil {
 		return nil, 1, errors.Wrap(err, "failed to retrieve state")
 	}
+
 	h, err := bts.Height()
 	if err != nil {
 		return nil, 1, errors.Wrap(err, "getting base tipset height")
@@ -813,4 +814,14 @@ func (node *Node) MiningOwnerAddress(ctx context.Context, miningAddr address.Add
 	}
 
 	return address.NewFromBytes(res[0])
+}
+
+// BlockHeight returns the current block height of the chain.
+func (node *Node) BlockHeight() (*types.BlockHeight, error) {
+	bts := node.ChainMgr.GetHeaviestTipSet()
+	height, err := bts.Height()
+	if err != nil {
+		return nil, err
+	}
+	return types.NewBlockHeight(height), nil
 }

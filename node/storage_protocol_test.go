@@ -132,6 +132,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 		if !foundSeal {
 			for i, msg := range blk.Messages {
 				if msg.Message.Method == "commitSector" {
+					assert.False(foundSeal, "multiple commitSector submissions must not happen")
 					assert.Equal(uint8(0), blk.MessageReceipts[i].ExitCode, "seal submission failed")
 					foundSeal = true
 					wg.Done()

@@ -240,13 +240,13 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 
 	fmt.Println("added piece to sector", sectorID)
 	sm.dealsAwaitingSealLk.Lock()
-	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
 	if ok {
 		sm.dealsAwaitingSeal[sectorID] = append(deals, c)
 	} else {
 		sm.dealsAwaitingSeal[sectorID] = []*cid.Cid{c}
 	}
+	sm.dealsAwaitingSealLk.Unlock()
 
 	sm.updateDealState(c, func(resp *StorageDealResponse) {
 		resp.State = Staged
@@ -256,7 +256,6 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 // OnCommitmentAddedToMempool is a callback, called when a sector seal was commited to the chain.
 func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, err error) {
 	sectorID := sector.GetID()
-	fmt.Println("commitment added", sectorID)
 	sm.dealsAwaitingSealLk.Lock()
 	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
@@ -309,7 +308,6 @@ func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid 
 					resp.Message = "Failed to submit seal proof"
 					resp.State = Failed
 				})
-				return
 			}
 		}(c, sectorID)
 	}
@@ -345,10 +343,19 @@ func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
 		return
 	}
 
-	if types.NewBlockHeight(height).GreaterEqual(provingPeriodStart) {
-		// we are in a new proving period, lets get this post going
-		sm.postInProcess = provingPeriodStart
-		go sm.submitPoSt(sectors)
+	h := types.NewBlockHeight(height)
+	provingPeriodEnd := provingPeriodStart.Add(miner.ProvingPeriodBlocks)
+
+	if h.GreaterEqual(provingPeriodStart) {
+		if h.LessThan(provingPeriodEnd) {
+			// we are in a new proving period, lets get this post going
+			sm.postInProcess = provingPeriodStart
+			go sm.submitPoSt(provingPeriodStart, provingPeriodEnd, sectors)
+		} else {
+			// we are too late
+			// TODO: figure out faults and payments here
+			log.Errorf("too late start=%s  end=%s current=%s", provingPeriodStart, provingPeriodEnd, h)
+		}
 	}
 }
 
@@ -364,7 +371,7 @@ func (sm *StorageMiner) getProvingPeriodStart() (*types.BlockHeight, error) {
 	return types.NewBlockHeightFromBytes(res[0]), nil
 }
 
-func (sm *StorageMiner) submitPoSt(sectors []*SealedSector) {
+func (sm *StorageMiner) submitPoSt(start, end *types.BlockHeight, sectors []*SealedSector) {
 	fmt.Println("submit PoSt")
 	seeds := make([][]byte, len(sectors))
 	sectorIDs := make([]uint64, len(sectors))
@@ -384,6 +391,24 @@ func (sm *StorageMiner) submitPoSt(sectors []*SealedSector) {
 	if len(faults) != 0 {
 		log.Errorf("some faults when generating PoSt: %v", faults)
 		// TODO: proper fault handling
+	}
+
+	height, err := sm.nd.BlockHeight()
+	if err != nil {
+		log.Errorf("failed to submit PoSt, as the current block height can not be determined: %s", err)
+		// TODO: what should happen in this case?
+		return
+	}
+	if height.LessThan(start) {
+		// TODO: what to do here? not sure this can happen, maybe through reordering?
+		log.Errorf("PoSt generation time took negative block time: %s < %s", height, start)
+		return
+	}
+
+	if height.GreaterEqual(end) {
+		// TODO: we are too late, figure out faults and decide if we want to still submit
+		log.Errorf("PoSt generation was too slow height=%s end=%s", height, end)
+		return
 	}
 
 	msgCid, err := sm.nd.SendMessage(context.TODO(), sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(big.NewInt(0)), "submitPoSt", proof)
