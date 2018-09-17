@@ -251,7 +251,6 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 		}
 
 		if state.Power.Cmp(big.NewInt(0)) == 0 {
-			fmt.Println("starting proving period", ctx.BlockHeight())
 			state.ProvingPeriodStart = ctx.BlockHeight()
 		}
 		inc := big.NewInt(1)
@@ -352,7 +351,6 @@ func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
 	var state State
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		// verify that the caller is authorized to perform update
-		fmt.Println("submitting proof", proof, ctx.Message().From, state.Owner)
 		if ctx.Message().From != state.Owner {
 			return nil, Errors[ErrCallerUnauthorized]
 		}
@@ -366,7 +364,6 @@ func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
 			state.ProvingPeriodStart = provingPeriodEnd
 			state.LastPoSt = ctx.BlockHeight()
 		} else {
-			fmt.Println("late submission", ctx.BlockHeight(), provingPeriodEnd)
 			// Not great.
 			// TODO: charge penalty
 			return nil, errors.NewRevertErrorf("submitted PoSt late, need to pay a fee")

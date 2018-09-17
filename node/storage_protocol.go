@@ -153,7 +153,7 @@ func (sm *StorageMiner) ReceiveStorageProposal(ctx context.Context, p *StorageDe
 
 func (sm *StorageMiner) acceptProposal(ctx context.Context, p *StorageDealProposal) (*StorageDealResponse, error) {
 	if sm.sectorBuilder() == nil {
-		return nil, errors.New("Mining disabled, can not proccess proposal")
+		return nil, errors.New("Mining disabled, can not process proposal")
 	}
 
 	// TODO: we don't really actually want to put this in our general storage
@@ -225,7 +225,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 			resp.State = Failed
 		})
 	}
-	fmt.Println("adding piece", d.proposal.PieceRef)
+
 	pi, err := sm.sectorBuilder().NewPieceInfo(d.proposal.PieceRef, d.proposal.Size.Uint64())
 	if err != nil {
 		fail("Failed to submit seal proof", fmt.Sprintf("failed to create piece info: %s", err))
@@ -238,7 +238,6 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		return
 	}
 
-	fmt.Println("added piece to sector", sectorID)
 	sm.dealsAwaitingSealLk.Lock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
 	if ok {
@@ -253,7 +252,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 	})
 }
 
-// OnCommitmentAddedToMempool is a callback, called when a sector seal was commited to the chain.
+// OnCommitmentAddedToMempool is a callback, called when a sector seal was committed to the chain.
 func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, err error) {
 	sectorID := sector.GetID()
 	sm.dealsAwaitingSealLk.Lock()
@@ -372,7 +371,6 @@ func (sm *StorageMiner) getProvingPeriodStart() (*types.BlockHeight, error) {
 }
 
 func (sm *StorageMiner) submitPoSt(start, end *types.BlockHeight, sectors []*SealedSector) {
-	fmt.Println("submit PoSt")
 	seeds := make([][]byte, len(sectors))
 	sectorIDs := make([]uint64, len(sectors))
 	for i, sector := range sectors {
@@ -418,7 +416,6 @@ func (sm *StorageMiner) submitPoSt(start, end *types.BlockHeight, sectors []*Sea
 	}
 
 	err = sm.nd.ChainMgr.WaitForMessage(context.TODO(), msgCid, func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
-		fmt.Println(receipt)
 		if receipt.ExitCode != uint8(0) {
 			return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
 		}
