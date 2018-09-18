@@ -223,12 +223,13 @@ func genNode(t *testing.T, offlineMode bool, mockMineMode bool, gif core.Genesis
 		return nil
 	})
 
-	opts = append(opts, func(c *Config) error {
-		c.MockMineMode = mockMineMode
-		return nil
-	})
-
 	nd, err := New(context.Background(), opts...)
+
+	if mockMineMode {
+		// fake the power of our miner
+		nd.ChainMgr.PwrTableView = &core.TestView{}
+	}
+
 	require.NoError(t, err)
 	return nd
 }

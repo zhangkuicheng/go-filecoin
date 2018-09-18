@@ -100,7 +100,6 @@ type TestDaemon struct {
 	walletFile  string
 	walletAddr  string
 	genesisFile string
-	mockMine    bool
 	keyFiles    []string
 
 	firstRun bool
@@ -719,14 +718,14 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	}
 
 	td := &TestDaemon{
-		cmdAddr:     fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", cmdPort),
-		swarmAddr:   fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", swarmPort),
-		test:        t,
-		repoDir:     dir,
-		init:        true, // we want to init unless told otherwise
-		firstRun:    true,
-		walletFile:  "",
-		mockMine:    true, // mine without setting up a valid storage market in the chain state by default.
+		cmdAddr:    fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", cmdPort),
+		swarmAddr:  fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", swarmPort),
+		test:       t,
+		repoDir:    dir,
+		init:       true, // we want to init unless told otherwise
+		firstRun:   true,
+		walletFile: "",
+
 		cmdTimeout:  DefaultDaemonCmdTimeout,
 		genesisFile: GenesisFilePath(), // default file includes all test addresses,
 	}
@@ -744,11 +743,6 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	walletAddrFlag := fmt.Sprintf("--walletaddr=%s", td.walletAddr)
 	testGenesisFlag := fmt.Sprintf("--testgenesis=%t", td.walletFile != "")
 	genesisFileFlag := fmt.Sprintf("--genesisfile=%s", td.genesisFile)
-	mockMineFlag := ""
-
-	if td.mockMine {
-		mockMineFlag = "--mock-mine"
-	}
 
 	if td.init {
 		out, err := RunInit(repoDirFlag, cmdAPIAddrFlag, walletFileFlag, walletAddrFlag, testGenesisFlag, genesisFileFlag)
@@ -759,7 +753,7 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	}
 
 	// define filecoin daemon process
-	td.process = exec.Command(filecoinBin, "daemon", repoDirFlag, cmdAPIAddrFlag, mockMineFlag, swarmListenFlag)
+	td.process = exec.Command(filecoinBin, "daemon", repoDirFlag, cmdAPIAddrFlag, swarmListenFlag)
 	// disable REUSEPORT, it creates problems in tests
 	td.process.Env = append(os.Environ(), "IPFS_REUSEPORT=false")
 

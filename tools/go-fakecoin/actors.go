@@ -48,7 +48,6 @@ func cmdFakeActors(ctx context.Context, repodir string) error {
 	}
 
 	opts = append(opts, node.OfflineMode(true))
-	opts = append(opts, node.MockMineMode(true))
 	opts = append(opts, node.BlockTime(10*time.Millisecond))
 
 	fcn, err := node.New(ctx, opts...)

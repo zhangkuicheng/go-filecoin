@@ -123,19 +123,14 @@ type Node struct {
 
 	// OfflineMode, when true, disables libp2p
 	OfflineMode bool
-
-	// mockMineMode, when true mocks mining and validation logic for tests.
-	// TODO: this is a TEMPORARY workaround
-	mockMineMode bool
 }
 
 // Config is a helper to aid in the construction of a filecoin node.
 type Config struct {
-	Libp2pOpts   []libp2p.Option
-	Repo         repo.Repo
-	OfflineMode  bool
-	MockMineMode bool // TODO: this is a TEMPORARY workaround
-	BlockTime    time.Duration
+	Libp2pOpts  []libp2p.Option
+	Repo        repo.Repo
+	OfflineMode bool
+	BlockTime   time.Duration
 }
 
 // ConfigOpt is a configuration option for a filecoin node.
@@ -153,14 +148,6 @@ func OfflineMode(offlineMode bool) ConfigOpt {
 func BlockTime(blockTime time.Duration) ConfigOpt {
 	return func(c *Config) error {
 		c.BlockTime = blockTime
-		return nil
-	}
-}
-
-// MockMineMode enables or disable mocked mining.
-func MockMineMode(mockMineMode bool) ConfigOpt {
-	return func(c *Config) error {
-		c.MockMineMode = mockMineMode
 		return nil
 	}
 }
@@ -224,9 +211,6 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 	cst := &hamt.CborIpldStore{Blocks: bserv}
 
 	chainMgr := core.NewChainManager(nc.Repo.Datastore(), bs, cst)
-	if nc.MockMineMode {
-		chainMgr.PwrTableView = &core.TestView{}
-	}
 
 	msgPool := core.NewMessagePool()
 
@@ -254,7 +238,6 @@ func (nc *Config) Build(ctx context.Context) (*Node, error) {
 		PubSub:       fsub,
 		Repo:         nc.Repo,
 		Wallet:       fcWallet,
-		mockMineMode: nc.MockMineMode,
 		blockTime:    nc.BlockTime,
 	}
 
