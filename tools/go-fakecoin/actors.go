@@ -105,7 +105,7 @@ func fakeActors(ctx context.Context, fc api.API) error {
 	go func() {
 		peer := core.RequireRandomPeerID()
 		var err error
-		minerAddr, err = fc.Miner().Create(ctx, minerLocalAddr, types.NewBytesAmount(100000), peer, types.NewAttoFILFromFIL(400))
+		minerAddr, err = fc.Miner().Create(ctx, minerLocalAddr, uint64(100), peer, types.NewAttoFILFromFIL(400))
 		if err != nil {
 			panic(errors.Wrap(err, "failed to create miner"))
 		}

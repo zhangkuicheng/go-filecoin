@@ -611,7 +611,7 @@ func TestCreateMiner(t *testing.T) {
 
 		assert.Nil(node.SectorBuilder)
 
-		result := <-RunCreateMiner(t, node, nodeAddr, *types.NewBytesAmount(100000), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(100))
+		result := <-RunCreateMiner(t, node, nodeAddr, uint64(100), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(100))
 		require.NoError(result.Err)
 		assert.NotNil(result.MinerAddress)
 
@@ -633,8 +633,9 @@ func TestCreateMiner(t *testing.T) {
 
 		assert.Nil(node.SectorBuilder)
 
-		result := <-RunCreateMiner(t, node, nodeAddr, *types.NewBytesAmount(10), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(10))
+		result := <-RunCreateMiner(t, node, nodeAddr, uint64(1), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(10))
 		assert.Error(result.Err)
+		fmt.Println(result, result.Err)
 		assert.Contains(result.Err.Error(), "pledge must be at least")
 	})
 
@@ -653,7 +654,7 @@ func TestCreateMiner(t *testing.T) {
 
 		assert.Nil(node.SectorBuilder)
 
-		result := <-RunCreateMiner(t, node, nodeAddr, *types.NewBytesAmount(20000), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(1000000))
+		result := <-RunCreateMiner(t, node, nodeAddr, uint64(20), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(1000000))
 		assert.Error(result.Err)
 		assert.Contains(result.Err.Error(), "not enough balance")
 	})
@@ -681,7 +682,7 @@ func TestCreateSectorBuilders(t *testing.T) {
 
 	assert.Nil(node.SectorBuilder)
 
-	result := <-RunCreateMiner(t, node, minerAddr1, *types.NewBytesAmount(100000), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(100))
+	result := <-RunCreateMiner(t, node, minerAddr1, uint64(100), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(100))
 	require.NoError(result.Err)
 
 	assert.Nil(node.SectorBuilder)
@@ -733,7 +734,7 @@ func TestLookupMinerAddress(t *testing.T) {
 		require.NoError(nd.Start(ctx))
 
 		// create a miner, owned by the account actor
-		result := <-RunCreateMiner(t, nd, minerOwnerAddr, *types.NewBytesAmount(100000), newMinerPid, *types.NewAttoFILFromFIL(100))
+		result := <-RunCreateMiner(t, nd, minerOwnerAddr, uint64(100), newMinerPid, *types.NewAttoFILFromFIL(100))
 		require.NoError(result.Err)
 
 		// retrieve the libp2p identity of the newly-created miner

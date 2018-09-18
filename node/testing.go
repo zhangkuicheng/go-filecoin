@@ -256,7 +256,7 @@ type MustCreateMinerResult struct {
 }
 
 // RunCreateMiner runs create miner and then runs a given assertion with the result.
-func RunCreateMiner(t *testing.T, node *Node, from address.Address, pledge types.BytesAmount, pid peer.ID, collateral types.AttoFIL) chan MustCreateMinerResult {
+func RunCreateMiner(t *testing.T, node *Node, from address.Address, pledge uint64, pid peer.ID, collateral types.AttoFIL) chan MustCreateMinerResult {
 	resultChan := make(chan MustCreateMinerResult)
 	require := require.New(t)
 
