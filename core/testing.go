@@ -400,19 +400,27 @@ func (tv *TestView) HasPower(ctx context.Context, st state.Tree, bstore blocksto
 }
 
 // CreateMinerWithPower uses storage market functionality to mine the messages needed to create a miner, ask, bid, and deal, and then commit that deal to give the miner power.
-// If the power is nil, this method will just create the miner.
+// If the power is 0, this method will just create the miner.
 // The returned block and nonce should be used in subsequent calls to this method.
 func CreateMinerWithPower(ctx context.Context, t *testing.T, cm *ChainManager, lastBlock *types.Block, sn types.MockSigner, nonce uint64, rewardAddress address.Address, power uint64) (address.Address, *types.Block, uint64, error) {
 	require := require.New(t)
 
 	// create miner
-	msg, err := th.CreateMinerMessage(sn.Addresses[0], nonce, power, RequireRandomPeerID(), types.NewZeroAttoFIL())
+	pledge := power
+	if power == uint64(0) {
+		pledge = uint64(10)
+	}
+	msg, err := th.CreateMinerMessage(sn.Addresses[0], nonce, pledge, RequireRandomPeerID(), types.NewZeroAttoFIL())
 	require.NoError(err)
 	b := RequireMineOnce(ctx, t, cm, lastBlock, rewardAddress, []*types.SignedMessage{mockSign(sn, msg)})
 	nonce++
 
 	minerAddr, err := address.NewFromBytes(b.MessageReceipts[0].Return[0])
 	require.NoError(err)
+
+	if power == uint64(0) {
+		return minerAddr, b, nonce, nil
+	}
 
 	// TODO: We should obtain the SectorID from the SectorBuilder instead of
 	// hard-coding a value here.

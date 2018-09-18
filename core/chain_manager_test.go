@@ -493,7 +493,7 @@ func TestTipSetWeightDeep(t *testing.T) {
 
 	genesisBlock, err := stm.FetchBlock(ctx, stm.genesisCid)
 	require.NoError(err)
-	addr0, block, nonce, err := CreateMinerWithPower(ctx, t, stm, genesisBlock, mockSigner, 0, mockSigner.Addresses[0], 10)
+	addr0, block, nonce, err := CreateMinerWithPower(ctx, t, stm, genesisBlock, mockSigner, 0, mockSigner.Addresses[0], uint64(0))
 	require.NoError(err)
 	addr1, block, nonce, err := CreateMinerWithPower(ctx, t, stm, block, mockSigner, nonce, addr0, pwr1)
 	require.NoError(err)
