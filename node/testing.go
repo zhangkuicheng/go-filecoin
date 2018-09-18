@@ -296,10 +296,12 @@ func RunCreateMiner(t *testing.T, node *Node, from address.Address, pledge uint6
 	return resultChan
 }
 
+// PeerKeys are a list of keys for peers that can be used in testing.
 var PeerKeys = []crypto.PrivKey{
 	mustGenKey(101),
 }
 
+// TestGenCfg is a genesis configuration used for tests.
 var TestGenCfg = &gengen.GenesisCfg{
 	Keys: []string{"foo", "bar"},
 	Miners: []gengen.Miner{

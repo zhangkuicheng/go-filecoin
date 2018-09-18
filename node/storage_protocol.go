@@ -17,6 +17,7 @@ import (
 
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
 
+	"github.com/filecoin-project/go-filecoin/abi"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
 	"github.com/filecoin-project/go-filecoin/address"
 	cbu "github.com/filecoin-project/go-filecoin/cborutil"
@@ -70,14 +71,18 @@ type StorageDealResponse struct {
 
 	// ProofInfo is a collection of information needed to convince the client that
 	// the miner has sealed the data into a sector.
-	//ProofInfo *ProofInfo
+	ProofInfo *ProofInfo
 
 	// Signature is a signature from the miner over the response
 	Signature types.Signature
 }
 
-// ProofInfo is proof info
+// ProofInfo contains the details about a seal proof, that the client needs to know to verify that his deal was posted on chain.
+// TODO: finalize parameters
 type ProofInfo struct {
+	SectorID uint64
+	CommR    []byte
+	CommD    []byte
 }
 
 // StorageMiner represents a storage miner
@@ -287,15 +292,29 @@ func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid 
 			err = sm.nd.ChainMgr.WaitForMessage(
 				context.Background(),
 				msgCid,
-				func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
+				func(blk *types.Block, smsg *types.SignedMessage, receipt *types.MessageReceipt) error {
 					if receipt.ExitCode != uint8(0) {
 						return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
 					}
 
+					signature, err := sm.nd.GetSignature(context.Background(), smsg.Message.To, smsg.Message.Method)
+					if err != nil {
+						return err
+					}
+					paramValues, err := abi.DecodeValues(smsg.Message.Params, signature.Params)
+					if err != nil {
+						return err
+					}
+					params := abi.FromValues(paramValues)
+
 					// Success, our seal is posted on chain
 					sm.updateDealState(c, func(resp *StorageDealResponse) {
 						resp.State = Posted
-						//resp.ProofInfo = new(ProofInfo)
+						resp.ProofInfo = &ProofInfo{
+							SectorID: params[0].(uint64),
+							CommR:    params[1].([]byte),
+							CommD:    params[2].([]byte),
+						}
 					})
 
 					return nil

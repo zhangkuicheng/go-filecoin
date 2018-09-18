@@ -674,9 +674,9 @@ func sectorsMustEqual(t *testing.T, s1 *UnsealedSector, s2 *UnsealedSector) {
 	}
 }
 
-//func requireReadAll(require *require.Assertions, sector *UnsealedSector) string {
-//	data, err := ioutil.ReadFile(sector.unsealedSectorAccess)
+// func requireReadAll(require *require.Assertions, sector *UnsealedSector) string {
+// 	data, err := ioutil.ReadFile(sector.unsealedSectorAccess)
 //	require.NoError(err)
 //
-//	return string(data)
-//}
+// 	return string(data)
+// }

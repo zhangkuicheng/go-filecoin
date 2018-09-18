@@ -451,9 +451,8 @@ func RequireMineOnce(ctx context.Context, t *testing.T, cm *ChainManager, lastBl
 
 	b := MkChild([]*types.Block{lastBlock}, lastBlock.StateRoot, 0)
 	b.Miner = rewardAddress
-	for _, msg := range msgs {
-		b.Messages = append(b.Messages, msg)
-	}
+	b.Messages = append(b.Messages, msgs...)
+
 	results, err := cm.blockProcessor(ctx, b, st, vms)
 	require.NoError(err)
 	for _, r := range results {

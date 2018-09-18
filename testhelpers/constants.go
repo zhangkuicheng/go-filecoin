@@ -10,19 +10,19 @@ import (
 // If said file is modified these addresses will need to change as well
 //
 
-const TestAddress1 = "fcqkz95vsdmcpynauuyrlcl3wtuyyky25mc7hyglk" // nolint: deadcode, golint
+const TestAddress1 = "fcq3d04er6tkfaa02j8jw444a43p8d2s0c98z232x" // nolint: deadcode, golint
 const TestKey1 = "a.key"                                         // nolint: deadcode, golint
 
-const TestAddress2 = "fcqr7g4u3flfv3zfa287qguzqy6sa9sxrqlmnajwu" // nolint: deadcode, golint
+const TestAddress2 = "fcqn5h3lcwskp6gguzd8r4v9e4yhp9xcyud40jz8k" // nolint: deadcode, golint
 const TestKey2 = "b.key"                                         // nolint: deadcode, golint
 
-const TestAddress3 = "fcq0pgyx2ymtx5txfj9vsn0nlvkgpun2z4yjh7z0j" // nolint: deadcode, golint
+const TestAddress3 = "fcq0e8r5huklp54zwh6s6t6r3d4cnf0drq93l6jjz" // nolint: deadcode, golint
 const TestKey3 = "c.key"                                         // nolint: deadcode, golint
 
-const TestAddress4 = "fcqsa340r2w0k7nn85hvpx6ep83793pery4vp7kvz" // nolint: deadcode, varcheck, megacheck, golint
-const TestKey4 = "d.key"                                         // nolint: deadcode, golint
+const TestAddress4 = "fcqkmzkc3442ydkqmpecy62cr5srzmcyh0wdltgv" // nolint: deadcode, varcheck, megacheck, golint
+const TestKey4 = "d.key"                                        // nolint: deadcode, golint
 
-const TestAddress5 = "fcqxj4l7tl8xc7f8nrleat22jsl8axaju78t6zq3f" // nolint: deadcode, varcheck, megacheck, golint
+const TestAddress5 = "fcqzx983czlkuyzr69uaw33s89qv4j62lc6ep4h5c" // nolint: deadcode, varcheck, megacheck, golint
 const TestKey5 = "e.key"                                         // nolint: deadcode, golint
 
 const TestMinerAddress = "fcqn3lue7efxjejcd3dx6lejvmr426n02rd6kj6zn" // nolint: deadcode, varcheck, megacheck, golint

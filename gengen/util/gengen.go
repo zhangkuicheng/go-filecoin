@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/big"
 	"strconv"
 
 	"github.com/filecoin-project/go-filecoin/abi"
@@ -229,7 +230,11 @@ func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo
 		}
 
 		// create miner
-		resp, err := applyMessage(ctx, st, sm, addr, address.StorageMarketAddress, types.NewAttoFILFromFIL(100000), "createMiner", types.NewBytesAmount(10000000000), []byte{}, pid)
+		pubkey, err := keys[m.Owner].PublicKey()
+		if err != nil {
+			return nil, err
+		}
+		resp, err := applyMessage(ctx, st, sm, addr, address.StorageMarketAddress, types.NewAttoFILFromFIL(100000), "createMiner", big.NewInt(10000), pubkey, pid)
 		if err != nil {
 			return nil, err
 		}
@@ -252,11 +257,15 @@ func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo
 		// hard-coding a value here.
 		sectorID := uint64(0)
 
-		_, err = applyMessage(ctx, st, sm, addr, maddr, types.NewAttoFILFromFIL(0), "commitSector", sectorID, []byte("xxxxxxxx"), types.NewBytesAmount(m.Power))
-		if err != nil {
-			return nil, err
+		for i := 0; uint64(i) < m.Power; i++ {
+			commR := []byte(fmt.Sprintf("commR-%d-%s", i, addr))
+			commD := []byte(fmt.Sprintf("commD-%d-%s", i, addr))
+			_, err = applyMessage(ctx, st, sm, addr, maddr, types.NewAttoFILFromFIL(0), "commitSector", sectorID, commR, commD)
+			if err != nil {
+				return nil, err
+			}
+			sectorID++
 		}
-
 	}
 
 	return minfos, nil

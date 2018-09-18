@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"fmt"
 	"math/big"
 
 	"gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
@@ -180,6 +181,7 @@ func (ma *Actor) Exports() exec.Exports {
 func (ma *Actor) AddAsk(ctx exec.VMContext, price *types.AttoFIL, size *types.BytesAmount) (*big.Int, uint8,
 	error) {
 	var state State
+	fmt.Println(price, size)
 	out, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		if ctx.Message().From != state.Owner {
 			return nil, Errors[ErrCallerUnauthorized]

@@ -59,7 +59,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 	ConnectNodes(t, miner, client)
 
 	data := unixfs.NewFSNode(unixfs.TFile)
-	bytes := make([]byte, 128)
+	bytes := make([]byte, 128) // 128 bytes is the current sector size
 	for i := 0; i < 128; i++ {
 		bytes[i] = byte(i)
 	}
@@ -84,10 +84,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 	old := miner.AddNewlyMinedBlock
 	miner.AddNewlyMinedBlock = func(ctx context.Context, blk *types.Block) {
 		old(ctx, blk)
-		// fmt.Println("messages:")
-		// for _, msg := range blk.Messages {
-		// 	fmt.Println(msg.Method)
-		// }
+
 		if !foundSeal {
 			for i, msg := range blk.Messages {
 				if msg.Message.Method == "commitSector" {
@@ -125,6 +122,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 	resp, err = c.Query(ctx, ref)
 	assert.NoError(err)
 	assert.Equal(Posted, resp.State)
+	assert.Equal(uint64(1), resp.ProofInfo.SectorID)
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

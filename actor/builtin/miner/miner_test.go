@@ -22,7 +22,7 @@ import (
 )
 
 func createTestMiner(assert *assert.Assertions, st state.Tree, vms vm.StorageMap, minerOwnerAddr address.Address, key []byte, pid peer.ID) address.Address {
-	pdata := actor.MustConvertParams(types.NewBytesAmount(10000), key, pid)
+	pdata := actor.MustConvertParams(big.NewInt(100), key, pid)
 	nonce := core.MustGetNonce(st, address.TestAddress)
 	msg := types.NewMessage(minerOwnerAddr, address.StorageMarketAddress, nonce, types.NewAttoFILFromFIL(100), "createMiner", pdata)
 
@@ -97,7 +97,7 @@ func TestAddAsk(t *testing.T) {
 	assert.Equal(types.NewBytesAmount(350), minerStorage2.LockedStorage)
 
 	// now try to create an ask larger than our pledge
-	pdata = actor.MustConvertParams(big.NewInt(55), types.NewBytesAmount(9900))
+	pdata = actor.MustConvertParams(types.NewAttoFIL(big.NewInt(55000)), types.NewBytesAmount(9900000))
 	msg = types.NewMessage(address.TestAddress, minerAddr, 5, nil, "addAsk", pdata)
 
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
@@ -124,7 +124,7 @@ func TestGetKey(t *testing.T) {
 
 func TestCBOREncodeState(t *testing.T) {
 	assert := assert.New(t)
-	state := NewState(address.TestAddress, []byte{}, types.NewBytesAmount(1), core.RequireRandomPeerID(), types.NewZeroAttoFIL())
+	state := NewState(address.TestAddress, []byte{}, big.NewInt(1), core.RequireRandomPeerID(), types.NewZeroAttoFIL())
 
 	state.Sectors["foo"] = []byte{123}
 
@@ -272,10 +272,10 @@ func TestMinerSubmitPoSt(t *testing.T) {
 	res, err = applyMessage(t, st, vms, minerAddr, 0, 3, "getProvingPeriodStart")
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
-	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(2003))
+	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(20003))
 
 	// fail to submit inside the proving period
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 4008, "submitPoSt", []byte("proof"))
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 40008, "submitPoSt", []byte("proof"))
 	require.NoError(err)
 	require.EqualError(res.ExecutionError, "submitted PoSt late, need to pay a fee")
 }
