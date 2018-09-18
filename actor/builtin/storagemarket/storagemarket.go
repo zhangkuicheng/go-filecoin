@@ -20,8 +20,8 @@ import (
 	"github.com/filecoin-project/go-filecoin/vm/errors"
 )
 
-// MinimumPledge is the minimum amount of space a user can pledge.
-var MinimumPledge = types.NewBytesAmount(10000)
+// MinimumPledge is the minimum amount of sectors a user can pledge.
+var MinimumPledge = big.NewInt(10)
 
 const (
 	// ErrPledgeTooLow is the error code for a pledge under the MinimumPledge.
@@ -52,7 +52,7 @@ const (
 
 // Errors map error codes to revert errors this actor may return.
 var Errors = map[uint8]error{
-	ErrPledgeTooLow:         errors.NewCodedRevertErrorf(ErrPledgeTooLow, "pledge must be at least %s bytes", MinimumPledge),
+	ErrPledgeTooLow:         errors.NewCodedRevertErrorf(ErrPledgeTooLow, "pledge must be at least %s sectors", MinimumPledge),
 	ErrUnknownMiner:         errors.NewCodedRevertErrorf(ErrUnknownMiner, "unknown miner"),
 	ErrUnknownAsk:           errors.NewCodedRevertErrorf(ErrUnknownAsk, "ask id not found"),
 	ErrUnknownBid:           errors.NewCodedRevertErrorf(ErrUnknownBid, "bid id not found"),
@@ -120,7 +120,7 @@ func (sma *Actor) Exports() exec.Exports {
 
 var storageMarketExports = exec.Exports{
 	"createMiner": &exec.FunctionSignature{
-		Params: []abi.Type{abi.BytesAmount, abi.Bytes, abi.PeerID},
+		Params: []abi.Type{abi.Integer, abi.Bytes, abi.PeerID},
 		Return: []abi.Type{abi.Address},
 	},
 	"addAsk": &exec.FunctionSignature{
@@ -161,12 +161,12 @@ var storageMarketExports = exec.Exports{
 	},
 }
 
-// CreateMiner creates a new miner with the a pledge of the given size. The
+// CreateMiner creates a new miner with the a pledge of the given amount of sectors. The
 // miners collateral is set by the value in the message.
-func (sma *Actor) CreateMiner(vmctx exec.VMContext, pledge *types.BytesAmount, publicKey []byte, pid peer.ID) (address.Address, uint8, error) {
+func (sma *Actor) CreateMiner(vmctx exec.VMContext, pledge *big.Int, publicKey []byte, pid peer.ID) (address.Address, uint8, error) {
 	var state State
 	ret, err := actor.WithState(vmctx, &state, func() (interface{}, error) {
-		if pledge.LessThan(MinimumPledge) {
+		if pledge.Cmp(MinimumPledge) < 0 {
 			// TODO This should probably return a non-zero exit code instead of an error.
 			return nil, Errors[ErrPledgeTooLow]
 		}
@@ -336,6 +336,7 @@ func (sma *Actor) UpdatePower(vmctx exec.VMContext, delta *big.Int) (uint8, erro
 		}
 
 		state.TotalCommittedStorage = state.TotalCommittedStorage.Add(state.TotalCommittedStorage, delta)
+
 		return nil, nil
 	})
 	if err != nil {

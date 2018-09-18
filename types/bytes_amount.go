@@ -107,6 +107,15 @@ func (z *BytesAmount) Sub(y *BytesAmount) *BytesAmount {
 	return &newZ
 }
 
+// Mul sets z to  x*y and returns z.
+func (z *BytesAmount) Mul(y *BytesAmount) *BytesAmount {
+	ensureBytesAmounts(&z, &y)
+	newVal := big.NewInt(0)
+	newVal.Mul(z.val, y.val)
+	newZ := BytesAmount{val: newVal}
+	return &newZ
+}
+
 // Equal returns true if z = y
 func (z *BytesAmount) Equal(y *BytesAmount) bool {
 	ensureBytesAmounts(&z, &y)

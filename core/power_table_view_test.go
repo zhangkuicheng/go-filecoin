@@ -16,7 +16,7 @@ func TestTotal(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	power := uint64(987654321)
+	power := uint64(987)
 	ctx, cm, _, st := requireMinerWithPower(t, power)
 
 	actual, err := (&marketView{}).Total(ctx, st, cm.Blockstore)
@@ -29,7 +29,7 @@ func TestMiner(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	power := uint64(1234567890)
+	power := uint64(124)
 	ctx, cm, addr, st := requireMinerWithPower(t, power)
 
 	actual, err := (&marketView{}).Miner(ctx, st, cm.Blockstore, addr)
@@ -47,14 +47,13 @@ func requireMinerWithPower(t *testing.T, power uint64) (context.Context, *ChainM
 	ki := types.MustGenerateKeyInfo(1, types.GenerateKeyInfoSeed())
 	mockSigner := types.NewMockSigner(ki)
 	testAddress := mockSigner.Addresses[0]
-	pwr := types.NewBytesAmount(power)
 	testGen := th.MakeGenesisFunc(
 		th.ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
 	)
 	require.NoError(cm.Genesis(ctx, testGen))
 	genesisBlock, err := cm.FetchBlock(ctx, cm.genesisCid)
 	require.NoError(err)
-	addr, block, _, err := CreateMinerWithPower(ctx, t, cm, genesisBlock, mockSigner, 0, mockSigner.Addresses[0], pwr)
+	addr, block, _, err := CreateMinerWithPower(ctx, t, cm, genesisBlock, mockSigner, 0, mockSigner.Addresses[0], power)
 	require.NoError(err)
 	st, err := cm.State(ctx, []*types.Block{block})
 	require.NoError(err)

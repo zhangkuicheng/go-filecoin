@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"fmt"
 	"math/big"
 
 	"gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
@@ -26,6 +25,10 @@ const MaximumPublicKeySize = 100
 // ProvingPeriodBlocks defines how long a proving period is for.
 // TODO: what is an actual workable value? currently set very high to avoid race conditions in test.
 var ProvingPeriodBlocks = types.NewBlockHeight(20000)
+
+// SectorSize is the amount of bytes, in a single sector.
+// TODO: derive from config and/or from sector_builder
+var SectorSize = types.NewBytesAmount(128)
 
 const (
 	// ErrPublicKeyTooBig indicates an invalid public key.
@@ -66,8 +69,7 @@ type State struct {
 	PublicKey []byte
 
 	// Pledge is amount the space being offered up by this miner.
-	// TODO: maybe minimum granularity is more than 1 byte?
-	PledgeBytes *types.BytesAmount
+	PledgeSectors *big.Int
 
 	// Collateral is the total amount of filecoin being held as collateral for
 	// the miners pledge.
@@ -89,12 +91,12 @@ func NewActor() *actor.Actor {
 }
 
 // NewState creates a miner state struct
-func NewState(owner address.Address, key []byte, pledge *types.BytesAmount, pid peer.ID, collateral *types.AttoFIL) *State {
+func NewState(owner address.Address, key []byte, pledge *big.Int, pid peer.ID, collateral *types.AttoFIL) *State {
 	return &State{
 		Owner:         owner,
 		PeerID:        pid,
 		PublicKey:     key,
-		PledgeBytes:   pledge,
+		PledgeSectors: pledge,
 		Collateral:    collateral,
 		LockedStorage: types.NewBytesAmount(0),
 		Sectors:       make(map[string][]byte),
@@ -155,9 +157,9 @@ var minerExports = exec.Exports{
 		Params: []abi.Type{abi.PeerID},
 		Return: []abi.Type{},
 	},
-	"getStorage": &exec.FunctionSignature{
+	"getPower": &exec.FunctionSignature{
 		Params: []abi.Type{},
-		Return: []abi.Type{abi.BytesAmount},
+		Return: []abi.Type{abi.Integer},
 	},
 	"submitPoSt": &exec.FunctionSignature{
 		Params: []abi.Type{abi.Bytes},
@@ -186,7 +188,7 @@ func (ma *Actor) AddAsk(ctx exec.VMContext, price *types.AttoFIL, size *types.By
 		// compute locked storage + new ask
 		total := state.LockedStorage.Add(size)
 
-		if total.GreaterThan(state.PledgeBytes) {
+		if total.GreaterThan(SectorSize.Mul(types.NewBytesAmount(state.PledgeSectors.Uint64()))) {
 			return nil, Errors[ErrInsufficientPledge]
 		}
 
@@ -328,8 +330,8 @@ func (ma *Actor) UpdatePeerID(ctx exec.VMContext, pid peer.ID) (uint8, error) {
 	return 0, nil
 }
 
-// GetStorage returns the amount of proven storage for this miner.
-func (ma *Actor) GetStorage(ctx exec.VMContext) (*types.BytesAmount, uint8, error) {
+// GetPower returns the amount of proven sectors for this miner.
+func (ma *Actor) GetPower(ctx exec.VMContext) (*big.Int, uint8, error) {
 	var state State
 	ret, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		return state.Power, nil
@@ -338,12 +340,12 @@ func (ma *Actor) GetStorage(ctx exec.VMContext) (*types.BytesAmount, uint8, erro
 		return nil, errors.CodeError(err), err
 	}
 
-	count, ok := ret.(*types.BytesAmount)
+	power, ok := ret.(*big.Int)
 	if !ok {
-		return nil, 1, fmt.Errorf("expected *BytesAmount to be returned, but got %T instead", ret)
+		return nil, 1, errors.NewFaultErrorf("expected *big.Int to be returned, but got %T instead", ret)
 	}
 
-	return count, 0, nil
+	return power, 0, nil
 }
 
 // SubmitPoSt is used to submit a coalesced PoST to the chain to convince the chain

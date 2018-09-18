@@ -485,7 +485,7 @@ func TestTipSetWeightDeep(t *testing.T) {
 	testAddress := mockSigner.Addresses[0]
 
 	// pwr1, pwr2 = 1/100. pwr3 = 98/100.
-	pwr1, pwr2, pwr3 := types.NewBytesAmount(10000), types.NewBytesAmount(10000), types.NewBytesAmount(980000)
+	pwr1, pwr2, pwr3 := uint64(10), uint64(10), uint64(980)
 	testGen := th.MakeGenesisFunc(
 		th.ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
 	)
@@ -493,7 +493,7 @@ func TestTipSetWeightDeep(t *testing.T) {
 
 	genesisBlock, err := stm.FetchBlock(ctx, stm.genesisCid)
 	require.NoError(err)
-	addr0, block, nonce, err := CreateMinerWithPower(ctx, t, stm, genesisBlock, mockSigner, 0, mockSigner.Addresses[0], nil)
+	addr0, block, nonce, err := CreateMinerWithPower(ctx, t, stm, genesisBlock, mockSigner, 0, mockSigner.Addresses[0], 10)
 	require.NoError(err)
 	addr1, block, nonce, err := CreateMinerWithPower(ctx, t, stm, block, mockSigner, nonce, addr0, pwr1)
 	require.NoError(err)
@@ -540,6 +540,7 @@ func TestTipSetWeightDeep(t *testing.T) {
 
 	expectedWeight := big.NewRat(int64(22), int64(1))
 	expectedWeight.Add(expectedWeight, startingWeight)
+	fmt.Println(expectedWeight, startingWeight, w)
 	require.Equal(expectedWeight, w)
 
 	// fork 1 is heavier than the old head.
