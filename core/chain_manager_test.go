@@ -12,7 +12,6 @@ import (
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 	"gx/ipfs/QmcmpX42gtDv1fz24kau4wjS9hfwWj5VexWBKgGnWzsyag/go-ipfs-blockstore"
 
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -486,8 +485,8 @@ func TestTipSetWeightDeep(t *testing.T) {
 
 	// pwr1, pwr2 = 1/100. pwr3 = 98/100.
 	pwr1, pwr2, pwr3 := uint64(10), uint64(10), uint64(980)
-	testGen := th.MakeGenesisFunc(
-		th.ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
+	testGen := MakeGenesisFunc(
+		ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
 	)
 	require.NoError(stm.Genesis(ctx, testGen))
 
@@ -540,7 +539,6 @@ func TestTipSetWeightDeep(t *testing.T) {
 
 	expectedWeight := big.NewRat(int64(22), int64(1))
 	expectedWeight.Add(expectedWeight, startingWeight)
-	fmt.Println(expectedWeight, startingWeight, w)
 	require.Equal(expectedWeight, w)
 
 	// fork 1 is heavier than the old head.

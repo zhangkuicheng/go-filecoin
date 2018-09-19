@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/filecoin-project/go-filecoin/fixtures"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +26,7 @@ func TestMiningGenBlock(t *testing.T) {
 
 	t.Log("[success] address in local wallet")
 	// TODO: use `config` cmd once it exists
-	addr := th.TestAddress1
+	addr := fixtures.TestAddresses[2]
 
 	s := d.RunSuccess("wallet", "balance", addr)
 	beforeBalance := parseInt(assert, s.ReadStdout())

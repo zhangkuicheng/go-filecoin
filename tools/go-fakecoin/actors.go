@@ -16,6 +16,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/api"
 	"github.com/filecoin-project/go-filecoin/api/impl"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/fixtures"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/repo"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
@@ -64,7 +65,7 @@ func cmdFakeActors(ctx context.Context, repodir string) error {
 
 	log.Println("\tloading test addresses")
 
-	fa, err := readFiles(th.KeyFilePaths())
+	fa, err := readFiles(fixtures.KeyFilePaths())
 	if err != nil {
 		return errors.Wrap(err, "failed to read keyfiles")
 	}
@@ -88,11 +89,11 @@ func cmdFakeActors(ctx context.Context, repodir string) error {
 // well-formed data in its memory. For now, this exists primarily to exercise the Filecoin Explorer, though it may
 // be used for testing in the future.
 func fakeActors(ctx context.Context, fc api.API) error {
-	clientAddr, err := address.NewFromString(th.TestAddress1)
+	clientAddr, err := address.NewFromString(fixtures.TestAddresses[0])
 	if err != nil {
 		return err
 	}
-	minerLocalAddr, err := address.NewFromString(th.TestAddress2)
+	minerLocalAddr, err := address.NewFromString(fixtures.TestAddresses[0])
 	if err != nil {
 		return err
 	}

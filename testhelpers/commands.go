@@ -101,6 +101,7 @@ type TestDaemon struct {
 	walletAddr  string
 	genesisFile string
 	keyFiles    []string
+	withMiner   string
 
 	firstRun bool
 	init     bool
@@ -176,6 +177,9 @@ func (td *TestDaemon) RunWithStdin(stdin io.Reader, args ...string) *Output {
 
 	stdoutBytes, err := ioutil.ReadAll(stdout)
 	require.NoError(td.test, err)
+
+	td.test.Logf("stdout\n%s", string(stdoutBytes))
+	td.test.Logf("stderr\n%s", string(stderrBytes))
 
 	o := &Output{
 		Args:   args,
@@ -600,10 +604,15 @@ func (td *TestDaemon) MakeDeal(dealData string, miner *TestDaemon, fromAddr stri
 	return ddCid
 }
 
-// GetDefaultAddress returns the default sender address for this daemon
+// GetDefaultAddress returns the default sender address for this daemon.
 func (td *TestDaemon) GetDefaultAddress() string {
 	addrs := td.RunSuccess("wallet", "addrs", "ls")
 	return strings.Split(addrs.ReadStdout(), "\n")[0]
+}
+
+// GetMinerAddress returns the miner address for this daemon.
+func (td *TestDaemon) GetMinerAddress() address.Address {
+	return td.Config().Mining.MinerAddress
 }
 
 func tryAPICheck(td *TestDaemon) error {
@@ -683,7 +692,7 @@ func WalletAddr(a string) func(*TestDaemon) {
 // KeyFile specifies a key file for this daemon to add to their wallet during init
 func KeyFile(kf string) func(*TestDaemon) {
 	return func(td *TestDaemon) {
-		td.keyFiles = append(td.keyFiles, keyFilePath(kf))
+		td.keyFiles = append(td.keyFiles, kf)
 	}
 }
 
@@ -691,6 +700,13 @@ func KeyFile(kf string) func(*TestDaemon) {
 func GenesisFile(a string) func(*TestDaemon) {
 	return func(td *TestDaemon) {
 		td.genesisFile = a
+	}
+}
+
+// WithMiner allows setting the --with-miner flag on init.
+func WithMiner(m string) func(*TestDaemon) {
+	return func(td *TestDaemon) {
+		td.withMiner = m
 	}
 }
 
@@ -734,18 +750,33 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	for _, option := range options {
 		option(td)
 	}
+	swarmListenFlag := fmt.Sprintf("--swarmlisten=%s", td.swarmAddr)
+	cmdAPIAddrFlag := fmt.Sprintf("--cmdapiaddr=%s", td.cmdAddr)
+	repoDirFlag := fmt.Sprintf("--repodir=%s", td.repoDir)
 
 	// build command options
-	repoDirFlag := fmt.Sprintf("--repodir=%s", td.repoDir)
-	cmdAPIAddrFlag := fmt.Sprintf("--cmdapiaddr=%s", td.cmdAddr)
-	swarmListenFlag := fmt.Sprintf("--swarmlisten=%s", td.swarmAddr)
-	walletFileFlag := fmt.Sprintf("--walletfile=%s", td.walletFile)
-	walletAddrFlag := fmt.Sprintf("--walletaddr=%s", td.walletAddr)
-	testGenesisFlag := fmt.Sprintf("--testgenesis=%t", td.walletFile != "")
-	genesisFileFlag := fmt.Sprintf("--genesisfile=%s", td.genesisFile)
+	initopts := []string{
+		cmdAPIAddrFlag,
+		repoDirFlag,
+	}
+
+	if td.genesisFile != "" {
+		initopts = append(initopts, fmt.Sprintf("--genesisfile=%s", td.genesisFile))
+	}
+	if td.walletFile != "" {
+		initopts = append(initopts, fmt.Sprintf("--walletfile=%s", td.walletFile))
+		initopts = append(initopts, "--testgenesis")
+	}
+	if td.walletAddr != "" {
+		initopts = append(initopts, fmt.Sprintf("--walletaddr=%s", td.walletAddr))
+	}
+	if td.withMiner != "" {
+		initopts = append(initopts, fmt.Sprintf("--with-miner=%s", td.withMiner))
+	}
 
 	if td.init {
-		out, err := RunInit(repoDirFlag, cmdAPIAddrFlag, walletFileFlag, walletAddrFlag, testGenesisFlag, genesisFileFlag)
+		t.Logf("run: go-filecoin init %s", initopts)
+		out, err := RunInit(initopts...)
 		if err != nil {
 			t.Log(string(out))
 			t.Fatal(err)
@@ -788,4 +819,14 @@ func RunCommand(cmd string, opts ...string) ([]byte, error) {
 
 	process := exec.Command(filecoinBin, append([]string{"init"}, opts...)...)
 	return process.CombinedOutput()
+}
+
+// GenesisFilePath returns the path of the WalletFile
+func GenesisFilePath() string {
+	gopath, err := GetGoPath()
+	if err != nil {
+		panic(err)
+	}
+
+	return filepath.Join(gopath, "/src/github.com/filecoin-project/go-filecoin/fixtures/genesis.car")
 }

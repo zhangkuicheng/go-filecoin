@@ -17,7 +17,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/mining"
 	"github.com/filecoin-project/go-filecoin/repo"
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 
 	"github.com/stretchr/testify/assert"
@@ -368,10 +367,10 @@ func TestWaitConflicting(t *testing.T) {
 	addr1, addr2, addr3 := mockSigner.Addresses[0], mockSigner.Addresses[1], mockSigner.Addresses[2]
 
 	node := MakeNodesUnstarted(t, 1, true, true)[0]
-	testGen := th.MakeGenesisFunc(
-		th.ActorAccount(addr1, types.NewAttoFILFromFIL(10000)),
-		th.ActorAccount(addr2, types.NewAttoFILFromFIL(0)),
-		th.ActorAccount(addr3, types.NewAttoFILFromFIL(0)),
+	testGen := core.MakeGenesisFunc(
+		core.ActorAccount(addr1, types.NewAttoFILFromFIL(10000)),
+		core.ActorAccount(addr2, types.NewAttoFILFromFIL(0)),
+		core.ActorAccount(addr3, types.NewAttoFILFromFIL(0)),
 	)
 	assert.NoError(node.ChainMgr.Genesis(ctx, testGen))
 
@@ -425,8 +424,8 @@ func TestGetSignature(t *testing.T) {
 		nodeAddr, err := nd.NewAddress()
 		assert.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
 		)
 		nd.ChainMgr.Genesis(ctx, tif)
 
@@ -492,8 +491,8 @@ func TestNextNonce(t *testing.T) {
 		nodeAddr, err := node.NewAddress()
 		assert.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
 		)
 
 		err = node.ChainMgr.Genesis(ctx, tif)
@@ -515,8 +514,8 @@ func TestNextNonce(t *testing.T) {
 		nodeAddr, err := node.NewAddress()
 		assert.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
 		)
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 
@@ -546,9 +545,9 @@ func TestNewMessageWithNextNonce(t *testing.T) {
 		nodeAddr, err := node.NewAddress()
 		assert.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
-			th.ActorNonce(nodeAddr, 42),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+			core.ActorNonce(nodeAddr, 42),
 		)
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
@@ -574,8 +573,8 @@ func TestQueryMessage(t *testing.T) {
 		nodeAddr, err := node.NewAddress()
 		require.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
 		)
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
@@ -603,8 +602,8 @@ func TestCreateMiner(t *testing.T) {
 		nodeAddr, err := node.NewAddress()
 		assert.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(1000000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(1000000)),
 		)
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
@@ -625,8 +624,8 @@ func TestCreateMiner(t *testing.T) {
 		nodeAddr, err := node.NewAddress()
 		assert.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
 		)
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
@@ -646,8 +645,8 @@ func TestCreateMiner(t *testing.T) {
 		nodeAddr, err := node.NewAddress()
 		assert.NoError(err)
 
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
 		)
 		assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 		assert.NoError(node.Start(ctx))
@@ -674,8 +673,8 @@ func TestCreateSectorBuilders(t *testing.T) {
 	minerAddr1, err := node.NewAddress()
 	assert.NoError(err)
 
-	tif := th.MakeGenesisFunc(
-		th.ActorAccount(minerAddr1, types.NewAttoFILFromFIL(10000)),
+	tif := core.MakeGenesisFunc(
+		core.ActorAccount(minerAddr1, types.NewAttoFILFromFIL(10000)),
 	)
 	assert.NoError(node.ChainMgr.Genesis(ctx, tif))
 	assert.NoError(node.Start(ctx))
@@ -727,8 +726,8 @@ func TestLookupMinerAddress(t *testing.T) {
 		require.NoError(err)
 
 		// initialize genesis block
-		tif := th.MakeGenesisFunc(
-			th.ActorAccount(minerOwnerAddr, types.NewAttoFILFromFIL(10000)),
+		tif := core.MakeGenesisFunc(
+			core.ActorAccount(minerOwnerAddr, types.NewAttoFILFromFIL(10000)),
 		)
 		require.NoError(nd.ChainMgr.Genesis(ctx, tif))
 		require.NoError(nd.Start(ctx))

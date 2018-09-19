@@ -69,6 +69,7 @@ func (v *marketView) Miner(ctx context.Context, st state.Tree, bstore blockstore
 		return 0, errors.Errorf("Non-zero return code from query message: %d", ec)
 	}
 	ret := big.NewInt(0).SetBytes(rets[0])
+
 	return ret.Uint64(), nil
 }
 

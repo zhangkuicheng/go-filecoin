@@ -1,10 +1,11 @@
-package gengen
+package gengen_test
 
 import (
 	"io/ioutil"
 	"strings"
 	"testing"
 
+	. "github.com/filecoin-project/go-filecoin/gengen/util"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 

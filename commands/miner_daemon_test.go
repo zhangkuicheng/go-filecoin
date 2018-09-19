@@ -20,6 +20,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/api/impl"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/fixtures"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 )
 
@@ -29,7 +30,7 @@ func TestMinerCreate(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	testAddr, err := address.NewFromString(th.TestAddress3)
+	testAddr, err := address.NewFromString(fixtures.TestAddresses[2])
 	require.NoError(err)
 
 	t.Run("success", func(t *testing.T) {
@@ -173,7 +174,7 @@ func TestMinerAddAskSuccess(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t, th.WalletAddr(th.TestAddress3)).Start()
+	d := th.NewDaemon(t, th.WalletAddr(fixtures.TestAddresses[2])).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -183,7 +184,7 @@ func TestMinerAddAskSuccess(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		miner := d.RunSuccess("miner", "create", "--from", th.TestAddress3, "1000000", "20")
+		miner := d.RunSuccess("miner", "create", "--from", fixtures.TestAddresses[2], "1000000", "20")
 		addr, err := address.NewFromString(strings.Trim(miner.ReadStdout(), "\n"))
 		assert.NoError(err)
 		assert.NotEqual(addr, address.Address{})
@@ -201,7 +202,7 @@ func TestMinerAddAskSuccess(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		ask := d.RunSuccess("miner", "add-ask", minerAddr.String(), "2000", "10",
-			"--from", th.TestAddress3,
+			"--from", fixtures.TestAddresses[2],
 		)
 		askCid, err := cid.Parse(strings.Trim(ask.ReadStdout(), "\n"))
 		require.NoError(t, err)
@@ -218,7 +219,7 @@ func TestMinerAddAskFail(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t, th.CmdTimeout(time.Second*90), th.WalletAddr(th.TestAddress3)).Start()
+	d := th.NewDaemon(t, th.CmdTimeout(time.Second*90), th.WalletAddr(fixtures.TestAddresses[2])).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -229,7 +230,7 @@ func TestMinerAddAskFail(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		miner := d.RunSuccess("miner", "create",
-			"--from", th.TestAddress3,
+			"--from", fixtures.TestAddresses[2],
 			"--peerid", core.RequireRandomPeerID().Pretty(),
 			"1000000", "20",
 		)
@@ -255,17 +256,17 @@ func TestMinerAddAskFail(t *testing.T) {
 	d.RunFail(
 		"invalid miner address",
 		"miner", "add-ask", "hello", "2000", "10",
-		"--from", th.TestAddress3,
+		"--from", fixtures.TestAddresses[2],
 	)
 	d.RunFail(
 		"invalid size",
 		"miner", "add-ask", minerAddr.String(), "2f", "10",
-		"--from", th.TestAddress3,
+		"--from", fixtures.TestAddresses[2],
 	)
 	d.RunFail(
 		"invalid price",
 		"miner", "add-ask", minerAddr.String(), "10", "3f",
-		"--from", th.TestAddress3,
+		"--from", fixtures.TestAddresses[2],
 	)
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/core"
+	"github.com/filecoin-project/go-filecoin/fixtures"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 
 	"github.com/stretchr/testify/assert"
@@ -57,9 +58,8 @@ func TestAddrLookupAndUpdate(t *testing.T) {
 	defer d.ShutdownSuccess()
 
 	addr := d.GetDefaultAddress()
+	minerAddr := d.GetMinerAddress()
 	minerPidForUpdate := core.RequireRandomPeerID()
-
-	minerAddr := d.CreateMinerAddr(addr)
 
 	// capture original, pre-update miner pid
 	lookupOutA := th.RunSuccessFirstLine(d, "address", "lookup", minerAddr.String())
@@ -86,10 +86,10 @@ func TestAddrLookupAndUpdate(t *testing.T) {
 }
 
 func TestWalletLoadFromFile(t *testing.T) {
-	t.Skip("FIXME: this should use wallet import now instead of relying on initialization")
+	// TODO: this should use wallet import now instead of relying on initialization"
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t, th.WalletFile("../testhelpers/testfiles/walletGenFile.toml"), th.WalletAddr("fcqrn3nwxlpqng6ms8kp4tk44zrjyh4nurrmg6wth")).Start()
+	d := th.NewDaemon(t, th.WalletFile("../fixtures/walletGenFile.toml"), th.WalletAddr(fixtures.TestAddresses[0]), th.WithMiner(fixtures.TestMiners[0])).Start()
 	defer d.ShutdownSuccess()
 
 	// assert we loaded the test address from the file

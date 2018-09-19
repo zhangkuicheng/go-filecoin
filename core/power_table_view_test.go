@@ -6,7 +6,6 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/state"
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,8 +46,8 @@ func requireMinerWithPower(t *testing.T, power uint64) (context.Context, *ChainM
 	ki := types.MustGenerateKeyInfo(1, types.GenerateKeyInfoSeed())
 	mockSigner := types.NewMockSigner(ki)
 	testAddress := mockSigner.Addresses[0]
-	testGen := th.MakeGenesisFunc(
-		th.ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
+	testGen := MakeGenesisFunc(
+		ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
 	)
 	require.NoError(cm.Genesis(ctx, testGen))
 	genesisBlock, err := cm.FetchBlock(ctx, cm.genesisCid)

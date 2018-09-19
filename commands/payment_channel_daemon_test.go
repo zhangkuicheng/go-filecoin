@@ -16,6 +16,7 @@ import (
 
 	"github.com/filecoin-project/go-filecoin/actor/builtin/paymentbroker"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/fixtures"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 )
@@ -24,12 +25,12 @@ func TestPaymentChannelCreateSuccess(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t, th.KeyFile(th.TestKey1), th.WalletAddr(th.TestAddress1)).Start()
+	d := th.NewDaemon(t, th.KeyFile(fixtures.KeyFilePaths()[0]), th.WalletAddr(fixtures.TestAddresses[0])).Start()
 	defer d.ShutdownSuccess()
 
 	args := []string{"paych", "create"}
-	args = append(args, "--from", th.TestAddress1)
-	args = append(args, th.TestAddress2, "10000", "20")
+	args = append(args, "--from", fixtures.TestAddresses[0])
+	args = append(args, fixtures.TestAddresses[1], "10000", "20")
 
 	paymentChannelCmd := d.RunSuccess(args...)
 	messageCid, err := cid.Parse(strings.Trim(paymentChannelCmd.ReadStdout(), "\n"))
@@ -63,9 +64,9 @@ func TestPaymentChannelLs(t *testing.T) {
 	t.Run("Works with default payer", func(t *testing.T) {
 		t.Parallel()
 
-		payer, err := address.NewFromString(th.TestAddress1)
+		payer, err := address.NewFromString(fixtures.TestAddresses[0])
 		require.NoError(err)
-		target, err := address.NewFromString(th.TestAddress2)
+		target, err := address.NewFromString(fixtures.TestAddresses[1])
 		require.NoError(err)
 
 		eol := types.NewBlockHeight(20)
@@ -82,9 +83,9 @@ func TestPaymentChannelLs(t *testing.T) {
 	t.Run("Works with specified payer", func(t *testing.T) {
 		t.Parallel()
 
-		payer, err := address.NewFromString(th.TestAddress1)
+		payer, err := address.NewFromString(fixtures.TestAddresses[0])
 		require.NoError(err)
-		target, err := address.NewFromString(th.TestAddress2)
+		target, err := address.NewFromString(fixtures.TestAddresses[1])
 		require.NoError(err)
 
 		eol := types.NewBlockHeight(20)
@@ -104,9 +105,9 @@ func TestPaymentChannelLs(t *testing.T) {
 	t.Run("Notifies when channels not found", func(t *testing.T) {
 		t.Parallel()
 
-		payer, err := address.NewFromString(th.TestAddress1)
+		payer, err := address.NewFromString(fixtures.TestAddresses[0])
 		require.NoError(err)
-		target, err := address.NewFromString(th.TestAddress2)
+		target, err := address.NewFromString(fixtures.TestAddresses[1])
 		require.NoError(err)
 
 		eol := types.NewBlockHeight(20)
@@ -125,9 +126,9 @@ func TestPaymentChannelVoucherSuccess(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	payer, err := address.NewFromString(th.TestAddress1)
+	payer, err := address.NewFromString(fixtures.TestAddresses[0])
 	require.NoError(err)
-	target, err := address.NewFromString(th.TestAddress2)
+	target, err := address.NewFromString(fixtures.TestAddresses[1])
 	require.NoError(err)
 
 	eol := types.NewBlockHeight(20)
@@ -147,9 +148,9 @@ func TestPaymentChannelRedeemSuccess(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	payer, err := address.NewFromString(th.TestAddress1)
+	payer, err := address.NewFromString(fixtures.TestAddresses[0])
 	require.NoError(err)
-	target, err := address.NewFromString(th.TestAddress2)
+	target, err := address.NewFromString(fixtures.TestAddresses[1])
 	require.NoError(err)
 
 	eol := types.NewBlockHeight(20)
@@ -178,10 +179,10 @@ func TestPaymentChannelReclaimSuccess(t *testing.T) {
 	require := require.New(t)
 
 	// Initial Balance 10,000,000
-	payer, err := address.NewFromString(th.TestAddress1)
+	payer, err := address.NewFromString(fixtures.TestAddresses[0])
 	require.NoError(err)
 	// Initial Balance 10,000,000
-	target, err := address.NewFromString(th.TestAddress2)
+	target, err := address.NewFromString(fixtures.TestAddresses[1])
 	require.NoError(err)
 
 	// Not used in logic
@@ -228,10 +229,10 @@ func TestPaymentChannelCloseSuccess(t *testing.T) {
 	require := require.New(t)
 
 	// Initial Balance 10,000,000
-	payerA, err := address.NewFromString(th.TestAddress1)
+	payerA, err := address.NewFromString(fixtures.TestAddresses[0])
 	require.NoError(err)
 	// Initial Balance 10,000,000
-	targetA, err := address.NewFromString(th.TestAddress2)
+	targetA, err := address.NewFromString(fixtures.TestAddresses[1])
 	require.NoError(err)
 	payer := &payerA
 	target := &targetA
@@ -274,9 +275,9 @@ func TestPaymentChannelExtendSuccess(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	payer, err := address.NewFromString(th.TestAddress1)
+	payer, err := address.NewFromString(fixtures.TestAddresses[0])
 	require.NoError(err)
-	target, err := address.NewFromString(th.TestAddress2)
+	target, err := address.NewFromString(fixtures.TestAddresses[1])
 	require.NoError(err)
 
 	eol := types.NewBlockHeight(5)
@@ -301,7 +302,7 @@ func TestPaymentChannelExtendSuccess(t *testing.T) {
 func daemonTestWithPaymentChannel(t *testing.T, payerAddress *address.Address, targetAddress *address.Address, fundsToLock *types.AttoFIL, eol *types.BlockHeight, f func(*th.TestDaemon, *types.ChannelID)) {
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t, th.KeyFile(th.TestKey1)).Start()
+	d := th.NewDaemon(t, th.KeyFile(fixtures.KeyFilePaths()[0])).Start()
 	defer d.ShutdownSuccess()
 
 	args := []string{"paych", "create"}

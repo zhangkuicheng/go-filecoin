@@ -241,8 +241,8 @@ func TestStateTreeMarketPeekerAddsDeal(t *testing.T) {
 	nodeAddr, err := nd.NewAddress()
 	assert.NoError(err)
 
-	tif := th.MakeGenesisFunc(
-		th.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
+	tif := core.MakeGenesisFunc(
+		core.ActorAccount(nodeAddr, types.NewAttoFILFromFIL(10000)),
 	)
 	nd.ChainMgr.Genesis(ctx, tif)
 	assert.NoError(err)
@@ -271,8 +271,8 @@ func TestStateTreeMarketPeeker(t *testing.T) {
 	sn := types.NewMockSigner(ki)
 	testAddress := sn.Addresses[0]
 
-	testGen := th.MakeGenesisFunc(
-		th.ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
+	testGen := core.MakeGenesisFunc(
+		core.ActorAccount(testAddress, types.NewAttoFILFromFIL(10000)),
 	)
 	require.NoError(cm.Genesis(ctx, testGen))
 

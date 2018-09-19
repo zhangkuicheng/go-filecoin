@@ -275,7 +275,7 @@ func RunCreateMiner(t *testing.T, node *Node, from address.Address, pledge uint6
 	require.NoError(err)
 
 	go func() {
-		minerAddr, err := node.CreateMiner(ctx, from, pledge, pid, collateral)
+		minerAddr, err := node.CreateMiner(ctx, from, pledge, pid, &collateral)
 		resultChan <- MustCreateMinerResult{MinerAddress: minerAddr, Err: err}
 		wg.Done()
 	}()

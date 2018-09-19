@@ -1,0 +1,34 @@
+{
+  "Keys": {
+    "a": {
+      "privateKey": "nkrLPterc0Wsk/A4LQQyXMEURmVn0pxBr1WgdoDh+to=",
+      "curve": "secp256k1"
+    },
+    "b": {
+      "privateKey": "AC5dri8TwpzmzU054k3GmfGuYiTNKcGP9NjYiRJQeAA=",
+      "curve": "secp256k1"
+    },
+    "c": {
+      "privateKey": "IK6EpZhuFgM56IwnLQLsliNCEsrMYgs6AfpXN76Hv0E=",
+      "curve": "secp256k1"
+    },
+    "d": {
+      "privateKey": "2s8+DES79/UUZ0wlMiOog0y0hiYjUDyUTHSYl2tGbHs=",
+      "curve": "secp256k1"
+    },
+    "e": {
+      "privateKey": "7aY4E6/HC0eBUnhFr3bBTCni4te7b3RwWT3tbC8AksM=",
+      "curve": "secp256k1"
+    }
+  },
+  "Miners": [
+    {
+      "Owner": "a",
+      "Address": "fcqfkjqj7xw03m6jxmcxqna26sw6zk82ya4nstu8f",
+      "Power": 10
+    }
+  ],
+  "GenesisCid": {
+    "/": "zDPWYqFCrVP7MaTCj3JPQrQXzvEVTq62h9ssbqy5Nxp4U3t8NgRv"
+  }
+}

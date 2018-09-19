@@ -19,7 +19,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/proofs"
-	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 
 	"github.com/stretchr/testify/assert"
@@ -121,9 +120,9 @@ func nodeWithSectorBuilder(t *testing.T) (*tempSectorDirs, *Node, *SectorBuilder
 	defaultAddr, err := nd.DefaultSenderAddress()
 	require.NoError(err)
 
-	tif := th.MakeGenesisFunc(
-		th.ActorAccount(owner, types.NewAttoFILFromFIL(1000000)),
-		th.ActorAccount(defaultAddr, types.NewAttoFILFromFIL(1000000)),
+	tif := core.MakeGenesisFunc(
+		core.ActorAccount(owner, types.NewAttoFILFromFIL(1000000)),
+		core.ActorAccount(defaultAddr, types.NewAttoFILFromFIL(1000000)),
 	)
 	require.NoError(nd.ChainMgr.Genesis(ctx, tif))
 	require.NoError(nd.Start(ctx))

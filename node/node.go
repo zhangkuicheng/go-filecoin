@@ -438,14 +438,12 @@ func (node *Node) addNewlyMinedBlock(ctx context.Context, b *types.Block) {
 // MiningAddress returns the address of the mining actor mining on behalf of
 // the node.
 func (node *Node) MiningAddress() (address.Address, error) {
-	r := node.Repo
-	newConfig := r.Config()
-	if newConfig.Mining.MinerAddress == (address.Address{}) {
+	addr := node.Repo.Config().Mining.MinerAddress
+	if addr == (address.Address{}) {
 		return address.Address{}, ErrNoMinerAddress
 	}
 
-	// TODO: mining start should include a flag to specify a specific mining addr.
-	return newConfig.Mining.MinerAddress, nil
+	return addr, nil
 }
 
 // MiningTimes returns the configured time it takes to mine a block, and also
@@ -514,7 +512,6 @@ func (node *Node) initSectorBuilder(ctx context.Context, minerAddr address.Addre
 
 	miningOwnerAddr, err := node.MiningOwnerAddress(ctx, minerAddr)
 	if err != nil {
-		fmt.Println("no mining owner", err, minerAddr)
 		log.Warningf("no mining owner available, skipping storage miner setup: %s", err)
 	} else {
 		node.StorageMiner, err = NewStorageMiner(ctx, node, minerAddr, miningOwnerAddr)
@@ -651,7 +648,7 @@ func (node *Node) CallQueryMethod(ctx context.Context, to address.Address, metho
 // CreateMiner creates a new miner actor for the given account and returns its address.
 // It will wait for the the actor to appear on-chain and add set the address to mining.minerAddress in the config.
 // TODO: This should live in a MinerAPI or some such. It's here until we have a proper API layer.
-func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, pledge uint64, pid libp2ppeer.ID, collateral types.AttoFIL) (_ *address.Address, err error) {
+func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, pledge uint64, pid libp2ppeer.ID, collateral *types.AttoFIL) (_ *address.Address, err error) {
 	// Only create a miner if we don't already have one. For now only a single miner per node can exist.
 	if _, err := node.MiningAddress(); err != ErrNoMinerAddress {
 		return nil, fmt.Errorf("Can only have on miner per node")
@@ -680,7 +677,7 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, 
 		return nil, err
 	}
 
-	msg, err := NewMessageWithNextNonce(ctx, node, accountAddr, address.StorageMarketAddress, &collateral, "createMiner", params)
+	msg, err := NewMessageWithNextNonce(ctx, node, accountAddr, address.StorageMarketAddress, collateral, "createMiner", params)
 	if err != nil {
 		return nil, err
 	}
@@ -713,10 +710,6 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, 
 	}
 
 	err = node.saveMinerAddressToConfig(minerAddress)
-
-	// TODO: if the node is mining, should we now create a sector builder
-	// for this miner?
-
 	return &minerAddress, err
 }
 
