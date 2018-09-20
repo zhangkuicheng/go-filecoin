@@ -14,7 +14,12 @@ func TestOrderbookBids(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t, th.KeyFile(fixtures.KeyFilePaths()[2]), th.WalletAddr(fixtures.TestAddresses[2])).Start()
+	d := th.NewDaemon(
+		t,
+		th.WithMiner(fixtures.TestMiners[0]),
+		th.KeyFile(fixtures.KeyFilePaths()[2]),
+		th.WalletAddr(fixtures.TestAddresses[2]),
+	).Start()
 	defer d.ShutdownSuccess()
 
 	d.CreateWalletAddr()
@@ -38,18 +43,17 @@ func TestOrderbookAsks(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t).Start()
+	d := th.NewDaemon(t, th.WithMiner(fixtures.TestMiners[0]), th.KeyFile(fixtures.KeyFilePaths()[0])).Start()
 	defer d.ShutdownSuccess()
 
-	addr := d.GetDefaultAddress()
-
-	minerAddr := d.CreateMinerAddr(addr)
+	addr := fixtures.TestAddresses[0]
+	minerAddr := fixtures.TestMiners[0]
 
 	for i := 0; i < 10; i++ {
 		d.RunSuccess(
 			"miner", "add-ask",
 			"--from", addr,
-			minerAddr.String(), "1", fmt.Sprintf("%d", i),
+			minerAddr, "1", fmt.Sprintf("%d", i),
 		)
 	}
 

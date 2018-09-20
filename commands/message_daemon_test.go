@@ -11,10 +11,14 @@ import (
 )
 
 func TestMessageSend(t *testing.T) {
-	t.Skip("FIXME: uses mining once")
 	t.Parallel()
 
-	d := th.NewDaemon(t).Start()
+	d := th.NewDaemon(
+		t,
+		th.WithMiner(fixtures.TestMiners[0]),
+		th.KeyFile(fixtures.KeyFilePaths()[0]),
+		th.KeyFile(fixtures.KeyFilePaths()[1]),
+	).Start()
 	defer d.ShutdownSuccess()
 
 	d.RunSuccess("mining", "once")
@@ -27,13 +31,14 @@ func TestMessageSend(t *testing.T) {
 		"--value=10", "xyz",
 	)
 
-	t.Log("[success] default from")
-	d.RunSuccess("message", "send", fixtures.TestAddresses[0])
-
 	t.Log("[success] with from")
+	defaultaddr := d.GetDefaultAddress()
 	d.RunSuccess("message", "send",
-		"--from", fixtures.TestAddresses[0], fixtures.TestAddresses[1],
+		"--from", fixtures.TestAddresses[0], defaultaddr,
 	)
+
+	// t.Log("[success] default from")
+	// d.RunSuccess("message", "send", fixtures.TestAddresses[1])
 
 	t.Log("[success] with from and value")
 	d.RunSuccess("message", "send",
@@ -43,10 +48,13 @@ func TestMessageSend(t *testing.T) {
 }
 
 func TestMessageWait(t *testing.T) {
-	t.Skip("FIXME: uses mining once")
 	t.Parallel()
 
-	d := th.NewDaemon(t).Start()
+	d := th.NewDaemon(
+		t,
+		th.WithMiner(fixtures.TestMiners[0]),
+		th.KeyFile(fixtures.KeyFilePaths()[0]),
+	).Start()
 	defer d.ShutdownSuccess()
 
 	t.Run("[success] transfer only", func(t *testing.T) {

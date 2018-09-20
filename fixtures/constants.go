@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 
 	cid "gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
@@ -65,16 +66,21 @@ func init() {
 		panic(err)
 	}
 
-	keys := details.Keys
+	var keys []string
+	for key := range details.Keys {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
 	miners := details.Miners
 
-	for i, info := range keys {
+	for _, key := range keys {
+		info := details.Keys[key]
 		addr, err := info.Address()
 		if err != nil {
 			panic(err)
 		}
 		TestAddresses = append(TestAddresses, addr.String())
-		testKeys = append(testKeys, fmt.Sprintf("%s.key", i))
+		testKeys = append(testKeys, fmt.Sprintf("%s.key", key))
 	}
 
 	for _, miner := range miners {

@@ -78,16 +78,11 @@ func TestProposeDeal(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	dcli := th.NewDaemon(t, th.WithMiner(fixtures.TestMiners[0])).Start()
-	defer func() { t.Log(dcli.ReadStderr()) }()
+	dcli := th.NewDaemon(t, th.WithMiner(fixtures.TestMiners[0]), th.KeyFile(fixtures.KeyFilePaths()[1])).Start()
 	defer dcli.ShutdownSuccess()
 
-	dmin := th.NewDaemon(t, th.WithMiner(fixtures.TestMiners[0])).Start()
-	defer func() { t.Log(dmin.ReadStderr()) }()
+	dmin := th.NewDaemon(t, th.WithMiner(fixtures.TestMiners[0]), th.KeyFile(fixtures.KeyFilePaths()[0])).Start()
 	defer dmin.ShutdownSuccess()
-
-	dmin.RunSuccess("wallet", "import", fixtures.KeyFilePaths()[0]) // Import TestAddress[0]
-	dcli.RunSuccess("wallet", "import", fixtures.KeyFilePaths()[1]) // Import TestAddress[1]
 
 	dcli.ConnectSuccess(dmin)
 
