@@ -17,17 +17,19 @@ import (
 )
 
 func TestClientAddBidSuccess(t *testing.T) {
-	t.Skip("FIXME: this test is broken because you have to set up a miner to mine")
 	t.Parallel()
 	assert := assert.New(t)
 
-	d := th.NewDaemon(t, th.WalletAddr(fixtures.TestAddresses[2])).Start()
+	d := th.NewDaemon(
+		t,
+		th.WithMiner(fixtures.TestMiners[0]),
+		th.KeyFile(fixtures.KeyFilePaths()[0]),
+		th.KeyFile(fixtures.KeyFilePaths()[1]),
+	).Start()
 	defer d.ShutdownSuccess()
 
-	d.CreateWalletAddr()
-
 	bid := d.RunSuccess("client", "add-bid", "2000", "10",
-		"--from", fixtures.TestAddresses[2],
+		"--from", fixtures.TestAddresses[1],
 	)
 	bidMessageCid, err := cid.Parse(strings.Trim(bid.ReadStdout(), "\n"))
 	require.NoError(t, err)

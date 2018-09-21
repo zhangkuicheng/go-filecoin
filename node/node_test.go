@@ -659,59 +659,22 @@ func TestCreateMiner(t *testing.T) {
 	})
 }
 
-// TODO: this currently only tests for a single miner, as that is all we can do right now.
-func TestCreateSectorBuilders(t *testing.T) {
-	// TODO: enable this test once the mockmining is fixed
-	t.Skip()
-	t.Parallel()
-	assert := assert.New(t)
-	require := require.New(t)
-
-	ctx := context.Background()
-
-	node := MakeNodesUnstarted(t, 1, true, true)[0]
-	minerAddr1, err := node.NewAddress()
-	assert.NoError(err)
-
-	tif := core.MakeGenesisFunc(
-		core.ActorAccount(minerAddr1, types.NewAttoFILFromFIL(10000)),
-	)
-	assert.NoError(node.ChainMgr.Genesis(ctx, tif))
-	assert.NoError(node.Start(ctx))
-
-	assert.Nil(node.SectorBuilder)
-
-	result := <-RunCreateMiner(t, node, minerAddr1, uint64(100), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(100))
-	require.NoError(result.Err)
-
-	assert.Nil(node.SectorBuilder)
-
-	node.StartMining(ctx)
-	assert.NotNil(node.SectorBuilder)
-
-	// ensure that that the sector builder has been configured with the mining address
-	assert.Equal(node.Repo.Config().Mining.MinerAddress, node.SectorBuilder.MinerAddr)
-}
-
 func TestLookupMinerAddress(t *testing.T) {
 	t.Parallel()
 
-	/*
-		t.Run("lookup fails if provided address of non-miner actor", func(t *testing.T) {
-			t.Parallel()
+	t.Run("lookup fails if provided address of non-miner actor", func(t *testing.T) {
+		t.Parallel()
 
-			require := require.New(t)
-			ctx := context.Background()
+		require := require.New(t)
+		ctx := context.Background()
 
-			nd := MakeNodesStarted(t, 1, true, true)[0]
-
-			_, err := nd.Lookup.GetPeerIDByMinerAddress(ctx, nd.RewardAddress())
-			require.Error(err)
-		})
-	*/
+		nd := MakeNodesStarted(t, 1, true, true)[0]
+		addr := address.NewForTestGetter()()
+		_, err := nd.Lookup.GetPeerIDByMinerAddress(ctx, addr)
+		require.Error(err)
+	})
 
 	t.Run("lookup succeeds if provided address of a miner actor", func(t *testing.T) {
-		t.Skip("FIXME: likely has problems with making assumptions about mining")
 		t.Parallel()
 
 		require := require.New(t)
