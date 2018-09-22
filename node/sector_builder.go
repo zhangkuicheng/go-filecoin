@@ -141,7 +141,6 @@ func (s *SealedSector) GetID() uint64 {
 
 // NewPieceInfo constructs a piece info, ensuring all parameters are valid.
 func (sb *SectorBuilder) NewPieceInfo(ref *cid.Cid, size uint64) (*PieceInfo, error) {
-	// TODO: use proper value
 	if binpack.Space(size) > sb.BinSize() {
 		return nil, ErrPieceTooLarge
 	}

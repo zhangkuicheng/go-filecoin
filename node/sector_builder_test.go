@@ -156,7 +156,6 @@ func requirePieceInfo(require *require.Assertions, nd *Node, sb *SectorBuilder, 
 }
 
 func TestSectorBuilder(t *testing.T) {
-	t.Skip("TODO: make me pass again")
 	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
@@ -268,7 +267,10 @@ func TestSectorBuilder(t *testing.T) {
 	text4 := "Aliquam molestie porttitor massa at sodales. Vestibulum euismod elit et justo ultrices, ut feugiat justo sodales. Duis ut nullam."
 	require.True(len(text4) > int(testSectorSize))
 
-	_, err = sb.AddPiece(ctx, requirePieceInfo(require, nd, sb, []byte(text4)))
+	bytes := []byte(text4)
+	data := dag.NewRawNode(bytes)
+	require.NoError(nd.Blockservice.AddBlock(data))
+	_, err = sb.NewPieceInfo(data.Cid(), uint64(len(bytes)))
 	assert.EqualError(err, ErrPieceTooLarge.Error())
 }
 
@@ -477,7 +479,6 @@ func TestInitializesSectorBuilderFromPersistedState(t *testing.T) {
 
 func TestTruncatesUnsealedSectorOnDiskIfMismatch(t *testing.T) {
 	t.Run("it truncates the file if file size > metadata size", func(t *testing.T) {
-		t.Skip("FIXME: truncation returns different values now")
 		t.Parallel()
 		require := require.New(t)
 
