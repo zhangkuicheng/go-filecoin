@@ -57,10 +57,15 @@ func TestStorageProtocolBasic(t *testing.T) {
 	assert.NoError(client.Start(ctx))
 
 	ConnectNodes(t, miner, client)
+	err = minerAPI.Mining().Start(ctx)
+	assert.NoError(err)
+	defer minerAPI.Mining().Stop(ctx)
+
+	sectorSize := uint64(miner.SectorBuilder.BinSize())
 
 	data := unixfs.NewFSNode(unixfs.TFile)
-	bytes := make([]byte, 128) // 128 bytes is the current sector size
-	for i := 0; i < 128; i++ {
+	bytes := make([]byte, sectorSize)
+	for i := 0; uint64(i) < sectorSize; i++ {
 		bytes[i] = byte(i)
 	}
 	data.SetData(bytes)
@@ -70,9 +75,6 @@ func TestStorageProtocolBasic(t *testing.T) {
 	protonode := dag.NodeWithData(raw)
 
 	assert.NoError(client.Blockservice.AddBlock(protonode))
-	err = minerAPI.Mining().Start(ctx)
-	assert.NoError(err)
-	defer minerAPI.Mining().Stop(ctx)
 
 	var foundSeal bool
 	var foundPoSt bool
