@@ -112,7 +112,7 @@ func TestStorageProtocolBasic(t *testing.T) {
 	ref, err := c.TryToStoreData(ctx, mineraddr, protonode.Cid(), 10, types.NewAttoFILFromFIL(60))
 	assert.NoError(err)
 
-	time.Sleep(time.Millisecond * 100) // Bad whyrusleeping, bad!
+	time.Sleep(time.Millisecond * 100) // Bad dignifiedquire, bad!
 
 	resp, err := c.Query(ctx, ref)
 	assert.NoError(err)

@@ -389,7 +389,6 @@ func (sm *StorageMiner) getProvingPeriodStart() (*types.BlockHeight, error) {
 }
 
 func (sm *StorageMiner) submitPoSt(start, end *types.BlockHeight, sectors []*SealedSector) {
-	fmt.Println(sectors)
 	// TODO: real seed generation
 	seed := [32]byte{}
 	if _, err := rand.Read(seed[:]); err != nil {
@@ -429,7 +428,7 @@ func (sm *StorageMiner) submitPoSt(start, end *types.BlockHeight, sectors []*Sea
 		return
 	}
 
-	msgCid, err := sm.nd.SendMessage(context.TODO(), sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(big.NewInt(0)), "submitPoSt", proof)
+	msgCid, err := sm.nd.SendMessage(context.TODO(), sm.minerOwnerAddr, sm.minerAddr, types.NewAttoFIL(big.NewInt(0)), "submitPoSt", proof[:])
 	if err != nil {
 		log.Errorf("failed to submit PoSt: %s", err)
 		return

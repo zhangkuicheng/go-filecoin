@@ -1,7 +1,6 @@
 package miner
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
 
@@ -282,7 +281,6 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 		copy(comms.CommR[:], commR)
 		copy(comms.CommD[:], commD)
 		state.Sectors[sectorIDstr] = comms
-		fmt.Println("updating power")
 		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{inc})
 		if err != nil {
 			return nil, err

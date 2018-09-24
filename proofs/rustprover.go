@@ -196,8 +196,6 @@ func (rp *RustProver) GeneratePoST(req GeneratePoSTRequest) (GeneratePoSTRespons
 		Faults: make([]uint64, faultsLen, faultsLen),
 	}
 
-	// copy the bytes from our C-backed byte slice into a Go slice so that we
-	// can free the C array
 	copy(res.Faults, faults)
 
 	return res, nil
