@@ -98,6 +98,8 @@ type StorageMiner struct {
 	postInProcessLk sync.Mutex
 	postInProcess   *types.BlockHeight
 
+	// dealsAwaitingSeal is a map from sector ID to a list of cids, with
+	// each cid identifying a StorageDealProposal.
 	dealsAwaitingSeal   map[uint64][]*cid.Cid
 	dealsAwaitingSealLk sync.Mutex
 }
