@@ -1,6 +1,7 @@
 package testhelpers
 
 import (
+	"crypto/rand"
 	"gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	"math/big"
 
@@ -49,4 +50,23 @@ func CommitSectorMessage(miner, from address.Address, nonce, sectorID uint64, co
 	}
 
 	return types.NewMessage(from, miner, nonce, types.NewZeroAttoFIL(), "commitSector", params), nil
+}
+
+// MakeProof creates a random proof.
+func MakeProof() []byte {
+	return makeRandomBytes(192)
+}
+
+// MakeCommitment creates a random commitment.
+func MakeCommitment() []byte {
+	return makeRandomBytes(32)
+}
+
+func makeRandomBytes(size int) []byte {
+	comm := make([]byte, size)
+	if _, err := rand.Read(comm); err != nil {
+		panic(err)
+	}
+
+	return comm
 }

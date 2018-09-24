@@ -23,7 +23,7 @@ func TestMiningGenBlock(t *testing.T) {
 	d := th.NewDaemon(t, th.WithMiner(fixtures.TestMiners[0]), th.KeyFile(fixtures.KeyFilePaths()[0])).Start()
 	defer d.ShutdownSuccess()
 
-	// reward is payed out to the miner
+	// reward is paid out to the miner
 	addr := fixtures.TestMiners[0]
 
 	s := d.RunSuccess("wallet", "balance", addr)

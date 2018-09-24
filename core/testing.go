@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -429,7 +428,7 @@ func CreateMinerWithPower(ctx context.Context, t *testing.T, cm *ChainManager, l
 	// commit sector (thus adding power to miner and recording in storage market.
 	msgs := make([]*types.SignedMessage, power)
 	for i := 0; uint64(i) < power; i++ {
-		msg, err = th.CommitSectorMessage(minerAddr, sn.Addresses[0], nonce, sectorID, []byte(fmt.Sprintf("commR%d", i)), []byte(fmt.Sprintf("commD%d", i)))
+		msg, err = th.CommitSectorMessage(minerAddr, sn.Addresses[0], nonce, sectorID, th.MakeCommitment(), th.MakeCommitment())
 		require.NoError(err)
 		msgs[i] = mockSign(sn, msg)
 		sectorID++

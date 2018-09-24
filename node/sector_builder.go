@@ -9,7 +9,6 @@ import (
 	"io"
 	"strings"
 	"sync"
-	"time"
 
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
@@ -19,7 +18,6 @@ import (
 	dag "gx/ipfs/QmeLG6jF1xvEmHca5Vy4q4EdQWp8Xq9S6EPyZrN9wvSRLC/go-merkledag"
 
 	"github.com/filecoin-project/go-filecoin/address"
-	"github.com/filecoin-project/go-filecoin/mining"
 	"github.com/filecoin-project/go-filecoin/proofs"
 	"github.com/filecoin-project/go-filecoin/util/binpack"
 )
@@ -78,7 +76,7 @@ type SectorBuilder struct {
 
 	// OnCommitmentAddedToMempool is called when a sector has been sealed
 	// and its commitment added to the message pool.
-	OnCommitmentAddedToMempool func(*SealedSector, *cid.Cid, error)
+	OnCommitmentAddedToMempool func(*SealedSector, *cid.Cid, uint64, error)
 
 	// yada yada don't hold a reference to this here, just take what you need
 	nd *Node
@@ -137,6 +135,11 @@ type SealedSector struct {
 // GetID returns the identity of the sector.
 func (s *SealedSector) GetID() uint64 {
 	return s.sectorID
+}
+
+// CommR returns the commR of this sector.
+func (s *SealedSector) CommR() [32]byte {
+	return s.commR
 }
 
 // NewPieceInfo constructs a piece info, ensuring all parameters are valid.
@@ -204,13 +207,13 @@ func (sb *SectorBuilder) CloseBin(bin binpack.Bin) {
 		sector := bin.(*UnsealedSector)
 		msgCid, err := sb.SealAndAddCommitmentToMempool(context.Background(), sector)
 		if err != nil {
-			sb.OnCommitmentAddedToMempool(nil, nil, errors.Wrap(err, "failed to seal and commit sector"))
+			sb.OnCommitmentAddedToMempool(nil, nil, sector.GetID(), errors.Wrap(err, "failed to seal and commit sector"))
 			return
 		}
 
 		// TODO: maybe send these values to a channel instead of calling the
 		// callback directly
-		sb.OnCommitmentAddedToMempool(sector.sealed, msgCid, nil)
+		sb.OnCommitmentAddedToMempool(sector.sealed, msgCid, sector.GetID(), nil)
 	}()
 }
 
@@ -382,9 +385,9 @@ func configureFreshSectorBuilder(sb *SectorBuilder) error {
 	return nil
 }
 
-func (sb *SectorBuilder) onCommitmentAddedToMempool(sector *SealedSector, msg *cid.Cid, err error) {
+func (sb *SectorBuilder) onCommitmentAddedToMempool(sector *SealedSector, msg *cid.Cid, sectorID uint64, err error) {
 	if sb.nd.StorageMiner != nil {
-		sb.nd.StorageMiner.OnCommitmentAddedToMempool(sector, msg, err)
+		sb.nd.StorageMiner.OnCommitmentAddedToMempool(sector, msg, sectorID, err)
 	}
 }
 
@@ -623,15 +626,19 @@ func (sb *SectorBuilder) Seal(ctx context.Context, s *UnsealedSector, minerAddr 
 
 // GeneratePoSt creates the required posts, given a list of sector ids and matching seeds.
 // It returns the Snark Proof for the posts, and a list of sectors that faulted, if there were any faults.
-func (sb *SectorBuilder) GeneratePoSt(sectors []uint64, seeds [][]byte) ([]byte, []uint64, error) {
-	if len(sectors) != len(seeds) {
-		return nil, nil, fmt.Errorf("sectors and seeds must be of the same length %d != %d", len(sectors), len(seeds))
+func (sb *SectorBuilder) GeneratePoSt(commRs [][32]byte, seed [32]byte) ([192]byte, []uint64, error) {
+	fmt.Println("post", commRs, seed, sb.sectorStore)
+	req := proofs.GeneratePoSTRequest{
+		Storage:       sb.sectorStore,
+		CommRs:        commRs,
+		ChallengeSeed: seed,
+	}
+	res, err := (&proofs.RustProver{}).GeneratePoST(req)
+	if err != nil {
+		return [192]byte{}, nil, errors.Wrap(err, "failed to generate PoSt")
 	}
 
-	// TODO: call into rust-proofs
-	time.Sleep(2 * mining.DefaultBlockTime)
-
-	return []byte("my cool post"), []uint64{}, nil
+	return res.Proof, res.Faults, nil
 }
 
 // proverID creates a prover id by padding an address hash to 31 bytes

@@ -116,14 +116,14 @@ func TestStorageProtocolBasic(t *testing.T) {
 
 	resp, err := c.Query(ctx, ref)
 	assert.NoError(err)
-	assert.Equal(Staged, resp.State)
+	assert.Equal(Staged, resp.State, resp.Message)
 
 	assert.False(waitTimeout(&wg, 20*time.Second), "waiting for submission timed out")
 
 	// Now all things should be ready
 	resp, err = c.Query(ctx, ref)
 	assert.NoError(err)
-	assert.Equal(Posted, resp.State)
+	assert.Equal(Posted, resp.State, resp.Message)
 	assert.Equal(uint64(1), resp.ProofInfo.SectorID)
 }
 

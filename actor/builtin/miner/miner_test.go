@@ -16,8 +16,10 @@ import (
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/state"
+	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -126,7 +128,10 @@ func TestCBOREncodeState(t *testing.T) {
 	assert := assert.New(t)
 	state := NewState(address.TestAddress, []byte{}, big.NewInt(1), core.RequireRandomPeerID(), types.NewZeroAttoFIL())
 
-	state.Sectors["foo"] = []byte{123}
+	state.Sectors["1"] = &Commitments{
+		CommR: [32]byte{},
+		CommD: [32]byte{},
+	}
 
 	_, err := actor.MarshalStorage(state)
 	assert.NoError(err)
@@ -220,8 +225,8 @@ func TestMinerCommitSector(t *testing.T) {
 	origPid := core.RequireRandomPeerID()
 	minerAddr := createTestMiner(assert.New(t), st, vms, address.TestAddress, []byte("my public key"), origPid)
 
-	commR := []byte("commR")
-	commD := []byte("commD")
+	commR := th.MakeCommitment()
+	commD := th.MakeCommitment()
 
 	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", uint64(1), commR, commD)
 	require.NoError(err)
@@ -251,19 +256,19 @@ func TestMinerSubmitPoSt(t *testing.T) {
 	minerAddr := createTestMiner(assert.New(t), st, vms, address.TestAddress, []byte("my public key"), origPid)
 
 	// add a sector
-	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", uint64(1), []byte("commR1"), []byte("commD1"))
+	res, err := applyMessage(t, st, vms, minerAddr, 0, 3, "commitSector", uint64(1), th.MakeCommitment(), th.MakeCommitment())
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	require.Equal(uint8(0), res.Receipt.ExitCode)
 
 	// add another sector
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", uint64(2), []byte("commR2"), []byte("commD2"))
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", uint64(2), th.MakeCommitment(), th.MakeCommitment())
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	require.Equal(uint8(0), res.Receipt.ExitCode)
 
 	// submit post
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 8, "submitPoSt", []byte("proof"))
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 8, "submitPoSt", th.MakeProof())
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	require.Equal(uint8(0), res.Receipt.ExitCode)
@@ -275,7 +280,7 @@ func TestMinerSubmitPoSt(t *testing.T) {
 	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(20003))
 
 	// fail to submit inside the proving period
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 40008, "submitPoSt", []byte("proof"))
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 40008, "submitPoSt", th.MakeProof())
 	require.NoError(err)
 	require.EqualError(res.ExecutionError, "submitted PoSt late, need to pay a fee")
 }

@@ -52,7 +52,10 @@ func NewBlockHeight(x uint64) *BlockHeight {
 // to the value of buf as the bytes of a big-endian unsigned integer.
 func NewBlockHeightFromBytes(buf []byte) *BlockHeight {
 	bh := NewBlockHeight(0)
-	bh.val = leb128.ToBigInt(buf)
+	// TODO: fix leb128 https://github.com/filecoin-project/go-leb128/issues/7
+	if len(buf) > 0 {
+		bh.val = leb128.ToBigInt(buf)
+	}
 	return bh
 }
 

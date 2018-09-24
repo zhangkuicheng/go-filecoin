@@ -2,9 +2,9 @@ package node
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"sync"
 
 	inet "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
@@ -258,8 +258,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 }
 
 // OnCommitmentAddedToMempool is a callback, called when a sector seal was committed to the chain.
-func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, err error) {
-	sectorID := sector.GetID()
+func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, sectorID uint64, err error) {
 	sm.dealsAwaitingSealLk.Lock()
 	defer sm.dealsAwaitingSealLk.Unlock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
@@ -390,17 +389,19 @@ func (sm *StorageMiner) getProvingPeriodStart() (*types.BlockHeight, error) {
 }
 
 func (sm *StorageMiner) submitPoSt(start, end *types.BlockHeight, sectors []*SealedSector) {
-	seeds := make([][]byte, len(sectors))
-	sectorIDs := make([]uint64, len(sectors))
-	for i, sector := range sectors {
-		// TODO: real seed generation
-		seed := make([]byte, 8)
-		binary.LittleEndian.PutUint64(seed, uint64(i))
-		seeds[i] = seed
-		sectorIDs[i] = sector.GetID()
+	fmt.Println(sectors)
+	// TODO: real seed generation
+	seed := [32]byte{}
+	if _, err := rand.Read(seed[:]); err != nil {
+		panic(err)
 	}
 
-	proof, faults, err := sm.sectorBuilder().GeneratePoSt(sectorIDs, seeds)
+	commRs := make([][32]byte, len(sectors))
+	for i, sector := range sectors {
+		commRs[i] = sector.CommR()
+	}
+
+	proof, faults, err := sm.sectorBuilder().GeneratePoSt(commRs, seed)
 	if err != nil {
 		log.Errorf("failed to generate PoSts: %s", err)
 		return
@@ -597,7 +598,7 @@ func (smc *StorageMinerClient) checkDealResponse(ctx context.Context, resp *Stor
 	case Failed:
 		return fmt.Errorf("deal failed: %s", resp.Message)
 	default:
-		return fmt.Errorf("invalid proposal response")
+		return fmt.Errorf("invalid proposal response: %s", resp.State)
 	case Accepted:
 		return nil
 	}

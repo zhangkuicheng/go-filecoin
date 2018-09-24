@@ -1,7 +1,9 @@
 package miner
 
 import (
+	"fmt"
 	"math/big"
+	"strconv"
 
 	"gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
@@ -17,6 +19,7 @@ import (
 
 func init() {
 	cbor.RegisterCborType(State{})
+	cbor.RegisterCborType(Commitments{})
 }
 
 // MaximumPublicKeySize is a limit on how big a public key can be.
@@ -75,14 +78,20 @@ type State struct {
 	// the miners pledge.
 	Collateral *types.AttoFIL
 
-	// Sectors maps commR to commD, for all sectors this miner has committed.
-	Sectors map[string][]byte
+	// Sectors maps sectorID to commR and commD, for all sectors this miner has committed.
+	Sectors map[string]*Commitments
 
 	ProvingPeriodStart *types.BlockHeight
 	LastPoSt           *types.BlockHeight
 
 	LockedStorage *types.BytesAmount // LockedStorage is the amount of the miner's storage that is used.
 	Power         *big.Int
+}
+
+// Commitments are the details we need to store about a sector we are proving.
+type Commitments struct {
+	CommR [32]byte
+	CommD [32]byte
 }
 
 // NewActor returns a new miner actor
@@ -99,7 +108,7 @@ func NewState(owner address.Address, key []byte, pledge *big.Int, pid peer.ID, c
 		PledgeSectors: pledge,
 		Collateral:    collateral,
 		LockedStorage: types.NewBytesAmount(0),
-		Sectors:       make(map[string][]byte),
+		Sectors:       make(map[string]*Commitments),
 		Power:         big.NewInt(0),
 	}
 }
@@ -245,10 +254,18 @@ func (ma *Actor) GetOwner(ctx exec.VMContext) (address.Address, uint8, error) {
 // The sector must not already be committed
 // 'size' is the total number of bytes stored in the sector
 func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD []byte) (uint8, error) {
+	if len(commR) != 32 {
+		return 0, errors.NewRevertError("invalid sized commR")
+	}
+	if len(commD) != 32 {
+		return 0, errors.NewRevertError("invalid sized commR")
+	}
+	// TODO: use uint64 instead of this abomination, once refmt is fixed
+	sectorIDstr := strconv.FormatUint(sectorID, 10)
+
 	var state State
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
-		commRstr := string(commR) // proper fixed length array encoding in cbor is apparently 'hard'.
-		_, ok := state.Sectors[commRstr]
+		_, ok := state.Sectors[sectorIDstr]
 		if ok {
 			return nil, Errors[ErrSectorCommitted]
 		}
@@ -258,8 +275,14 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 		}
 		inc := big.NewInt(1)
 		state.Power = state.Power.Add(state.Power, inc)
-		state.Sectors[commRstr] = commD
-
+		comms := &Commitments{
+			CommR: [32]byte{},
+			CommD: [32]byte{},
+		}
+		copy(comms.CommR[:], commR)
+		copy(comms.CommD[:], commD)
+		state.Sectors[sectorIDstr] = comms
+		fmt.Println("updating power")
 		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{inc})
 		if err != nil {
 			return nil, err
@@ -351,6 +374,9 @@ func (ma *Actor) GetPower(ctx exec.VMContext) (*big.Int, uint8, error) {
 // SubmitPoSt is used to submit a coalesced PoST to the chain to convince the chain
 // that you have been actually storing the files you claim to be.
 func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
+	if len(proof) != 192 {
+		return 0, errors.NewRevertError("invalid sized proof")
+	}
 	var state State
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		// verify that the caller is authorized to perform update
@@ -358,7 +384,15 @@ func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
 			return nil, Errors[ErrCallerUnauthorized]
 		}
 
-		// TODO: validate the PoSt
+		// TODO: update post api to not require a sector access
+		// req := proofs.VerifyPoSTRequest{
+		// 	// Storage: ??
+		// 	Proof: [192]byte{},
+		// }
+		// copy(req.Proof[:], proof)
+		// if err := (&proofs.RustProver{}).VerifyPoST(req); err != nil {
+		// 	return nil, errors.RevertErrorWrap(err, "failed to verify PoSt")
+		// }
 
 		// Check if we submitted it in time
 		provingPeriodEnd := state.ProvingPeriodStart.Add(ProvingPeriodBlocks)

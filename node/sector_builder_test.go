@@ -170,7 +170,7 @@ func TestSectorBuilder(t *testing.T) {
 
 	sector := sb.curUnsealedSector
 
-	sb.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, err error) {
+	sb.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, sectorID uint64, err error) {
 		if err != nil {
 			sealingErr = err
 			sealingWg.Done()
@@ -324,7 +324,7 @@ func TestSectorBuilderMetadata(t *testing.T) {
 
 		sector := sb.curUnsealedSector
 
-		sb.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, err error) {
+		sb.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, sectorID uint64, err error) {
 			if err != nil || ss.unsealedSectorAccess == sector.unsealedSectorAccess {
 				sealingErr = err
 				sealingWg.Done()
@@ -401,7 +401,7 @@ func TestSectorStore(t *testing.T) {
 
 		sector := sb.curUnsealedSector
 
-		sb.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, err error) {
+		sb.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, sectorID uint64, err error) {
 			if err != nil || ss.unsealedSectorAccess == sector.unsealedSectorAccess {
 				sealingErr = err
 				sealingWg.Done()
@@ -445,7 +445,7 @@ func TestInitializesSectorBuilderFromPersistedState(t *testing.T) {
 
 	sector := sbA.curUnsealedSector
 
-	sbA.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, err error) {
+	sbA.OnCommitmentAddedToMempool = func(ss *SealedSector, msgCid *cid.Cid, sectorID uint64, err error) {
 		if err != nil || ss.unsealedSectorAccess == sector.unsealedSectorAccess {
 			sealingErr = err
 			sealingWg.Done()
