@@ -28,7 +28,7 @@ func TestStorageMarketCreateMiner(t *testing.T) {
 
 	pid := core.RequireRandomPeerID()
 	pdata := actor.MustConvertParams(types.NewBytesAmount(10000), []byte{}, pid)
-	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata)
+	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	require.Nil(result.ExecutionError)
@@ -60,7 +60,7 @@ func TestStorageMarketCreateMinerPledgeTooLow(t *testing.T) {
 	st, vms := core.CreateStorages(ctx, t)
 
 	pdata := actor.MustConvertParams(types.NewBytesAmount(50), []byte{}, core.RequireRandomPeerID())
-	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata)
+	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 	assert.Contains(result.ExecutionError.Error(), Errors[ErrPledgeTooLow].Error())
@@ -78,13 +78,13 @@ func TestStorageMarkeCreateMinerDoesNotOverwriteActorBalance(t *testing.T) {
 	minerAddr, err := deriveMinerAddress(address.TestAddress, 0)
 	require.NoError(err)
 
-	msg := types.NewMessage(address.TestAddress2, minerAddr, 0, types.NewAttoFILFromFIL(100), "", []byte{})
+	msg := types.NewMessage(address.TestAddress2, minerAddr, 0, types.NewAttoFILFromFIL(100), "", []byte{}, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	require.Equal(uint8(0), result.Receipt.ExitCode)
 
 	pdata := actor.MustConvertParams(types.NewBytesAmount(15000), []byte{}, core.RequireRandomPeerID())
-	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(200), "createMiner", pdata)
+	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(200), "createMiner", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	require.Equal(uint8(0), result.Receipt.ExitCode)
@@ -112,7 +112,7 @@ func TestStorageMarkeCreateMinerErrorsOnInvalidKey(t *testing.T) {
 
 	publicKey := []byte("012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567")
 	pdata := actor.MustConvertParams(types.NewBytesAmount(15000), publicKey, core.RequireRandomPeerID())
-	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(200), "createMiner", pdata)
+	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(200), "createMiner", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	assert.Contains(result.ExecutionError.Error(), miner.Errors[miner.ErrPublicKeyTooBig].Error())
@@ -127,7 +127,7 @@ func TestStorageMarketAddBid(t *testing.T) {
 
 	// create a bid
 	pdata := actor.MustConvertParams(types.NewAttoFILFromFIL(20), types.NewBytesAmount(30))
-	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(600), "addBid", pdata)
+	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(600), "addBid", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 
@@ -136,7 +136,7 @@ func TestStorageMarketAddBid(t *testing.T) {
 
 	// create another bid
 	pdata = actor.MustConvertParams(types.NewAttoFILFromFIL(15), types.NewBytesAmount(80))
-	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 1, types.NewAttoFILFromFIL(1200), "addBid", pdata)
+	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 1, types.NewAttoFILFromFIL(1200), "addBid", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 
@@ -145,7 +145,7 @@ func TestStorageMarketAddBid(t *testing.T) {
 
 	// try to create a bid, but send wrong value
 	pdata = actor.MustConvertParams(types.NewAttoFILFromFIL(90), types.NewBytesAmount(100))
-	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 2, types.NewAttoFILFromFIL(600), "addBid", pdata)
+	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 2, types.NewAttoFILFromFIL(600), "addBid", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 	assert.Contains(result.ExecutionError.Error(), "must send price * size funds to create bid")
@@ -162,7 +162,7 @@ func TestStorageMarketAddAndGetAsk(t *testing.T) {
 	// create a miner
 	pid := core.RequireRandomPeerID()
 	pdata := actor.MustConvertParams(types.NewBytesAmount(10000), []byte{}, pid)
-	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata)
+	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	require.Nil(result.ExecutionError)
@@ -174,7 +174,7 @@ func TestStorageMarketAddAndGetAsk(t *testing.T) {
 	price := types.NewAttoFILFromFIL(20)
 	size := types.NewBytesAmount(30)
 	pdata = actor.MustConvertParams(price, size)
-	msg = types.NewMessage(address.TestAddress, minerAddr, 1, types.NewAttoFILFromFIL(600), "addAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, minerAddr, 1, types.NewAttoFILFromFIL(600), "addAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 
@@ -182,7 +182,7 @@ func TestStorageMarketAddAndGetAsk(t *testing.T) {
 
 	// get ask from storage market
 	pdata = actor.MustConvertParams(askId)
-	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 2, types.NewZeroAttoFIL(), "getAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 2, types.NewZeroAttoFIL(), "getAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 
@@ -207,7 +207,7 @@ func TestStorageMarketGetAllAsks(t *testing.T) {
 	// create a miner
 	pid := core.RequireRandomPeerID()
 	pdata := actor.MustConvertParams(types.NewBytesAmount(10000), []byte{}, pid)
-	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata)
+	msg := types.NewMessage(address.TestAddress, address.StorageMarketAddress, 0, types.NewAttoFILFromFIL(100), "createMiner", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	require.Nil(result.ExecutionError)
@@ -217,7 +217,7 @@ func TestStorageMarketGetAllAsks(t *testing.T) {
 
 	// create a ask
 	pdata = actor.MustConvertParams(types.NewAttoFILFromFIL(20), types.NewBytesAmount(30))
-	msg = types.NewMessage(address.TestAddress, minerAddr, 1, types.NewAttoFILFromFIL(600), "addAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, minerAddr, 1, types.NewAttoFILFromFIL(600), "addAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	require.Equal(uint8(0), result.Receipt.ExitCode)
@@ -226,7 +226,7 @@ func TestStorageMarketGetAllAsks(t *testing.T) {
 
 	// create another ask
 	pdata = actor.MustConvertParams(types.NewAttoFILFromFIL(15), types.NewBytesAmount(80))
-	msg = types.NewMessage(address.TestAddress, minerAddr, 2, types.NewAttoFILFromFIL(1200), "addAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, minerAddr, 2, types.NewAttoFILFromFIL(1200), "addAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
 	require.Equal(uint8(0), result.Receipt.ExitCode)

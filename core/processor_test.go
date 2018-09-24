@@ -52,7 +52,7 @@ func TestProcessBlockSuccess(t *testing.T) {
 	})
 
 	vms := VMStorage()
-	msg := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil)
+	msg := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg, err := types.NewSignedMessage(*msg, &mockSigner)
 	require.NoError(err)
 
@@ -96,7 +96,7 @@ func TestProcessTipSetSuccess(t *testing.T) {
 		fromAddr2: fromAddr2Act,
 	})
 
-	msg1 := types.NewMessage(fromAddr1, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil)
+	msg1 := types.NewMessage(fromAddr1, toAddr, 0, types.NewAttoFILFromFIL(550), "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
 	blk1 := &types.Block{
@@ -105,7 +105,7 @@ func TestProcessTipSetSuccess(t *testing.T) {
 		Messages:  []*types.SignedMessage{smsg1},
 	}
 
-	msg2 := types.NewMessage(fromAddr2, toAddr, 0, types.NewAttoFILFromFIL(50), "", nil)
+	msg2 := types.NewMessage(fromAddr2, toAddr, 0, types.NewAttoFILFromFIL(50), "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
 	blk2 := &types.Block{
@@ -145,7 +145,7 @@ func TestProcessTipsConflicts(t *testing.T) {
 		fromAddr: act1,
 	})
 
-	msg1 := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(501), "", nil)
+	msg1 := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(501), "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
 	blk1 := &types.Block{
@@ -155,7 +155,7 @@ func TestProcessTipsConflicts(t *testing.T) {
 		Ticket:    []byte{0, 0}, // Block with smaller ticket
 	}
 
-	msg2 := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(502), "", nil)
+	msg2 := types.NewMessage(fromAddr, toAddr, 0, types.NewAttoFILFromFIL(502), "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
 	blk2 := &types.Block{
@@ -202,7 +202,7 @@ func TestProcessBlockVMErrors(t *testing.T) {
 		fromAddr: act1,
 		toAddr:   act2,
 	})
-	msg := types.NewMessage(fromAddr, toAddr, 0, nil, "returnRevertError", nil)
+	msg := types.NewMessage(fromAddr, toAddr, 0, nil, "returnRevertError", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg, err := types.NewSignedMessage(*msg, &mockSigner)
 	require.NoError(err)
 	blk := &types.Block{
@@ -255,7 +255,7 @@ func TestProcessBlockParamsLengthError(t *testing.T) {
 	assert.NoError(err)
 	badParams, err := abi.EncodeValues(params)
 	assert.NoError(err)
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams)
+	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams, types.NewAttoFILFromFIL(1), 10)
 
 	rct, err := ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err) // No error means definitely no fault error, which is what we're especially testing here.
@@ -280,7 +280,7 @@ func TestProcessBlockParamsError(t *testing.T) {
 		addr2: act2,
 	})
 	badParams := []byte{1, 2, 3, 4, 5}
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams)
+	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "addAsk", badParams, types.NewAttoFILFromFIL(1), 10)
 
 	rct, err := ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err) // No error means definitely no fault error, which is what we're especially testing here.
@@ -305,7 +305,7 @@ func TestProcessBlockNonceTooLow(t *testing.T) {
 		addr1: act1,
 		addr2: act2,
 	})
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "", []byte{})
+	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(550), "", []byte{}, types.NewAttoFILFromFIL(1), 10)
 
 	_, err := ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
 	assert.Error(err)
@@ -327,7 +327,7 @@ func TestProcessBlockNonceTooHigh(t *testing.T) {
 		addr1: act1,
 		addr2: act2,
 	})
-	msg := types.NewMessage(addr1, addr2, 5, types.NewAttoFILFromFIL(550), "", []byte{})
+	msg := types.NewMessage(addr1, addr2, 5, types.NewAttoFILFromFIL(550), "", []byte{}, types.NewAttoFILFromFIL(1), 10)
 
 	_, err := ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
 	assert.Error(err)
@@ -367,7 +367,7 @@ func TestNestedSendBalance(t *testing.T) {
 	// send 100 from addr1 -> addr2, by sending a message from addr0 to addr1
 	params1, err := abi.ToEncodedValues(addr2)
 	assert.NoError(err)
-	msg1 := types.NewMessage(addr0, addr1, 0, nil, "nestedBalance", params1)
+	msg1 := types.NewMessage(addr0, addr1, 0, nil, "nestedBalance", params1, types.NewAttoFILFromFIL(1), 10)
 
 	_, err = ApplyMessage(ctx, st, VMStorage(), msg1, types.NewBlockHeight(0))
 	assert.NoError(err)
@@ -418,7 +418,7 @@ func TestReentrantTransferDoesntAllowMultiSpending(t *testing.T) {
 	// addr1 will attempt to double spend to addr2 by sending a reentrant message that spends twice
 	params, err := abi.ToEncodedValues(addr1, addr2)
 	assert.NoError(err)
-	msg := types.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend1", params)
+	msg := types.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend1", params, types.NewAttoFILFromFIL(1), 10)
 	_, err = ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
 	assert.Error(err)
 	assert.Contains(err.Error(), "second callSendTokens")
@@ -427,7 +427,7 @@ func TestReentrantTransferDoesntAllowMultiSpending(t *testing.T) {
 	// addr1 will attempt to double spend to addr2 by sending a reentrant message that spends and then spending directly
 	params, err = abi.ToEncodedValues(addr1, addr2)
 	assert.NoError(err)
-	msg = types.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend2", params)
+	msg = types.NewMessage(addr0, addr1, 0, types.ZeroAttoFIL, "attemptMultiSpend2", params, types.NewAttoFILFromFIL(1), 10)
 	_, err = ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
 	assert.Error(err)
 	assert.Contains(err.Error(), "failed sendTokens")
@@ -449,12 +449,12 @@ func TestSendToNonExistantAddressThenSpendFromIt(t *testing.T) {
 	})
 
 	// send 500 from addr1 to addr2
-	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(500), "", []byte{})
+	msg := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(500), "", []byte{}, types.NewAttoFILFromFIL(1), 10)
 	_, err := ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
 	require.NoError(err)
 
 	// send 250 along from addr2 to addr3
-	msg = types.NewMessage(addr2, addr3, 0, types.NewAttoFILFromFIL(300), "", []byte{})
+	msg = types.NewMessage(addr2, addr3, 0, types.NewAttoFILFromFIL(300), "", []byte{}, types.NewAttoFILFromFIL(1), 10)
 	_, err = ApplyMessage(ctx, st, VMStorage(), msg, types.NewBlockHeight(0))
 	require.NoError(err)
 

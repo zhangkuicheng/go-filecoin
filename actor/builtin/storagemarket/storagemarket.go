@@ -178,7 +178,7 @@ func (sma *Actor) CreateMiner(vmctx exec.VMContext, pledge *types.BytesAmount, p
 			return nil, err
 		}
 
-		_, _, err = vmctx.Send(addr, "", vmctx.Message().Value, nil)
+		_, _, err = vmctx.Send(addr, "", vmctx.Message().Value, nil, types.NewAttoFILFromFIL(1), 10)
 		if err != nil {
 			return nil, err
 		}

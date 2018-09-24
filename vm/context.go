@@ -103,7 +103,7 @@ func (ctx *Context) IsFromAccountActor() bool {
 
 // Send sends a message to another actor.
 // This method assumes to be called from inside the `to` actor.
-func (ctx *Context) Send(to address.Address, method string, value *types.AttoFIL, params []interface{}) ([][]byte, uint8, error) {
+func (ctx *Context) Send(to address.Address, method string, value *types.AttoFIL, params []interface{}, gasPrice *types.AttoFIL, gasLimit int) ([][]byte, uint8, error) {
 	deps := ctx.deps
 
 	// the message sender is the `to` actor, so this is what we set as `from` in the new message
@@ -120,7 +120,7 @@ func (ctx *Context) Send(to address.Address, method string, value *types.AttoFIL
 		return nil, 1, errors.RevertErrorWrap(err, "encoding params failed")
 	}
 
-	msg := types.NewMessage(from, to, 0, value, method, paramData, types.NewAttoFILFromFIL(1), 10)
+	msg := types.NewMessage(from, to, 0, value, method, paramData, gasPrice, gasLimit)
 	if msg.From == msg.To {
 		// TODO: handle this
 		return nil, 1, errors.NewFaultErrorf("unhandled: sending to self (%s)", msg.From)

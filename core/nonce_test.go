@@ -78,7 +78,7 @@ func TestNextNonce(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(uint64(2), nonce)
 
-		msg := types.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{})
+		msg := types.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{}, types.NewAttoFILFromFIL(1), 10)
 		smsg := MustSign(mockSigner, msg)
 		MustAdd(mp, smsg...)
 
@@ -86,7 +86,7 @@ func TestNextNonce(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(uint64(3), nonce)
 
-		msg = types.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{})
+		msg = types.NewMessage(addr, address.TestAddress, nonce, nil, "", []byte{}, types.NewAttoFILFromFIL(1), 10)
 		smsg = MustSign(mockSigner, msg)
 		MustAdd(mp, smsg...)
 

@@ -51,7 +51,7 @@ func TestPaymentBrokerCreateChannel(t *testing.T) {
 	_, st, vms := requireGenesis(ctx, t, target)
 
 	pdata := core.MustConvertParams(target, big.NewInt(10))
-	msg := types.NewMessage(payer, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(1000), "createChannel", pdata)
+	msg := types.NewMessage(payer, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(1000), "createChannel", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	require.NoError(err)
@@ -87,7 +87,7 @@ func TestPaymentBrokerCreateChannelFromNonAccountActorIsAnError(t *testing.T) {
 	state.MustSetActor(st, payer, payerActor)
 
 	pdata := core.MustConvertParams(payee, big.NewInt(10))
-	msg := types.NewMessage(payer, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(1000), "createChannel", pdata)
+	msg := types.NewMessage(payer, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(1000), "createChannel", pdata, types.NewAttoFILFromFIL(1), 10)
 	_, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 
 	// expect error
@@ -236,7 +236,7 @@ func TestPaymentBrokerCloseInvalidSig(t *testing.T) {
 	signature[1] = 1
 
 	pdata := core.MustConvertParams(sys.payer, sys.channelID, amt, ([]byte)(signature))
-	msg := types.NewMessage(sys.target, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(0), "close", pdata)
+	msg := types.NewMessage(sys.target, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(0), "close", pdata, types.NewAttoFILFromFIL(1), 10)
 	res, err := sys.ApplyMessage(msg, 0)
 	require.EqualError(res.ExecutionError, Errors[ErrInvalidSignature].Error())
 	require.NoError(err)
@@ -254,7 +254,7 @@ func TestPaymentBrokerUpdateInvalidSig(t *testing.T) {
 	signature[1] = 1
 
 	pdata := core.MustConvertParams(sys.payer, sys.channelID, amt, ([]byte)(signature))
-	msg := types.NewMessage(sys.target, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(0), "update", pdata)
+	msg := types.NewMessage(sys.target, address.PaymentBrokerAddress, 0, types.NewAttoFILFromFIL(0), "update", pdata, types.NewAttoFILFromFIL(1), 10)
 	res, err := sys.ApplyMessage(msg, 0)
 	require.EqualError(res.ExecutionError, Errors[ErrInvalidSignature].Error())
 	require.NoError(err)
@@ -269,7 +269,7 @@ func TestPaymentBrokerReclaim(t *testing.T) {
 	payerBalancePriorToClose := payer.Balance
 
 	pdata := core.MustConvertParams(sys.channelID)
-	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(0), "reclaim", pdata)
+	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(0), "reclaim", pdata, types.NewAttoFILFromFIL(1), 10)
 	// block height is after Eol
 	res, err := sys.ApplyMessage(msg, 11)
 	require.NoError(err)
@@ -291,7 +291,7 @@ func TestPaymentBrokerReclaimFailsBeforeChannelEol(t *testing.T) {
 	sys := setup(t)
 
 	pdata := core.MustConvertParams(sys.channelID)
-	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(0), "reclaim", pdata)
+	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(0), "reclaim", pdata, types.NewAttoFILFromFIL(1), 10)
 	// block height is before Eol
 	result, err := sys.ApplyMessage(msg, 0)
 	require.NoError(err)
@@ -309,7 +309,7 @@ func TestPaymentBrokerExtend(t *testing.T) {
 
 	// extend channel
 	pdata := core.MustConvertParams(sys.channelID, types.NewBlockHeight(20))
-	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(1000), "extend", pdata)
+	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(1000), "extend", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	result, err := sys.ApplyMessage(msg, 9)
 	require.NoError(result.ExecutionError)
@@ -343,7 +343,7 @@ func TestPaymentBrokerExtendFailsWithNonExistentChannel(t *testing.T) {
 
 	// extend channel
 	pdata := core.MustConvertParams(types.NewChannelID(383), types.NewBlockHeight(20))
-	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(1000), "extend", pdata)
+	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(1000), "extend", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	result, err := sys.ApplyMessage(msg, 9)
 	require.NoError(err)
@@ -358,7 +358,7 @@ func TestPaymentBrokerExtendRefusesToShortenTheEol(t *testing.T) {
 
 	// extend channel setting block height to 5 (<10)
 	pdata := core.MustConvertParams(sys.channelID, types.NewBlockHeight(5))
-	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(1000), "extend", pdata)
+	msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, types.NewAttoFILFromFIL(1000), "extend", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	result, err := sys.ApplyMessage(msg, 9)
 	require.NoError(err)
@@ -448,7 +448,7 @@ func TestNewPaymentBrokerVoucher(t *testing.T) {
 		// create voucher
 		voucherAmount := types.NewAttoFILFromFIL(100)
 		pdata := core.MustConvertParams(sys.channelID, voucherAmount)
-		msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, nil, "voucher", pdata)
+		msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, nil, "voucher", pdata, types.NewAttoFILFromFIL(1), 10)
 		res, err := sys.ApplyMessage(msg, 9)
 		assert.NoError(err)
 		assert.NoError(res.ExecutionError)
@@ -483,7 +483,7 @@ func TestNewPaymentBrokerVoucher(t *testing.T) {
 		voucherAmount := types.NewAttoFILFromFIL(2000)
 		args := core.MustConvertParams(sys.channelID, voucherAmount)
 
-		msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, nil, "voucher", args)
+		msg := types.NewMessage(sys.payer, address.PaymentBrokerAddress, 1, nil, "voucher", args, types.NewAttoFILFromFIL(1), 10)
 		res, err := sys.ApplyMessage(msg, 9)
 		assert.NoError(err)
 		assert.NotEqual(uint8(0), res.Receipt.ExitCode)
@@ -493,7 +493,7 @@ func TestNewPaymentBrokerVoucher(t *testing.T) {
 
 func establishChannel(ctx context.Context, st state.Tree, vms vm.StorageMap, from address.Address, target address.Address, nonce uint64, amt *types.AttoFIL, eol *types.BlockHeight) *types.ChannelID {
 	pdata := core.MustConvertParams(target, eol)
-	msg := types.NewMessage(from, address.PaymentBrokerAddress, nonce, amt, "createChannel", pdata)
+	msg := types.NewMessage(from, address.PaymentBrokerAddress, nonce, amt, "createChannel", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	if err != nil {
 		panic(err)
@@ -632,7 +632,7 @@ func (sys *system) applySignatureMessage(target address.Address, amtInt uint64, 
 	require.NoError(err)
 
 	pdata := core.MustConvertParams(sys.payer, sys.channelID, amt, signature)
-	msg := types.NewMessage(target, address.PaymentBrokerAddress, nonce, types.NewAttoFILFromFIL(0), method, pdata)
+	msg := types.NewMessage(target, address.PaymentBrokerAddress, nonce, types.NewAttoFILFromFIL(0), method, pdata, types.NewAttoFILFromFIL(1), 10)
 
 	return sys.ApplyMessage(msg, height)
 }

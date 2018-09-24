@@ -484,7 +484,7 @@ func updateChannel(ctx *vm.Context, target address.Address, channel *PaymentChan
 
 	// transfer funds to sender
 	updateAmount := amt.Sub(channel.AmountRedeemed)
-	_, _, err := ctx.Send(ctx.Message().From, "", updateAmount, nil)
+	_, _, err := ctx.Send(ctx.Message().From, "", updateAmount, nil, types.NewAttoFILFromFIL(1), 10)
 	if err != nil {
 		return err
 	}
@@ -508,7 +508,7 @@ func reclaim(ctx context.Context, vmctx *vm.Context, byChannelID exec.Lookup, pa
 	}
 
 	// send funds
-	_, _, err = vmctx.Send(payer, "", amt, nil)
+	_, _, err = vmctx.Send(payer, "", amt, nil, types.NewAttoFILFromFIL(1), 10)
 	if err != nil {
 		return errors.RevertErrorWrap(err, "could not send update funds")
 	}

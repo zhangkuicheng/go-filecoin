@@ -24,7 +24,7 @@ import (
 func createTestMiner(assert *assert.Assertions, st state.Tree, vms vm.StorageMap, minerOwnerAddr address.Address, key []byte, pid peer.ID) address.Address {
 	pdata := actor.MustConvertParams(types.NewBytesAmount(10000), key, pid)
 	nonce := core.MustGetNonce(st, address.TestAddress)
-	msg := types.NewMessage(minerOwnerAddr, address.StorageMarketAddress, nonce, types.NewAttoFILFromFIL(100), "createMiner", pdata)
+	msg := types.NewMessage(minerOwnerAddr, address.StorageMarketAddress, nonce, types.NewAttoFILFromFIL(100), "createMiner", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	result, err := core.ApplyMessage(context.Background(), st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
@@ -47,13 +47,13 @@ func TestAddAsk(t *testing.T) {
 
 	// make an ask, and then make sure it all looks good
 	pdata := actor.MustConvertParams(types.NewAttoFILFromFIL(100), types.NewBytesAmount(150))
-	msg := types.NewMessage(address.TestAddress, minerAddr, 1, nil, "addAsk", pdata)
+	msg := types.NewMessage(address.TestAddress, minerAddr, 1, nil, "addAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	_, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 
 	pdata = actor.MustConvertParams(big.NewInt(0))
-	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 2, types.NewZeroAttoFIL(), "getAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 2, types.NewZeroAttoFIL(), "getAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err := core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 
@@ -72,14 +72,14 @@ func TestAddAsk(t *testing.T) {
 
 	// make another ask!
 	pdata = actor.MustConvertParams(types.NewAttoFILFromFIL(110), types.NewBytesAmount(200))
-	msg = types.NewMessage(address.TestAddress, minerAddr, 3, nil, "addAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, minerAddr, 3, nil, "addAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 	assert.Equal(big.NewInt(1), big.NewInt(0).SetBytes(result.Receipt.Return[0]))
 
 	pdata = actor.MustConvertParams(big.NewInt(0))
-	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 4, types.NewZeroAttoFIL(), "getAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, address.StorageMarketAddress, 4, types.NewZeroAttoFIL(), "getAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
 
@@ -98,7 +98,7 @@ func TestAddAsk(t *testing.T) {
 
 	// now try to create an ask larger than our pledge
 	pdata = actor.MustConvertParams(big.NewInt(55), types.NewBytesAmount(9900))
-	msg = types.NewMessage(address.TestAddress, minerAddr, 5, nil, "addAsk", pdata)
+	msg = types.NewMessage(address.TestAddress, minerAddr, 5, nil, "addAsk", pdata, types.NewAttoFILFromFIL(1), 10)
 
 	result, err = core.ApplyMessage(ctx, st, vms, msg, types.NewBlockHeight(0))
 	assert.NoError(err)
@@ -175,7 +175,9 @@ func TestPeerIdGetterAndSetter(t *testing.T) {
 			core.MustGetNonce(st, address.TestAddress2),
 			types.NewAttoFILFromFIL(0),
 			"updatePeerID",
-			actor.MustConvertParams(core.RequireRandomPeerID()))
+			actor.MustConvertParams(core.RequireRandomPeerID()),
+			types.NewAttoFILFromFIL(1),
+			10)
 
 		applyMsgResult, err := core.ApplyMessage(ctx, st, vms, updatePeerIdMsg, types.NewBlockHeight(0))
 		require.NoError(err)
@@ -193,7 +195,9 @@ func updatePeerIdSuccess(ctx context.Context, t *testing.T, st state.Tree, vms v
 		core.MustGetNonce(st, fromAddr),
 		types.NewAttoFILFromFIL(0),
 		"updatePeerID",
-		actor.MustConvertParams(newPid))
+		actor.MustConvertParams(newPid),
+		types.NewAttoFILFromFIL(1),
+		10)
 
 	applyMsgResult, err := core.ApplyMessage(ctx, st, vms, updatePeerIdMsg, types.NewBlockHeight(0))
 	require.NoError(err)

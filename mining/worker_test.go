@@ -206,21 +206,21 @@ func TestApplyMessagesForSuccessTempAndPermFailures(t *testing.T) {
 	// If a given message's category changes in the future, it needs to be replaced here in tests by another so we fully
 	// exercise the categorization.
 	// addr2 doesn't correspond to an extant account, so this will trigger errAccountNotFound -- a temporary failure.
-	msg1 := types.NewMessage(addr2, addr1, 0, nil, "", nil)
+	msg1 := types.NewMessage(addr2, addr1, 0, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
 
 	// This is actually okay and should result in a receipt
-	msg2 := types.NewMessage(addr1, addr2, 0, nil, "", nil)
+	msg2 := types.NewMessage(addr1, addr2, 0, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
 
 	// The following two are sending to self -- errSelfSend, a permanent error.
-	msg3 := types.NewMessage(addr1, addr1, 1, nil, "", nil)
+	msg3 := types.NewMessage(addr1, addr1, 1, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg3, err := types.NewSignedMessage(*msg3, &mockSigner)
 	require.NoError(err)
 
-	msg4 := types.NewMessage(addr2, addr2, 1, nil, "", nil)
+	msg4 := types.NewMessage(addr2, addr2, 1, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg4, err := types.NewSignedMessage(*msg4, &mockSigner)
 	require.NoError(err)
 
@@ -291,21 +291,21 @@ func TestGeneratePoolBlockResults(t *testing.T) {
 	worker := NewDefaultWorker(pool, getStateTree, getWeightTest, core.ApplyMessages, &core.TestView{}, bs, cst, addrs[3], BlockTimeTest)
 
 	// addr3 doesn't correspond to an extant account, so this will trigger errAccountNotFound -- a temporary failure.
-	msg1 := types.NewMessage(addrs[2], addrs[0], 0, nil, "", nil)
+	msg1 := types.NewMessage(addrs[2], addrs[0], 0, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg1, err := types.NewSignedMessage(*msg1, &mockSigner)
 	require.NoError(err)
 
 	// This is actually okay and should result in a receipt
-	msg2 := types.NewMessage(addrs[0], addrs[1], 0, nil, "", nil)
+	msg2 := types.NewMessage(addrs[0], addrs[1], 0, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg2, err := types.NewSignedMessage(*msg2, &mockSigner)
 	require.NoError(err)
 
 	// The following two are sending to self -- errSelfSend, a permanent error.
-	msg3 := types.NewMessage(addrs[0], addrs[0], 1, nil, "", nil)
+	msg3 := types.NewMessage(addrs[0], addrs[0], 1, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg3, err := types.NewSignedMessage(*msg3, &mockSigner)
 	require.NoError(err)
 
-	msg4 := types.NewMessage(addrs[1], addrs[1], 0, nil, "", nil)
+	msg4 := types.NewMessage(addrs[1], addrs[1], 0, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg4, err := types.NewSignedMessage(*msg4, &mockSigner)
 	require.NoError(err)
 
@@ -410,7 +410,7 @@ func TestGenerateError(t *testing.T) {
 	worker := NewDefaultWorker(pool, makeExplodingGetStateTree(st), getWeightTest, core.ApplyMessages, &core.TestView{}, bs, cst, addrs[3], BlockTimeTest)
 
 	// This is actually okay and should result in a receipt
-	msg := types.NewMessage(addrs[0], addrs[1], 0, nil, "", nil)
+	msg := types.NewMessage(addrs[0], addrs[1], 0, nil, "", nil, types.NewAttoFILFromFIL(1), 10)
 	smsg, err := types.NewSignedMessage(*msg, &mockSigner)
 	require.NoError(err)
 	pool.Add(smsg)

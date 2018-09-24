@@ -379,11 +379,11 @@ func TestWaitConflicting(t *testing.T) {
 	stm := (*core.ChainManagerForTest)(node.ChainMgr)
 
 	// Create conflicting messages
-	m1 := types.NewMessage(addr1, addr3, 0, types.NewAttoFILFromFIL(6000), "", nil)
+	m1 := types.NewMessage(addr1, addr3, 0, types.NewAttoFILFromFIL(6000), "", nil, types.NewAttoFILFromFIL(1), 10)
 	sm1, err := types.NewSignedMessage(*m1, &mockSigner)
 	require.NoError(err)
 
-	m2 := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(6000), "", nil)
+	m2 := types.NewMessage(addr1, addr2, 0, types.NewAttoFILFromFIL(6000), "", nil, types.NewAttoFILFromFIL(1), 10)
 	sm2, err := types.NewSignedMessage(*m2, &mockSigner)
 	require.NoError(err)
 
@@ -523,7 +523,7 @@ func TestNextNonce(t *testing.T) {
 		assert.NoError(node.Start(ctx))
 
 		// TODO: does sending a message to ourselves fit the spirit of the test?
-		msg := types.NewMessage(nodeAddr, nodeAddr, 0, nil, "foo", []byte{})
+		msg := types.NewMessage(nodeAddr, nodeAddr, 0, nil, "foo", []byte{}, types.NewAttoFILFromFIL(1), 10)
 		msg.Nonce = 42
 		smsg, err := types.NewSignedMessage(*msg, node.Wallet)
 		assert.NoError(err)

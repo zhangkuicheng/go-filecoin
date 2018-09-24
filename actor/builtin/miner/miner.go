@@ -177,7 +177,7 @@ func (ma *Actor) AddAsk(ctx exec.VMContext, price *types.AttoFIL, size *types.By
 		state.LockedStorage = total
 
 		// TODO: kinda feels weird that I can't get a real type back here
-		out, ret, err := ctx.Send(address.StorageMarketAddress, "addAsk", nil, []interface{}{price, size})
+		out, ret, err := ctx.Send(address.StorageMarketAddress, "addAsk", nil, []interface{}{price, size}, types.NewAttoFILFromFIL(1), 10)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +241,7 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR []byte,
 		state.Power = state.Power.Add(size)
 		state.Sectors[commRstr] = size
 
-		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{size})
+		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{size}, types.NewAttoFILFromFIL(1), 10)
 		if err != nil {
 			return nil, err
 		}

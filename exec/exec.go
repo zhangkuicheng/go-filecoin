@@ -67,7 +67,7 @@ type FunctionSignature struct {
 type VMContext interface {
 	Message() *types.Message
 	Storage() Storage
-	Send(to address.Address, method string, value *types.AttoFIL, params []interface{}) ([][]byte, uint8, error)
+	Send(to address.Address, method string, value *types.AttoFIL, params []interface{}, gasPrice *types.AttoFIL, gasLimit int) ([][]byte, uint8, error)
 	AddressForNewActor() (address.Address, error)
 	BlockHeight() *types.BlockHeight
 	IsFromAccountActor() bool

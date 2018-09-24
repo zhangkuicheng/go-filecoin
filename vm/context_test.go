@@ -40,7 +40,7 @@ func TestVMContextStorage(t *testing.T) {
 	toAddr := addrGetter()
 
 	assert.NoError(st.SetActor(ctx, toAddr, toActor))
-	msg := types.NewMessage(addrGetter(), toAddr, 0, nil, "hello", nil)
+	msg := types.NewMessage(addrGetter(), toAddr, 0, nil, "hello", nil, types.NewAttoFILFromFIL(1), 10)
 
 	to, err := cstate.GetActor(ctx, toAddr)
 	assert.NoError(err)
@@ -90,7 +90,7 @@ func TestVMContextSendFailures(t *testing.T) {
 		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
 		ctx.deps = deps
 
-		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
+		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{}, types.NewAttoFILFromFIL(1), 10)
 
 		assert.Error(err)
 		assert.Equal(1, int(code))
@@ -116,7 +116,7 @@ func TestVMContextSendFailures(t *testing.T) {
 		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
 		ctx.deps = deps
 
-		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
+		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{}, types.NewAttoFILFromFIL(1), 10)
 
 		assert.Error(err)
 		assert.Equal(1, int(code))
@@ -147,7 +147,7 @@ func TestVMContextSendFailures(t *testing.T) {
 		ctx := NewVMContext(actor1, actor2, msg, tree, vms, types.NewBlockHeight(0))
 		ctx.deps = deps
 
-		_, code, err := ctx.Send(to, "foo", nil, []interface{}{})
+		_, code, err := ctx.Send(to, "foo", nil, []interface{}{}, types.NewAttoFILFromFIL(1), 10)
 
 		assert.Error(err)
 		assert.Equal(1, int(code))
@@ -178,7 +178,7 @@ func TestVMContextSendFailures(t *testing.T) {
 		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
 		ctx.deps = deps
 
-		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
+		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{}, types.NewAttoFILFromFIL(1), 10)
 
 		assert.Error(err)
 		assert.Equal(1, int(code))
@@ -214,7 +214,7 @@ func TestVMContextSendFailures(t *testing.T) {
 		ctx := NewVMContext(actor1, actor2, newMsg(), tree, vms, types.NewBlockHeight(0))
 		ctx.deps = deps
 
-		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{})
+		_, code, err := ctx.Send(newAddress(), "foo", nil, []interface{}{}, types.NewAttoFILFromFIL(1), 10)
 
 		assert.Error(err)
 		assert.Equal(123, int(code))
