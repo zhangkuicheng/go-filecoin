@@ -15,7 +15,7 @@ func CreateMinerMessage(from address.Address, nonce uint64, pledge types.BytesAm
 		return nil, err
 	}
 
-	return types.NewMessage(from, address.StorageMarketAddress, nonce, collateral, "createMiner", params), nil
+	return types.NewMessage(from, address.StorageMarketAddress, nonce, collateral, "createMiner", params, types.NewAttoFILFromFIL(1), 10), nil
 }
 
 // AddBidMessage creates a message to add a bid.
@@ -27,7 +27,7 @@ func AddBidMessage(from address.Address, nonce uint64, price *types.AttoFIL, siz
 		return nil, err
 	}
 
-	return types.NewMessage(from, address.StorageMarketAddress, nonce, funds, "addBid", params), nil
+	return types.NewMessage(from, address.StorageMarketAddress, nonce, funds, "addBid", params, types.NewAttoFILFromFIL(1), 10), nil
 }
 
 // AddAskMessage creates a message to add ask.
@@ -37,7 +37,7 @@ func AddAskMessage(miner address.Address, from address.Address, nonce uint64, pr
 		return nil, err
 	}
 
-	return types.NewMessage(from, miner, nonce, types.NewZeroAttoFIL(), "addAsk", params), nil
+	return types.NewMessage(from, miner, nonce, types.NewZeroAttoFIL(), "addAsk", params, types.NewAttoFILFromFIL(1), 10), nil
 }
 
 // CommitSectorMessage creates a message to commit a sector.
@@ -47,5 +47,5 @@ func CommitSectorMessage(miner, from address.Address, nonce, sectorID uint64, co
 		return nil, err
 	}
 
-	return types.NewMessage(from, miner, nonce, types.NewZeroAttoFIL(), "commitSector", params), nil
+	return types.NewMessage(from, miner, nonce, types.NewZeroAttoFIL(), "commitSector", params, types.NewAttoFILFromFIL(1), 10), nil
 }

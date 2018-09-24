@@ -21,6 +21,8 @@ func TestMessageMarshal(t *testing.T) {
 		NewAttoFILFromFIL(17777),
 		"send",
 		[]byte("foobar"),
+		NewAttoFILFromFIL(17777),
+		12,
 	)
 
 	marshalled, err := msg.Marshal()
@@ -35,6 +37,8 @@ func TestMessageMarshal(t *testing.T) {
 	assert.Equal(msg.Value, msgBack.Value)
 	assert.Equal(msg.Method, msgBack.Method)
 	assert.Equal(msg.Params, msgBack.Params)
+	assert.Equal(msg.GasPrice, msgBack.GasPrice)
+	assert.Equal(msg.GasLimit, msgBack.GasLimit)
 }
 
 func TestMessageCid(t *testing.T) {
@@ -48,6 +52,8 @@ func TestMessageCid(t *testing.T) {
 		NewAttoFILFromFIL(999),
 		"send",
 		nil,
+		NewAttoFILFromFIL(17777),
+		12,
 	)
 
 	msg2 := NewMessage(
@@ -57,6 +63,8 @@ func TestMessageCid(t *testing.T) {
 		NewAttoFILFromFIL(4004),
 		"send",
 		nil,
+		NewAttoFILFromFIL(17776),
+		13,
 	)
 
 	c1, err := msg1.Cid()

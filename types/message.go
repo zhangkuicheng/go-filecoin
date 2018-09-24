@@ -34,6 +34,9 @@ type Message struct {
 
 	Method string `json:"method"`
 	Params []byte `json:"params"`
+
+	GasPrice *AttoFIL
+	GasLimit int
 }
 
 // Unmarshal a message from the given bytes.
@@ -58,13 +61,15 @@ func (msg *Message) Cid() (*cid.Cid, error) {
 }
 
 // NewMessage creates a new message.
-func NewMessage(from, to address.Address, nonce uint64, value *AttoFIL, method string, params []byte) *Message {
+func NewMessage(from, to address.Address, nonce uint64, value *AttoFIL, method string, params []byte, gasPrice *AttoFIL, gasLimit int) *Message {
 	return &Message{
-		From:   from,
-		To:     to,
-		Nonce:  Uint64(nonce),
-		Value:  value,
-		Method: method,
-		Params: params,
+		From:     from,
+		To:       to,
+		Nonce:    Uint64(nonce),
+		Value:    value,
+		Method:   method,
+		Params:   params,
+		GasPrice: gasPrice,
+		GasLimit: gasLimit,
 	}
 }

@@ -293,7 +293,7 @@ func applyMessage(ctx context.Context, st state.Tree, storageMap vm.StorageMap, 
 		return nil, err
 	}
 
-	message := types.NewMessage(from, to, uint64(fromActor.Nonce), value, method, encodedParams)
+	message := types.NewMessage(from, to, uint64(fromActor.Nonce), value, method, encodedParams, types.NewAttoFILFromFIL(1), 10)
 
 	return core.ApplyMessage(ctx, st, storageMap, message, types.NewBlockHeight(0))
 }

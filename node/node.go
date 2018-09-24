@@ -606,7 +606,7 @@ func NewMessageWithNextNonce(ctx context.Context, node *Node, from, to address.A
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't get next nonce")
 	}
-	return types.NewMessage(from, to, nonce, value, method, params), nil
+	return types.NewMessage(from, to, nonce, value, method, params, types.NewAttoFILFromFIL(1), 10), nil
 }
 
 // NewAddress creates a new account address on the default wallet backend.

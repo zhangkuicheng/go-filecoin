@@ -88,7 +88,9 @@ func NewSignedMessageForTestGetter(ms MockSigner) func() *SignedMessage {
 			0,
 			NewAttoFILFromFIL(0),
 			s,
-			[]byte("params"))
+			[]byte("params"),
+			NewAttoFILFromFIL(1),
+			12)
 		smsg, err := NewSignedMessage(*msg, &ms)
 		if err != nil {
 			panic(err)
@@ -134,7 +136,8 @@ func NewMessageForTestGetter() func() *Message {
 			0,
 			nil,
 			s,
-			nil)
+			nil, NewAttoFILFromFIL(1),
+			12)
 	}
 }
 

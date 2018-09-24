@@ -536,7 +536,7 @@ func (sb *SectorBuilder) AddCommitmentToMempool(ctx context.Context, ss *SealedS
 	if err != nil {
 		return nil, errors.Wrap(err, "received invalid mining owner")
 	}
-	msg := types.NewMessage(minerOwner, sb.MinerAddr, 0, nil, "commitSector", args)
+	msg := types.NewMessage(minerOwner, sb.MinerAddr, 0, nil, "commitSector", args, types.NewAttoFILFromFIL(1), 10)
 
 	smsg, err := types.NewSignedMessage(*msg, sb.nd.Wallet)
 	if err != nil {

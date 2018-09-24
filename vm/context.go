@@ -120,7 +120,7 @@ func (ctx *Context) Send(to address.Address, method string, value *types.AttoFIL
 		return nil, 1, errors.RevertErrorWrap(err, "encoding params failed")
 	}
 
-	msg := types.NewMessage(from, to, 0, value, method, paramData)
+	msg := types.NewMessage(from, to, 0, value, method, paramData, types.NewAttoFILFromFIL(1), 10)
 	if msg.From == msg.To {
 		// TODO: handle this
 		return nil, 1, errors.NewFaultErrorf("unhandled: sending to self (%s)", msg.From)
