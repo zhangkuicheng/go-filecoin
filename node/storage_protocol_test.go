@@ -121,10 +121,19 @@ func TestStorageProtocolBasic(t *testing.T) {
 	assert.False(waitTimeout(&wg, 20*time.Second), "waiting for submission timed out")
 
 	// Now all things should be ready
-	resp, err = c.Query(ctx, ref)
-	assert.NoError(err)
-	assert.Equal(Posted, resp.State, resp.Message)
-	assert.Equal(uint64(1), resp.ProofInfo.SectorID)
+	var done bool
+	for i := 0; i < 5; i++ {
+		resp, err = c.Query(ctx, ref)
+		assert.NoError(err)
+		if resp.State == Posted {
+			done = true
+			assert.Equal(uint64(1), resp.ProofInfo.SectorID)
+		}
+		assert.NotEqual(Failed, resp.State, resp.Message)
+		time.Sleep(time.Millisecond * 500)
+	}
+
+	assert.True(done, "failed to ")
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

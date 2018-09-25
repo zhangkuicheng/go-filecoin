@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor"
 	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/exec"
+	"github.com/filecoin-project/go-filecoin/proofs"
 	"github.com/filecoin-project/go-filecoin/types"
 	"github.com/filecoin-project/go-filecoin/vm/errors"
 )
@@ -45,6 +46,8 @@ const (
 	ErrCallerUnauthorized = 37
 	// ErrInsufficientPledge signals insufficient pledge for what you are trying to do.
 	ErrInsufficientPledge = 38
+	// ErrInvalidPoSt signals that the passed in PoSt was invalid.
+	ErrInvalidPoSt = 39
 )
 
 // Errors map error codes to revert errors this actor may return.
@@ -55,6 +58,7 @@ var Errors = map[uint8]error{
 	ErrStoragemarketCallFailed: errors.NewCodedRevertErrorf(ErrStoragemarketCallFailed, "call to StorageMarket failed"),
 	ErrCallerUnauthorized:      errors.NewCodedRevertErrorf(ErrCallerUnauthorized, "not authorized to call the method"),
 	ErrInsufficientPledge:      errors.NewCodedRevertErrorf(ErrInsufficientPledge, "not enough pledged"),
+	ErrInvalidPoSt:             errors.NewCodedRevertErrorf(ErrInvalidPoSt, "PoSt proof did not validate"),
 }
 
 // Actor is the miner actor.
@@ -382,15 +386,17 @@ func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
 			return nil, Errors[ErrCallerUnauthorized]
 		}
 
-		// TODO: update post api to not require a sector access
-		// req := proofs.VerifyPoSTRequest{
-		// 	// Storage: ??
-		// 	Proof: [192]byte{},
-		// }
-		// copy(req.Proof[:], proof)
-		// if err := (&proofs.RustProver{}).VerifyPoST(req); err != nil {
-		// 	return nil, errors.RevertErrorWrap(err, "failed to verify PoSt")
-		// }
+		req := proofs.VerifyPoSTRequest{
+			Proof: [192]byte{},
+		}
+		copy(req.Proof[:], proof)
+		res, err := (&proofs.RustProver{}).VerifyPoST(req)
+		if err != nil {
+			return nil, errors.RevertErrorWrap(err, "failed to verify PoSt")
+		}
+		if !res.IsValid {
+			return nil, Errors[ErrInvalidPoSt]
+		}
 
 		// Check if we submitted it in time
 		provingPeriodEnd := state.ProvingPeriodStart.Add(ProvingPeriodBlocks)

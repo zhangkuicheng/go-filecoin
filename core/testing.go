@@ -19,6 +19,7 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
 	"github.com/filecoin-project/go-filecoin/address"
+	"github.com/filecoin-project/go-filecoin/fixtures"
 	"github.com/filecoin-project/go-filecoin/state"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -35,7 +36,7 @@ func MkChild(blks []*types.Block, stateRoot *cid.Cid, nonce uint64) *types.Block
 	weight = uint64(len(blks))*10 + uint64(blks[0].ParentWeightNum)
 	height = uint64(blks[0].Height) + 1
 	parents = types.SortedCidSet{}
-	testMinerAddress, err := address.NewFromString(th.TestMinerAddress)
+	testMinerAddress, err := address.NewFromString(fixtures.TestMiners[0])
 	if err != nil {
 		return nil
 	}
@@ -414,6 +415,7 @@ func CreateMinerWithPower(ctx context.Context, t *testing.T, cm *ChainManager, l
 	b := RequireMineOnce(ctx, t, cm, lastBlock, rewardAddress, []*types.SignedMessage{mockSign(sn, msg)})
 	nonce++
 
+	require.Equal(uint8(0), b.MessageReceipts[0].ExitCode)
 	minerAddr, err := address.NewFromBytes(b.MessageReceipts[0].Return[0])
 	require.NoError(err)
 
@@ -436,6 +438,9 @@ func CreateMinerWithPower(ctx context.Context, t *testing.T, cm *ChainManager, l
 	}
 
 	b = RequireMineOnce(ctx, t, cm, b, rewardAddress, msgs)
+	for _, r := range b.MessageReceipts {
+		require.Equal(uint8(0), r.ExitCode)
+	}
 
 	return minerAddr, b, nonce, nil
 }
