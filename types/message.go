@@ -73,3 +73,13 @@ func NewMessage(from, to address.Address, nonce uint64, value *AttoFIL, method s
 		GasLimit: gasLimit,
 	}
 }
+
+// NewQueryMessage creates a new message that can only be used for querying the local blockchain.
+func NewQueryMessage(from, to address.Address, method string, params []byte) *Message {
+	return &Message{
+		From:   from,
+		To:     to,
+		Method: method,
+		Params: params,
+	}
+}

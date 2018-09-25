@@ -44,8 +44,6 @@ func NewVMContext(from, to *actor.Actor, msg *types.Message, st *state.CachedTre
 	}
 }
 
-var _ exec.VMContext = (*Context)(nil)
-
 // Storage returns an implementation of the storage module for this context.
 func (ctx *Context) Storage() exec.Storage {
 	return ctx.storageMap.NewStorage(ctx.message.To, ctx.to)

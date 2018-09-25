@@ -294,13 +294,7 @@ func CallQueryMethod(ctx context.Context, st state.Tree, vms vm.StorageMap, to a
 	// not committing or flushing storage structures guarantees changes won't make it to stored state tree or datastore
 	cachedSt := state.NewCachedStateTree(st)
 
-	msg := &types.Message{
-		To:     to,
-		Nonce:  0,
-		Value:  nil,
-		Method: method,
-		Params: params,
-	}
+	msg := types.NewQueryMessage(from, to, method, params)
 
 	vmCtx := vm.NewVMContext(nil, toActor, msg, cachedSt, vms, optBh)
 	ret, retCode, err := vm.Send(ctx, vmCtx)
