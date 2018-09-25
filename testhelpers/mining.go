@@ -54,7 +54,9 @@ func CommitSectorMessage(miner, from address.Address, nonce, sectorID uint64, co
 
 // MakeProof creates a random proof.
 func MakeProof() []byte {
-	return makeRandomBytes(192)
+	p := makeRandomBytes(192)
+	p[0] = 42
+	return p
 }
 
 // MakeCommitment creates a random commitment.
