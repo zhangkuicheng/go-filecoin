@@ -498,12 +498,40 @@ func (node *Node) StartMining(ctx context.Context) error {
 	return nil
 }
 
+func (node *Node) getLastUsedSectorId(ctx context.Context, minerAddr address.Address) (uint64, error) {
+	rets, retCode, err := node.CallQueryMethod(ctx, minerAddr, "getLastUsedSectorId", []byte{}, nil)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to call query method getLastUsedSectorId")
+	}
+	if retCode != 0 {
+		return 0, errors.New("non-zero status code returned by getLastUsedSectorId")
+	}
+
+	methodSignature, err := node.GetSignature(ctx, minerAddr, "getLastUsedSectorId")
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get method signature for getLastUsedSectorId")
+	}
+
+	lastUsedSectorIdVal, err := abi.Deserialize(rets[0], methodSignature.Return[0])
+	lastUsedSectorId, ok := lastUsedSectorIdVal.Val.(uint64)
+	if !ok {
+		return 0, errors.New("failed to convert returned ABI value to uint64")
+	}
+
+	return lastUsedSectorId, nil
+}
+
 func (node *Node) initSectorBuilder(ctx context.Context, minerAddr address.Address) error {
 	dirs := node.Repo.(SectorDirs)
 
 	sstore := proofs.NewProofTestSectorStore(dirs.SealedDir(), dirs.SealedDir())
 
-	sb, err := InitSectorBuilder(node, minerAddr, sstore)
+	lastUsedSectorId, err := node.getLastUsedSectorId(ctx, minerAddr)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get last used sector id for miner w/address %s", minerAddr.String())
+	}
+
+	sb, err := InitSectorBuilder(node, minerAddr, sstore, lastUsedSectorId)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to initialize sector builder for miner %s", minerAddr.String()))
 	}
