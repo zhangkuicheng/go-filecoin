@@ -299,6 +299,11 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 
 	var state State
 	_, err := actor.WithState(ctx, &state, func() (interface{}, error) {
+		// verify that the caller is authorized to perform update
+		if ctx.Message().From != state.Owner {
+			return nil, Errors[ErrCallerUnauthorized]
+		}
+
 		_, ok := state.Sectors[sectorIDstr]
 		if ok {
 			return nil, Errors[ErrSectorCommitted]

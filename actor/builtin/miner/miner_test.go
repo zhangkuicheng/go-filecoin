@@ -274,7 +274,7 @@ func TestMinerSubmitPoSt(t *testing.T) {
 	require.Equal(uint8(0), res.Receipt.ExitCode)
 
 	// check that the proving period is now the next one
-	res, err = applyMessage(t, st, vms, minerAddr, 0, 3, "getProvingPeriodStart")
+	res, err = applyMessage(t, st, vms, minerAddr, 0, 9, "getProvingPeriodStart")
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(20003))
