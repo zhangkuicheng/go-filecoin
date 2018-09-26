@@ -41,7 +41,6 @@ type SectorBuilderMetadata struct {
 	CurUnsealedSectorAccess string
 	MinerAddr               address.Address
 	SealedSectorCommitments [][32]byte
-	SectorIDNonce           uint64
 }
 
 // SectorMetadata returns the metadata associated with a UnsealedSector.
@@ -86,7 +85,6 @@ func (sb *SectorBuilder) SectorBuilderMetadata() *SectorBuilderMetadata {
 		CurUnsealedSectorAccess: sb.curUnsealedSector.unsealedSectorAccess,
 		MinerAddr:               sb.MinerAddr,
 		SealedSectorCommitments: make([][32]byte, len(sb.sealedSectors)),
-		SectorIDNonce:           sb.sectorIDNonce,
 	}
 	for i, sealed := range sb.sealedSectors {
 		meta.SealedSectorCommitments[i] = sealed.commR

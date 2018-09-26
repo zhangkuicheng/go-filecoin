@@ -290,7 +290,7 @@ func (sb *SectorBuilder) SealedSectors() []*SealedSector {
 // InitSectorBuilder creates a new sector builder for the given miner. If a SectorBuilder had previously been created
 // for the given miner, we reconstruct it using metadata from the datastore so that the miner can resume its work where
 // it left off.
-func InitSectorBuilder(nd *Node, minerAddr address.Address, sstore proofs.SectorStore) (*SectorBuilder, error) {
+func InitSectorBuilder(nd *Node, minerAddr address.Address, sstore proofs.SectorStore, lastUsedSectorID uint64) (*SectorBuilder, error) {
 	mstore := &sectorMetadataStore{
 		store: nd.Repo.Datastore(),
 	}
@@ -307,6 +307,7 @@ func InitSectorBuilder(nd *Node, minerAddr address.Address, sstore proofs.Sector
 		sectorSize:    res.NumBytes,
 		metadataStore: mstore,
 		sectorStore:   sstore,
+		sectorIDNonce: lastUsedSectorID,
 	}
 
 	sb.OnCommitmentAddedToMempool = sb.onCommitmentAddedToMempool
@@ -344,10 +345,6 @@ func configureSectorBuilderFromMetadata(store *sectorMetadataStore, sb *SectorBu
 	if err := sb.SyncFile(sector); err != nil {
 		return errors.Wrapf(err, "failed to sync sector object with unsealed sector %s", sector.unsealedSectorAccess)
 	}
-
-	sb.sectorIDNonceLk.Lock()
-	sb.sectorIDNonce = metadata.SectorIDNonce
-	sb.sectorIDNonceLk.Unlock()
 
 	sb.curUnsealedSectorLk.Lock()
 	sb.curUnsealedSector = sector
