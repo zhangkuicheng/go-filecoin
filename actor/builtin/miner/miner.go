@@ -89,7 +89,8 @@ type State struct {
 	Collateral *types.AttoFIL
 
 	// Sectors maps sectorID to commR and commD, for all sectors this miner has committed.
-	Sectors map[string]*Commitments
+	LastUsedSectorID uint64
+	Sectors          map[string]*Commitments
 
 	ProvingPeriodStart *types.BlockHeight
 	LastPoSt           *types.BlockHeight
@@ -159,6 +160,10 @@ var minerExports = exec.Exports{
 	"getOwner": &exec.FunctionSignature{
 		Params: nil,
 		Return: []abi.Type{abi.Address},
+	},
+	"getLastUsedSectorId": &exec.FunctionSignature{
+		Params: nil,
+		Return: []abi.Type{abi.SectorID},
 	},
 	"commitSector": &exec.FunctionSignature{
 		Params: []abi.Type{abi.SectorID, abi.Bytes, abi.Bytes},
@@ -260,6 +265,24 @@ func (ma *Actor) GetOwner(ctx exec.VMContext) (address.Address, uint8, error) {
 	return a, 0, nil
 }
 
+// GetLastUsedSectorId returns the last used sector id.
+func (ma *Actor) GetLastUsedSectorId(ctx exec.VMContext) (uint64, uint8, error) {
+	var state State
+	out, err := actor.WithState(ctx, &state, func() (interface{}, error) {
+		return state.LastUsedSectorID, nil
+	})
+	if err != nil {
+		return 0, errors.CodeError(err), err
+	}
+
+	a, ok := out.(uint64)
+	if !ok {
+		return 0, 1, errors.NewFaultErrorf("expected a uint64 sector id, but got %T instead", out)
+	}
+
+	return a, 0, nil
+}
+
 // CommitSector adds a commitment to the specified sector
 // The sector must not already be committed
 // 'size' is the total number of bytes stored in the sector
@@ -292,6 +315,7 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 		}
 		copy(comms.CommR[:], commR)
 		copy(comms.CommD[:], commD)
+		state.LastUsedSectorID = sectorID
 		state.Sectors[sectorIDstr] = comms
 		_, ret, err := ctx.Send(address.StorageMarketAddress, "updatePower", nil, []interface{}{inc})
 		if err != nil {
