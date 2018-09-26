@@ -51,7 +51,7 @@ jobs:
 
       - run:
           name: Test
-          command: go run ./build/*.go test -v
+          command: go run ./build/*.go test
 
       - run:
           name: Create macos bundle
@@ -118,7 +118,8 @@ jobs:
       - run:
           name: Test
           command: |
-            go run ./build/*.go test
+            go run ./build/*.go test -covermode=atomic -coverprofile=coverage.txt &&
+            bash <(curl -s https://codecov.io/bash)
       - run:
           name: Lint
           command: go run ./build/*.go lint
