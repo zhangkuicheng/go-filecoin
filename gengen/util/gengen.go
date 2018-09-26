@@ -255,12 +255,11 @@ func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo
 		})
 
 		// commit sector to add power
+		for i := uint64(0); i < m.Power; i++ {
+			// the following statement fakes out the behavior of the SectorBuilder.sectorIDNonce,
+			// which is initialized to 0 and incremented (for the first sector) to 1
+			sectorID := i + 1
 
-		// TODO: We should get a SectorID from the SectorBuilder instead of
-		// hard-coding a value here.
-		sectorID := uint64(0)
-
-		for i := 0; uint64(i) < m.Power; i++ {
 			commR := make([]byte, 32)
 			commD := make([]byte, 32)
 			if _, err := rand.Read(commR[:]); err != nil {
@@ -276,7 +275,6 @@ func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo
 			if resp.ExecutionError != nil {
 				return nil, fmt.Errorf("failed to commitSector: %s", resp.ExecutionError)
 			}
-			sectorID++
 		}
 	}
 
