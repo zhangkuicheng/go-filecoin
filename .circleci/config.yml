@@ -4,6 +4,7 @@ jobs:
     macos:
       xcode: "10.0.0"
     working_directory: ~/go/src/github.com/filecoin-project/go-filecoin
+    resource_class: xlarge
     steps:
       - run:
           name: Configure environment variables
@@ -64,6 +65,7 @@ jobs:
       - image: circleci/golang:1.10
 
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
+    resource_class: xlarge
     steps:
       - run:
           name: Configure environment variables
