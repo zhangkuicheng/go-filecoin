@@ -634,7 +634,6 @@ func TestCreateMiner(t *testing.T) {
 
 		result := <-RunCreateMiner(t, node, nodeAddr, uint64(1), core.RequireRandomPeerID(), *types.NewAttoFILFromFIL(10))
 		assert.Error(result.Err)
-		fmt.Println(result, result.Err)
 		assert.Contains(result.Err.Error(), "pledge must be at least")
 	})
 

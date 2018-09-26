@@ -6,17 +6,21 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"gx/ipfs/QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky/go-ipfs-cmdkit/files"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 
+	"github.com/filecoin-project/go-filecoin/address"
 	"github.com/filecoin-project/go-filecoin/api"
 	"github.com/filecoin-project/go-filecoin/api/impl"
+	"github.com/filecoin-project/go-filecoin/core"
 	"github.com/filecoin-project/go-filecoin/fixtures"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/repo"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
+	"github.com/filecoin-project/go-filecoin/types"
 )
 
 func cmdFakeActors(ctx context.Context, repodir string) error {
@@ -85,59 +89,57 @@ func cmdFakeActors(ctx context.Context, repodir string) error {
 // well-formed data in its memory. For now, this exists primarily to exercise the Filecoin Explorer, though it may
 // be used for testing in the future.
 func fakeActors(ctx context.Context, fc api.API) error {
-	// TODO: reenable once a genesis is inserted here
-	/*
-		clientAddr, err := address.NewFromString(fixtures.TestAddresses[0])
+	clientAddr, err := address.NewFromString(fixtures.TestAddresses[0])
+	if err != nil {
+		return err
+	}
+	minerLocalAddr, err := address.NewFromString(fixtures.TestAddresses[0])
+	if err != nil {
+		return err
+	}
+
+	log.Println("\t[miner] creating miner")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var minerAddr address.Address
+	go func() {
+		peer := core.RequireRandomPeerID()
+		var err error
+		minerAddr, err = fc.Miner().Create(ctx, minerLocalAddr, uint64(100), peer, types.NewAttoFILFromFIL(400))
 		if err != nil {
-			return err
+			panic(errors.Wrap(err, "failed to create miner"))
 		}
-		minerLocalAddr, err := address.NewFromString(fixtures.TestAddresses[0])
-		if err != nil {
-			return err
-		}
+		wg.Done()
+	}()
 
-			log.Println("\t[miner] creating miner")
-			var wg sync.WaitGroup
-			wg.Add(1)
-			var minerAddr address.Address
-			go func() {
-				peer := core.RequireRandomPeerID()
-				var err error
-				minerAddr, err = fc.Miner().Create(ctx, minerLocalAddr, uint64(100), peer, types.NewAttoFILFromFIL(400))
-				if err != nil {
-					panic(errors.Wrap(err, "failed to create miner"))
-				}
-				wg.Done()
-			}()
+	if _, err := fc.Mpool().View(ctx, 1); err != nil {
+		return errors.Wrap(err, "failed to wait for message pool")
+	}
+	if _, err := fc.Mining().Once(ctx); err != nil {
+		return errors.Wrap(err, "failed to mine")
+	}
 
-			if _, err := fc.Mpool().View(ctx, 1); err != nil {
-				return errors.Wrap(err, "failed to wait for message pool")
-			}
-			if _, err := fc.Mining().Once(ctx); err != nil {
-				return errors.Wrap(err, "failed to mine")
-			}
+	wg.Wait()
 
-			wg.Wait()
+	log.Println("\t[miner] adding ask")
+	_, err = fc.Miner().AddAsk(ctx, minerLocalAddr, minerAddr, types.NewBytesAmount(1000), types.NewAttoFILFromFIL(10))
+	if err != nil {
+		return errors.Wrap(err, "failed to add ask")
+	}
 
-			log.Println("\t[miner] adding ask")
-			_, err = fc.Miner().AddAsk(ctx, minerLocalAddr, minerAddr, types.NewBytesAmount(1000), types.NewAttoFILFromFIL(10))
-			if err != nil {
-				return errors.Wrap(err, "failed to add ask")
-			}
+	if _, err := fc.Mining().Once(ctx); err != nil {
+		return errors.Wrap(err, "failed to mine")
+	}
 
-			if _, err := fc.Mining().Once(ctx); err != nil {
-				return errors.Wrap(err, "failed to mine")
-			}
+	log.Println("\t[client] adding bid")
+	if _, err := fc.Client().AddBid(ctx, clientAddr, types.NewBytesAmount(10), types.NewAttoFILFromFIL(9)); err != nil {
+		return errors.Wrap(err, "failed to add bid")
+	}
 
-			log.Println("\t[client] adding bid")
-			if _, err := fc.Client().AddBid(ctx, clientAddr, types.NewBytesAmount(10), types.NewAttoFILFromFIL(9)); err != nil {
-				return errors.Wrap(err, "failed to add bid")
-			}
+	if _, err := fc.Mining().Once(ctx); err != nil {
+		return errors.Wrap(err, "failed to mine")
+	}
 
-			if _, err := fc.Mining().Once(ctx); err != nil {
-				return errors.Wrap(err, "failed to mine")
-			}
-	*/
 	// TODO: what about deals?
 	// They require to have two different nodes, so probably want something like a --miner and a --client flag here
 	// eventually. For now the above gives us sth to work with.

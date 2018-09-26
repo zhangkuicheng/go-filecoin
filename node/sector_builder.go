@@ -624,8 +624,8 @@ func (sb *SectorBuilder) Seal(ctx context.Context, s *UnsealedSector, minerAddr 
 	return sb.NewSealedSector(res2.CommR, res2.CommD, res2.Proof, res1.SectorAccess, res1.SectorAccess, s), nil
 }
 
-// GeneratePoSt creates the required posts, given a list of sector ids and matching seeds.
-// It returns the Snark Proof for the posts, and a list of sectors that faulted, if there were any faults.
+// GeneratePoSt creates the required PoSt, given a list of sector ids and matching seeds.
+// It returns the Snark Proof for the PoSt, and a list of sectors that faulted, if there were any faults.
 func (sb *SectorBuilder) GeneratePoSt(commRs [][32]byte, seed [32]byte) ([192]byte, []uint64, error) {
 	req := proofs.GeneratePoSTRequest{
 		Storage:       sb.sectorStore,

@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"math/rand"
 	"sync"
+	"time"
 
 	inet "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
 	cbor "gx/ipfs/QmV6BQ6fFCf9eFHDuRxvguvqfKLZtZrxthgZvDfRCs4tMN/go-ipld-cbor"
@@ -245,6 +246,9 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 		return
 	}
 
+	// TODO: handle race between OnCommitmentAddedToMempool and AddPiece returning
+	// https://github.com/filecoin-project/go-filecoin/issues/968
+
 	sm.dealsAwaitingSealLk.Lock()
 	deals, ok := sm.dealsAwaitingSeal[sectorID]
 	if ok {
@@ -259,7 +263,7 @@ func (sm *StorageMiner) processStorageDeal(c *cid.Cid) {
 	})
 }
 
-// OnCommitmentAddedToMempool is a callback, called when a sector seal was committed to the chain.
+// OnCommitmentAddedToMempool is a callback, called when a sector seal message was sent to the mempool.
 func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid *cid.Cid, sectorID uint64, err error) {
 	sm.dealsAwaitingSealLk.Lock()
 	defer sm.dealsAwaitingSealLk.Unlock()
@@ -332,9 +336,9 @@ func (sm *StorageMiner) OnCommitmentAddedToMempool(sector *SealedSector, msgCid 
 	}
 }
 
-// NewHeaviestTipSet is a callback called by node, everytime the the latest head is updated.
+// OnNewHeaviestTipSet is a callback called by node, everytime the the latest head is updated.
 // It is used to check if we are in a new proving period and need to trigger PoSt submission.
-func (sm *StorageMiner) NewHeaviestTipSet(ts core.TipSet) {
+func (sm *StorageMiner) OnNewHeaviestTipSet(ts core.TipSet) {
 	sectors := sm.sectorBuilder().SealedSectors()
 
 	if len(sectors) == 0 {
@@ -436,7 +440,11 @@ func (sm *StorageMiner) submitPoSt(start, end *types.BlockHeight, sectors []*Sea
 		return
 	}
 
-	err = sm.nd.ChainMgr.WaitForMessage(context.TODO(), msgCid, func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
+	// TODO: figure out a more sensible timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	err = sm.nd.ChainMgr.WaitForMessage(ctx, msgCid, func(blk *types.Block, smgs *types.SignedMessage, receipt *types.MessageReceipt) error {
 		if receipt.ExitCode != uint8(0) {
 			return vmErrors.VMExitCodeToError(receipt.ExitCode, miner.Errors)
 		}

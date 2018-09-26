@@ -238,7 +238,7 @@ func TestMinerCommitSector(t *testing.T) {
 	require.NoError(err)
 	require.NoError(res.ExecutionError)
 	// blockheight was 3
-	require.Equal(types.NewBlockHeightFromBytes(res.Receipt.Return[0]), types.NewBlockHeight(3))
+	require.Equal(types.NewBlockHeight(3), types.NewBlockHeightFromBytes(res.Receipt.Return[0]))
 
 	// fail because commR already exists
 	res, err = applyMessage(t, st, vms, minerAddr, 0, 4, "commitSector", uint64(1), commR, commD)

@@ -374,7 +374,7 @@ func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head core.TipSet)
 		}
 
 		if node.StorageMiner != nil {
-			node.StorageMiner.NewHeaviestTipSet(newHead)
+			node.StorageMiner.OnNewHeaviestTipSet(newHead)
 		}
 		node.HeaviestTipSetHandled()
 	}
@@ -649,7 +649,7 @@ func (node *Node) CallQueryMethod(ctx context.Context, to address.Address, metho
 // It will wait for the the actor to appear on-chain and add set the address to mining.minerAddress in the config.
 // TODO: This should live in a MinerAPI or some such. It's here until we have a proper API layer.
 func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, pledge uint64, pid libp2ppeer.ID, collateral *types.AttoFIL) (_ *address.Address, err error) {
-	// Only create a miner if we don't already have one. For now only a single miner per node can exist.
+	// Only create a miner if we don't already have one.
 	if _, err := node.MiningAddress(); err != ErrNoMinerAddress {
 		return nil, fmt.Errorf("Can only have on miner per node")
 	}

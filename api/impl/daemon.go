@@ -93,7 +93,6 @@ func (nd *nodeDaemon) Init(ctx context.Context, opts ...api.DaemonInitOpt) error
 	}
 
 	if cfg.WithMiner != (address.Address{}) {
-		// initopts = append(initopts, node.CreateMinerOpt(true))
 		newConfig := rep.Config()
 		newConfig.Mining.MinerAddress = cfg.WithMiner
 		if err := rep.ReplaceConfig(newConfig); err != nil {

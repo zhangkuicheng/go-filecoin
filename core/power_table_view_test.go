@@ -15,7 +15,7 @@ func TestTotal(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	power := uint64(987)
+	power := uint64(19)
 	ctx, cm, _, st := requireMinerWithPower(t, power)
 
 	actual, err := (&marketView{}).Total(ctx, st, cm.Blockstore)
@@ -28,7 +28,7 @@ func TestMiner(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
-	power := uint64(124)
+	power := uint64(12)
 	ctx, cm, addr, st := requireMinerWithPower(t, power)
 
 	actual, err := (&marketView{}).Miner(ctx, st, cm.Blockstore, addr)

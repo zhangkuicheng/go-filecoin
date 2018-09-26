@@ -25,8 +25,15 @@ func init() {
 // MaximumPublicKeySize is a limit on how big a public key can be.
 const MaximumPublicKeySize = 100
 
+// CommitmentLength is the length of a single commitment (in bytes).
+const CommitmentLength = 32
+
+// ProofLength is the length of a single proof (in bytes).
+const ProofLength = 192
+
 // ProvingPeriodBlocks defines how long a proving period is for.
 // TODO: what is an actual workable value? currently set very high to avoid race conditions in test.
+// https://github.com/filecoin-project/go-filecoin/issues/966
 var ProvingPeriodBlocks = types.NewBlockHeight(20000)
 
 // SectorSize is the amount of bytes, in a single sector.
@@ -93,8 +100,8 @@ type State struct {
 
 // Commitments are the details we need to store about a sector we are proving.
 type Commitments struct {
-	CommR [32]byte
-	CommD [32]byte
+	CommR [CommitmentLength]byte
+	CommD [CommitmentLength]byte
 }
 
 // NewActor returns a new miner actor
@@ -257,13 +264,14 @@ func (ma *Actor) GetOwner(ctx exec.VMContext) (address.Address, uint8, error) {
 // The sector must not already be committed
 // 'size' is the total number of bytes stored in the sector
 func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD []byte) (uint8, error) {
-	if len(commR) != 32 {
+	if len(commR) != CommitmentLength {
 		return 0, errors.NewRevertError("invalid sized commR")
 	}
-	if len(commD) != 32 {
+	if len(commD) != CommitmentLength {
 		return 0, errors.NewRevertError("invalid sized commR")
 	}
 	// TODO: use uint64 instead of this abomination, once refmt is fixed
+	// https://github.com/polydawn/refmt/issues/35
 	sectorIDstr := strconv.FormatUint(sectorID, 10)
 
 	var state State
@@ -279,8 +287,8 @@ func (ma *Actor) CommitSector(ctx exec.VMContext, sectorID uint64, commR, commD 
 		inc := big.NewInt(1)
 		state.Power = state.Power.Add(state.Power, inc)
 		comms := &Commitments{
-			CommR: [32]byte{},
-			CommD: [32]byte{},
+			CommR: [CommitmentLength]byte{},
+			CommD: [CommitmentLength]byte{},
 		}
 		copy(comms.CommR[:], commR)
 		copy(comms.CommD[:], commD)
@@ -376,7 +384,7 @@ func (ma *Actor) GetPower(ctx exec.VMContext) (*big.Int, uint8, error) {
 // SubmitPoSt is used to submit a coalesced PoST to the chain to convince the chain
 // that you have been actually storing the files you claim to be.
 func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
-	if len(proof) != 192 {
+	if len(proof) != ProofLength {
 		return 0, errors.NewRevertError("invalid sized proof")
 	}
 	var state State
@@ -387,7 +395,7 @@ func (ma *Actor) SubmitPoSt(ctx exec.VMContext, proof []byte) (uint8, error) {
 		}
 
 		req := proofs.VerifyPoSTRequest{
-			Proof: [192]byte{},
+			Proof: [ProofLength]byte{},
 		}
 		copy(req.Proof[:], proof)
 		res, err := (&proofs.RustProver{}).VerifyPoST(req)

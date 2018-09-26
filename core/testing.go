@@ -19,7 +19,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/actor/builtin/account"
 	"github.com/filecoin-project/go-filecoin/actor/builtin/miner"
 	"github.com/filecoin-project/go-filecoin/address"
-	"github.com/filecoin-project/go-filecoin/fixtures"
 	"github.com/filecoin-project/go-filecoin/state"
 	th "github.com/filecoin-project/go-filecoin/testhelpers"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -36,10 +35,7 @@ func MkChild(blks []*types.Block, stateRoot *cid.Cid, nonce uint64) *types.Block
 	weight = uint64(len(blks))*10 + uint64(blks[0].ParentWeightNum)
 	height = uint64(blks[0].Height) + 1
 	parents = types.SortedCidSet{}
-	testMinerAddress, err := address.NewFromString(fixtures.TestMiners[0])
-	if err != nil {
-		return nil
-	}
+	testMinerAddress := address.NewForTestGetter()()
 	for _, blk := range blks {
 		(&parents).Add(blk.Cid())
 	}

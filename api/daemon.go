@@ -30,7 +30,7 @@ type DaemonInitConfig struct {
 	RepoDir string
 	// PeerKeyFile is the path to a file containing a libp2p peer id key
 	PeerKeyFile string
-	// WithMiner, if set triggers the generation of an initial miner in the genesis block.
+	// WithMiner, if set, sets the config value for the local miner to this address.
 	WithMiner address.Address
 }
 
