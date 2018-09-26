@@ -141,7 +141,7 @@ func nodeWithSectorBuilder(t *testing.T) (*tempSectorDirs, *Node, *SectorBuilder
 	res, err := sstore.GetMaxUnsealedBytesPerSector()
 	require.NoError(err)
 
-	sb, err := InitSectorBuilder(nd, *result.MinerAddress, sstore)
+	sb, err := InitSectorBuilder(nd, *result.MinerAddress, sstore, 0)
 	require.NoError(err)
 
 	return dirs, nd, sb, *result.MinerAddress, res.NumBytes
@@ -457,7 +457,7 @@ func TestInitializesSectorBuilderFromPersistedState(t *testing.T) {
 	// sector builder B should have the same state as sector builder A
 	sstore := proofs.NewProofTestSectorStore(dirs.SealedDir(), dirs.SealedDir())
 
-	sbB, err := InitSectorBuilder(nd, minerAddr, sstore)
+	sbB, err := InitSectorBuilder(nd, minerAddr, sstore, 0)
 	require.NoError(err)
 
 	// can't compare sectors with Equal(s1, s2) because their "file" fields will differ
@@ -471,7 +471,7 @@ func TestInitializesSectorBuilderFromPersistedState(t *testing.T) {
 	require.NoError(sealingErr)
 
 	// sector builder C should have the same state as sector builder A
-	sbC, err := InitSectorBuilder(nd, minerAddr, sstore)
+	sbC, err := InitSectorBuilder(nd, minerAddr, sstore, 0)
 	require.NoError(err)
 
 	sectorBuildersMustEqual(t, sbA, sbC)
@@ -495,7 +495,7 @@ func TestTruncatesUnsealedSectorOnDiskIfMismatch(t *testing.T) {
 
 		sstore := proofs.NewProofTestSectorStore(dirs.SealedDir(), dirs.SealedDir())
 
-		sbA, err := InitSectorBuilder(nd, addr, sstore)
+		sbA, err := InitSectorBuilder(nd, addr, sstore, 0)
 		require.NoError(err)
 
 		sbA.AddPiece(ctx, requirePieceInfo(require, nd, sbA, make([]byte, 10)))
@@ -516,7 +516,7 @@ func TestTruncatesUnsealedSectorOnDiskIfMismatch(t *testing.T) {
 		ioutil.WriteFile(metaA.UnsealedSectorAccess, make([]byte, 90), 0600)
 
 		// initialize a new sector builder (simulates the node restarting)
-		sbB, err := InitSectorBuilder(nd, addr, sstore)
+		sbB, err := InitSectorBuilder(nd, addr, sstore, 0)
 		require.NoError(err)
 
 		metaB, err := sbB.metadataStore.getSectorMetadata(sbB.curUnsealedSector.unsealedSectorAccess)
@@ -548,7 +548,7 @@ func TestTruncatesUnsealedSectorOnDiskIfMismatch(t *testing.T) {
 		sstore := proofs.NewProofTestSectorStore(dirs.SealedDir(), dirs.SealedDir())
 
 		// Wait a sec, theres no miner here... how can we init a sector builder?
-		sbA, err := InitSectorBuilder(nd, addr, sstore)
+		sbA, err := InitSectorBuilder(nd, addr, sstore, 0)
 		require.NoError(err)
 
 		sbA.AddPiece(ctx, requirePieceInfo(require, nd, sbA, make([]byte, 10)))
@@ -562,7 +562,7 @@ func TestTruncatesUnsealedSectorOnDiskIfMismatch(t *testing.T) {
 		require.NoError(os.Truncate(metaA.UnsealedSectorAccess, int64(40)))
 
 		// initialize final sector builder
-		sbB, err := InitSectorBuilder(nd, addr, sstore)
+		sbB, err := InitSectorBuilder(nd, addr, sstore, 0)
 		require.NoError(err)
 
 		metaB, err := sbA.metadataStore.getSectorMetadata(sbB.curUnsealedSector.unsealedSectorAccess)
