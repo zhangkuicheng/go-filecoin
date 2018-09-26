@@ -127,13 +127,13 @@ func TestStorageProtocolBasic(t *testing.T) {
 		assert.NoError(err)
 		if resp.State == Posted {
 			done = true
-			assert.Equal(uint64(1), resp.ProofInfo.SectorID)
+			assert.True(resp.ProofInfo.SectorID > 0)
 		}
 		assert.NotEqual(Failed, resp.State, resp.Message)
 		time.Sleep(time.Millisecond * 500)
 	}
 
-	assert.True(done, "failed to ")
+	assert.True(done, "failed to finish transfer")
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

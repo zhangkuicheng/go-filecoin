@@ -161,7 +161,7 @@ var minerExports = exec.Exports{
 		Params: nil,
 		Return: []abi.Type{abi.Address},
 	},
-	"getLastUsedSectorId": &exec.FunctionSignature{
+	"getLastUsedSectorID": &exec.FunctionSignature{
 		Params: nil,
 		Return: []abi.Type{abi.SectorID},
 	},
@@ -265,8 +265,8 @@ func (ma *Actor) GetOwner(ctx exec.VMContext) (address.Address, uint8, error) {
 	return a, 0, nil
 }
 
-// GetLastUsedSectorId returns the last used sector id.
-func (ma *Actor) GetLastUsedSectorId(ctx exec.VMContext) (uint64, uint8, error) {
+// GetLastUsedSectorID returns the last used sector id.
+func (ma *Actor) GetLastUsedSectorID(ctx exec.VMContext) (uint64, uint8, error) {
 	var state State
 	out, err := actor.WithState(ctx, &state, func() (interface{}, error) {
 		return state.LastUsedSectorID, nil
