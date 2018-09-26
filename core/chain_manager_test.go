@@ -448,7 +448,6 @@ func TestTipSetWeightShallow(t *testing.T) {
 // TestTipSetWeightDeepFailure tests the behavior of the Chain Manager with
 // the production power table view over failure blocks
 func TestTipSetWeightDeepFailure(t *testing.T) {
-	t.Skip("too slow")
 	//	require := require.New(t)
 	assert := assert.New(t)
 	ctx, _, _, stm := newTestUtils()

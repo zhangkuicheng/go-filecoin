@@ -118,8 +118,7 @@ jobs:
       - run:
           name: Test
           command: |
-            go run ./build/*.go test -v -covermode=atomic -coverprofile=coverage.txt &&
-            bash <(curl -s https://codecov.io/bash)
+            go run ./build/*.go test
       - run:
           name: Lint
           command: go run ./build/*.go lint
