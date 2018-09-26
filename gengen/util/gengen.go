@@ -2,6 +2,7 @@ package gengen
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"math/big"
@@ -237,6 +238,9 @@ func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo
 		if err != nil {
 			return nil, err
 		}
+		if resp.ExecutionError != nil {
+			return nil, fmt.Errorf("failed to createMiner: %s", resp.ExecutionError)
+		}
 
 		// get miner address
 		maddr, err := address.NewFromBytes(resp.Receipt.Return[0])
@@ -257,11 +261,20 @@ func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo
 		sectorID := uint64(0)
 
 		for i := 0; uint64(i) < m.Power; i++ {
-			commR := []byte(fmt.Sprintf("commR-%d-%s", i, addr))
-			commD := []byte(fmt.Sprintf("commD-%d-%s", i, addr))
-			_, err = core.ApplyMessageDirect(ctx, st, sm, addr, maddr, types.NewAttoFILFromFIL(0), "commitSector", sectorID, commR, commD)
+			commR := make([]byte, 32)
+			commD := make([]byte, 32)
+			if _, err := rand.Read(commR[:]); err != nil {
+				return nil, err
+			}
+			if _, err := rand.Read(commD[:]); err != nil {
+				return nil, err
+			}
+			resp, err := core.ApplyMessageDirect(ctx, st, sm, addr, maddr, types.NewAttoFILFromFIL(0), "commitSector", sectorID, commR, commD)
 			if err != nil {
 				return nil, err
+			}
+			if resp.ExecutionError != nil {
+				return nil, fmt.Errorf("failed to commitSector: %s", resp.ExecutionError)
 			}
 			sectorID++
 		}
