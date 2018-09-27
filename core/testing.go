@@ -2,8 +2,8 @@ package core
 
 import (
 	"context"
-	"math/big"
-	"math/rand"
+//	"math/big"
+//	"math/rand"
 	"testing"
 
 	"gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
