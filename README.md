@@ -135,27 +135,52 @@ go-filecoin init        # Creates config in ~/.filecoin; to see options: `go-fil
 go-filecoin daemon      # Starts the daemon, you may now issue it commands in another terminal
 ```
 
-To set up a single node capable of mining:
+#### To set up a single node capable of mining:
 ```
 rm -fr ~/.filecoin
 go-filecoin init --genesisfile ./fixtures/genesis.car     # TODO include instructions on setting sealing params, etc
 go-filecoin daemon
-# Switch terminals
-# The miner is present in the genesis block car file created from the 
-# json file, but the node is not yet configured to use it. Get the 
-# miner address from the json file fixtures/gen.json and replace X
-# in the command below with it:
-go-filecoin config mining.minerAddress \"X\"
-# The account that owns the miner is also not yet configured in the node
-# so note that owner key name in fixtures/gen.json (eg, "a") and 
-# import that key from the fixtures, assuming it was X:
-go-filecoin wallet import fixtures/X.key
-# The miner was not created with a pre-set peerid, so set it so that
-# clients can find it.
-go-filecoin miner update-peerid
+```
+See the first line of output of this command? It should look like:
+```
+My peer ID is <W>
+```
+Where `<W>` is a long cid string starting with "Qm".  `<W>` will be used later on to complete the mining setup.
+
+Ok, now switch to a new terminal window. The miner address is present in the genesis block car file created from the json file, but the node is not yet configured to use it. Get the miner address from the json file fixtures/gen.json and replace `<X>` in the command below with it:
+```
+go-filecoin config mining.minerAddress '"<X>"'
+```
+The account that owns the miner is also not yet configured in the node so we'll need the owner name in fixtures/gen.json. We'll call this `<Y>` for short.  As an example consider the the following gen.json snippet
+```
+...
+ },
+  "Miners": [
+    {
+      "Owner": "a",
+      "Address": "fcq4u2g4mdgx2mk0ss0jam08pnf6j9nc2aqeskd45",
+      "Power": 10
+    }
+  ],
+....
+```
+In this example `<Y>`=a, because "a" is the value of the "Owner" field of the first entry of "Miners".  Now import the miner owner's key file from the fixtures into the node's wallet:
+```
+go-filecoin wallet import fixtures/<Y>.key
+```
+Note the output of this command.  This output is the address of the account that owns the miner.  We need it to finish setting up the miner.  We'll refer to this address as `<Z>` below.
+
+Ok one last step.  The miner was not created with a pre-set peer ID.  We must set the peer ID so that clients can find the miner on the network.  We will need the values of `<W>`, `<X>`, and `<Z>` determined above to run this command.
+```
+go-filecoin miner update-peerid --from=<Z> <X> <W>
+```
+Now you can run a lookup to determine the miner's peer ID given its address on the filecoin blockchain:
+```
+go-filecoin address lookup <X>
+# the output should be <W>, the peer ID of your mining node!
 ```
 
-To set up a node and connect into an existing cluster:
+#### To set up a node and connect into an existing cluster:
 ```
 TODO
 ```
