@@ -235,7 +235,8 @@ func setupMiners(st state.Tree, sm vm.StorageMap, keys map[string]*types.KeyInfo
 		if err != nil {
 			return nil, err
 		}
-		resp, err := consensus.ApplyMessageDirect(ctx, st, sm, addr, address.StorageMarketAddress, types.NewAttoFILFromFIL(100000), "createMiner", big.NewInt(10000), pubkey, pid)
+		// at the time of writing this secotr size is 128 bytes by default, we want each miner to have 50GB pledged so  50 GB / 128 bytes = 390625000 sectors
+		resp, err := consensus.ApplyMessageDirect(ctx, st, sm, addr, address.StorageMarketAddress, types.NewAttoFILFromFIL(100000), "createMiner", big.NewInt(390625000), pubkey, pid)
 		if err != nil {
 			return nil, err
 		}

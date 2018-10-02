@@ -1,0 +1,54 @@
+{
+  "Keys": {
+    "0": {
+      "privateKey": "BivX10ujgzX78lYNmfVEVumbqw3ugVO3QtMDMVMAe5U=",
+      "curve": "secp256k1"
+    },
+    "1": {
+      "privateKey": "Qwe3iMrKMO5isWM0Z12Z9qU/Zh9z14Bkm49HV3stfDs=",
+      "curve": "secp256k1"
+    },
+    "2": {
+      "privateKey": "zbENdYQbMaKinUauwdniLIitXT7c6OXXu7/4k9mOEyI=",
+      "curve": "secp256k1"
+    },
+    "3": {
+      "privateKey": "8hPilSQMuNg0GxUuxD+UW1CMtno0ljV6G/9lneHnVDg=",
+      "curve": "secp256k1"
+    },
+    "4": {
+      "privateKey": "eS52ije/wz3zfA/vbHJvQSoso0hYk5zvB+tYg1yMwmo=",
+      "curve": "secp256k1"
+    }
+  },
+  "Miners": [
+    {
+      "Owner": "0",
+      "Address": "fcqgv76ret9mkdqxnfxl2tnw529urfyze3ktw9xgp",
+      "Power": 100
+    },
+    {
+      "Owner": "1",
+      "Address": "fcq2rcgv0cfyt94d6s0ccp87x8v2pyt8f25rhlvjt",
+      "Power": 100
+    },
+    {
+      "Owner": "2",
+      "Address": "fcq8v0usu6ys5k2v57ef6xqzd8dh88x4vc7jws92q",
+      "Power": 100
+    },
+    {
+      "Owner": "3",
+      "Address": "fcqu8qt4z7zqzyzjflghg0p82ljnpcqtwxl7un39m",
+      "Power": 100
+    },
+    {
+      "Owner": "4",
+      "Address": "fcqdkvu5rthd8s85fhmr2m4fxt0rk2qkq88tulwkx",
+      "Power": 100
+    }
+  ],
+  "GenesisCid": {
+    "/": "zDPWYqFD2Gcd2wAFs1nyqHdrVRpsTvB3iLiwrvDjfVvqyKkGRqMD"
+  }
+}
