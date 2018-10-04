@@ -17,7 +17,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/api"
 	"github.com/filecoin-project/go-filecoin/config"
 	"github.com/filecoin-project/go-filecoin/consensus"
-	"github.com/filecoin-project/go-filecoin/fixtures"
 	"github.com/filecoin-project/go-filecoin/node"
 	"github.com/filecoin-project/go-filecoin/repo"
 	"github.com/filecoin-project/go-filecoin/types"
@@ -28,6 +27,29 @@ const (
 	// SECP256K1 is a curve used to compute private keys
 	SECP256K1 = "secp256k1"
 )
+
+// Lab week cluster addrs
+const (
+	filecoinBootstrap0 string = "/dns4/cluster.kittyhawk.wtf/tcp/9000/ipfs/Qmd6xrWYHsxivfakYRy6MszTpuAiEoFbgE1LWw4EvwBpp4"
+	filecoinBootstrap1 string = "/dns4/cluster.kittyhawk.wtf/tcp/9001/ipfs/QmXq6XEYeEmUzBFuuKbVEGgxEpVD4xbSkG2Rhek6zkFMp4"
+	filecoinBootstrap2 string = "/dns4/cluster.kittyhawk.wtf/tcp/9002/ipfs/QmXhxqTKzBKHA5FcMuiKZv8YaMPwpbKGXHRVZcFB2DX9XY"
+	filecoinBootstrap3 string = "/dns4/cluster.kittyhawk.wtf/tcp/9003/ipfs/QmZGDLdQLUTi7uYTNavKwCd7SBc5KMfxzWxAyvqRQvwuiV"
+	filecoinBootstrap4 string = "/dns4/cluster.kittyhawk.wtf/tcp/9004/ipfs/QmZRnwmCjyNHgeNDiyT8mXRtGhP6uSzgHtrozc42crmVbg"
+	filecoinBootstrap5 string = "/dns4/cluster.kittyhawk.wtf/tcp/9005/ipfs/QmQ8UoqmUUNQnCcYXNJPLbqT9aKpvfcoCWgxnV1aDGR3Ui"
+	filecoinBootstrap6 string = "/dns4/cluster.kittyhawk.wtf/tcp/9006/ipfs/QmY7dK81dyant42kteuiKQNrtnZ5hRjEzdYn3NWwpBunXC"
+	filecoinBootstrap7 string = "/dns4/cluster.kittyhawk.wtf/tcp/9007/ipfs/QmT3X2Z2ptrD3zpQc7wJe53ayAVr7sHA1wWMdT4T1d1u9J"
+	filecoinBootstrap8 string = "/dns4/cluster.kittyhawk.wtf/tcp/9008/ipfs/QmVbkRxWyuEcWWtEiTj2NHWRt5NyFHB5KqL45agnHAXGNY"
+	filecoinBootstrap9 string = "/dns4/cluster.kittyhawk.wtf/tcp/9009/ipfs/QmS5YAS5YsKSPvk63DkXjmhJMXXt7aSvtRfEtZEbhunLH2"
+)
+
+// LabWeekBootstrapAddrs are the dns multiaddrs for the nodes of the filecoin
+// cluster running at lab week.
+var labWeekBootstrapAddrs = []string{
+	filecoinBootstrap0, filecoinBootstrap1, filecoinBootstrap2,
+	filecoinBootstrap3, filecoinBootstrap4, filecoinBootstrap5,
+	filecoinBootstrap6, filecoinBootstrap7, filecoinBootstrap8,
+	filecoinBootstrap9,
+}
 
 type nodeDaemon struct {
 	api *nodeAPI
@@ -107,7 +129,7 @@ func (nd *nodeDaemon) Init(ctx context.Context, opts ...api.DaemonInitOpt) error
 	// Setup labweek release specific config options.
 	if cfg.LabWeekCluster {
 		newConfig := rep.Config()
-		newConfig.Bootstrap.Addresses = fixtures.LabWeekBootstrapAddrs
+		newConfig.Bootstrap.Addresses = labWeekBootstrapAddrs
 		newConfig.Bootstrap.MinPeerThreshold = 1
 		newConfig.Bootstrap.Period = "10s"
 		if err := rep.ReplaceConfig(newConfig); err != nil {
