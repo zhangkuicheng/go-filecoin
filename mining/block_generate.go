@@ -32,18 +32,13 @@ func (w *DefaultWorker) Generate(ctx context.Context, baseTipSet consensus.TipSe
 		return nil, errors.Wrap(err, "get weight")
 	}
 
-	nonce, err := core.NextNonce(ctx, stateTree, w.messagePool, address.NetworkAddress)
-	if err != nil {
-		return nil, errors.Wrap(err, "next nonce")
-	}
-
 	baseHeight, err := baseTipSet.Height()
 	if err != nil {
 		return nil, errors.Wrap(err, "get base tip set height")
 	}
 
 	blockHeight := baseHeight + nullBlockCount + 1
-	rewardMsg := types.NewMessage(address.NetworkAddress, w.minerAddr, nonce, types.NewAttoFILFromFIL(1000), "", nil)
+	rewardMsg := types.NewMessage(address.NetworkAddress, w.minerAddr, 0, types.NewAttoFILFromFIL(1000), "", nil)
 	srewardMsg := &types.SignedMessage{
 		Message:   *rewardMsg,
 		Signature: nil,
