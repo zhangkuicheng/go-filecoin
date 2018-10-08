@@ -73,8 +73,9 @@ func (api *nodeLog) StreamTo(ctx context.Context, maddr ma.Multiaddr) error {
 		<-ctx.Done()
 	}()
 
-	// add the pipe to the event log writer group
-	writer.WriterGroup.AddWriter(w)
+	// add the pipe to the event log Aux writer group,
+	// this writer group will only have events from the Start methods
+	writer.AuxWriterGroup.AddWriter(w)
 
 	/*** THIS IS A HACK FOR DEMO ***/
 	// Lets make a crappy filter
