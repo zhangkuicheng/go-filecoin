@@ -87,10 +87,11 @@ resource "aws_security_group" "filecoin" {
 module "filecoin-cluster" {
   source = "../../../modules/aws/ec2/"
 
+  instance_type   = "c5d.4xlarge"
   instance_name   = "cluster"
   public_key_name = "${aws_key_pair.filecoin.key_name}"
   vpc_id          = "${module.vpc.vpc_id}"
-  subnet_id       = "${element(module.vpc.public_subnets, 0)}"
+  subnet_id       = "${element(module.vpc.public_subnets, 1)}"
 
   vpc_security_group_ids = [
     "${aws_security_group.filecoin.id}",
@@ -98,6 +99,7 @@ module "filecoin-cluster" {
     "${aws_security_group.node_exporter.id}",
   ]
 
+  docker_tag                = "${var.docker_tag}"
   iam_instance_profile_name = "${aws_iam_instance_profile.filecoin_kittyhawk.name}"
   route53_zone_name         = "${aws_route53_zone.kittyhawk.name}"
   route53_zone_id           = "${aws_route53_zone.kittyhawk.zone_id}"
