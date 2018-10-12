@@ -124,11 +124,10 @@ docker exec "filecoin-0" $$filecoin_exec \
        mining start
 
 # start faucet
-MONEY_BAGS_ADDR=$$(docker exec "filecoin-0" $$filecoin_exec wallet addrs ls | tail -n1)
 docker run -d --name faucet \
        --network=filecoin -p 9797:9797 \
        657871693752.dkr.ecr.us-east-1.amazonaws.com/filecoin-faucet:76b219 \
-       -fil-api filecoin-0:3453 -fil-wallet $${MONEY_BAGS_ADDR} -faucet-val 1000
+       -fil-api filecoin-0:3453 -fil-wallet $${minerOwner} -faucet-val 1000
 
 # connect nodes
 for i in {0..4}
