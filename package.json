@@ -213,6 +213,12 @@
       "hash": "QmPMtD39NN63AEUNghk1LFQcTLcCmYL8MtRzdv8BRUsC4Z",
       "name": "go-libp2p-host",
       "version": "3.0.7"
+    },
+    {
+      "author": "multiformats",
+      "hash": "QmPnFwZ2JXKnXgMw8CdBPxn7FWh6LLdjUjxV1fKHuJnkr8",
+      "name": "go-multihash",
+      "version": "1.0.8"
     }
   ],
   "gxVersion": "0.12.1",
