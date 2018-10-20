@@ -295,6 +295,12 @@
       "hash": "QmWw71Mz9PXKgYG8ZfTYN7Ax2Zm48Eurbne3wC2y7CKmLz",
       "name": "go-ipfs-exchange-interface",
       "version": "0.0.6"
+    },
+    {
+      "author": "minio",
+      "hash": "QmXTpwq2AkzQsPjKqFQDNY2bMdsAT53hUBETeyj8QRHTZU",
+      "name": "sha256-simd",
+      "version": "0.1.1"
     }
   ],
   "gxVersion": "0.12.1",
