@@ -183,6 +183,12 @@
       "hash": "QmbXRda5H2K3MSQyWWxTMtd8DWuguEBUCe6hpxfXVpFUGj",
       "name": "go-multistream",
       "version": "0.3.7"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmcmpX42gtDv1fz24kau4wjS9hfwWj5VexWBKgGnWzsyag",
+      "name": "go-ipfs-blockstore",
+      "version": "0.0.18"
     }
   ],
   "gxVersion": "0.12.1",
