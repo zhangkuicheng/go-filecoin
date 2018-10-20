@@ -195,6 +195,18 @@
       "hash": "QmcrriCMhjb5ZWzmPNxmP53px47tSPcXBNaMtLdgcKFJYk",
       "name": "refmt",
       "version": "1.1.0"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "Qme5bWv7wtjUNGsK2BNGVUFPKiuxWrsqrtvYwCLRw8YFES",
+      "name": "go-ipld-format",
+      "version": "0.5.3"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmeKD8YT7887Xu6Z86iZmpYNxrLogJexqxEugSmaf14k64",
+      "name": "go-libp2p-peerstore",
+      "version": "1.4.24"
     }
   ],
   "gxVersion": "0.12.1",
