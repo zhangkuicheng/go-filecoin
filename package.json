@@ -283,6 +283,12 @@
       "hash": "QmVG5gxteQNEMhrS8prJSmU2C9rebtFuTd3SYZ5kE3YZ5k",
       "name": "go-datastore",
       "version": "3.0.0"
+    },
+    {
+      "author": "why",
+      "hash": "QmVz2p8ZVZ5GcWPNWGs2HZHiZyHumZcJpQdMRpxkMDhc2C",
+      "name": "go-libp2p-interface-connmgr",
+      "version": "0.0.14"
     }
   ],
   "gxVersion": "0.12.1",
