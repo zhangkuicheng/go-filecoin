@@ -248,6 +248,12 @@
       "hash": "QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr",
       "name": "go-log",
       "version": "1.5.5"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmSbvata2WqNkqGtZNg8MR3SKwnB8iQ7vTPJgWqB8bC5kR",
+      "name": "go-multibase",
+      "version": "0.2.7"
     }
   ],
   "gxVersion": "0.12.1",
