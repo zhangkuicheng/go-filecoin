@@ -289,6 +289,12 @@
       "hash": "QmVz2p8ZVZ5GcWPNWGs2HZHiZyHumZcJpQdMRpxkMDhc2C",
       "name": "go-libp2p-interface-connmgr",
       "version": "0.0.14"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmWw71Mz9PXKgYG8ZfTYN7Ax2Zm48Eurbne3wC2y7CKmLz",
+      "name": "go-ipfs-exchange-interface",
+      "version": "0.0.6"
     }
   ],
   "gxVersion": "0.12.1",
