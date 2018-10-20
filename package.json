@@ -271,6 +271,12 @@
       "hash": "QmTfTKeBhTLjSjxXQsjkF2b1DfZmYEMnknGE2y2gX57C6v",
       "name": "go-blockservice",
       "version": "1.0.12"
+    },
+    {
+      "author": "multiformats",
+      "hash": "QmV6FjemM1K8oXjrvuq3wuVWWoU2TLDPmNnKrxHzY3v6Ai",
+      "name": "go-multiaddr-net",
+      "version": "1.6.3"
     }
   ],
   "gxVersion": "0.12.1",
