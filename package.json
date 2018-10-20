@@ -319,6 +319,12 @@
       "hash": "QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN",
       "name": "go-libp2p-protocol",
       "version": "1.0.0"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmZxjqR9Qgompju73kakSoUj3rbVndAzky3oCDiBNCxPs1",
+      "name": "go-ipfs-exchange-offline",
+      "version": "0.0.16"
     }
   ],
   "gxVersion": "0.12.1",
