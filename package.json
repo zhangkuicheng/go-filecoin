@@ -237,6 +237,12 @@
       "hash": "QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W",
       "name": "go-libp2p-peer",
       "version": "2.3.7"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmQvJiADDe7JR4m968MwXobTCCzUqQkP87aRHe29MEBGHV",
+      "name": "go-logging",
+      "version": "0.0.0"
     }
   ],
   "gxVersion": "0.12.1",
