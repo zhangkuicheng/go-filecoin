@@ -88,7 +88,7 @@ the following protocol:
  "Add Comments" or "Approve" (not merge blocking):
     * If a reviewer makes a blocking comment while blocking merge
   ("Request Changes") they are signaling that they want to have another
-  look after the chages are made. Don't merge until they approve. Example:
+  look after the changes are made. Don't merge until they approve. Example:
   the whole design of an abstraction is wrong and reviewer wants to see it
   reworked.
     * If a reviewer makes a blocking comment but does not block
@@ -104,7 +104,7 @@ the following protocol:
 blocking or come with an approval unless you are still looking things
 over or you're asking for clarification. It's ok/encouraged to ask
 for explanations. The thing we want to avoid is *unnecessarily*
-requiring mutiple round trips from someone whose next availability
+requiring multiple round trips from someone whose next availability
  might be 12 hours away.
 
 ## Project Management
@@ -132,7 +132,7 @@ requiring mutiple round trips from someone whose next availability
 ### Picking up a story
 
 In order to surface design constraints as early as possible clarify an
-implementation plan ahead of implementation with someone knowledgable
+implementation plan ahead of implementation with someone knowledgeable
 of the issue. That is, when you pick up a story spend some time with
 it and then clarify what you think should happen with someone familiar
 with the issue and code. Typically this is the person who filed the
@@ -313,3 +313,7 @@ Likely future requirements:
   * Ditto for `*cid.Cid`
   * For `types.Message` use `types.MsgCidsEqual` (or better submit a PR to add `Message.Equals()`)
   * DO use `==` for `address.Address`, it's just an address
+* GX
+  * Always use `gx import <cid>` or `gx import <path>` when importing a new dependency.
+  * Always use `gx update <pkg_name> <cid>` when updating an existing dependency.
+  * NEVER manually copy a package import line without first performing one of the above steps.
