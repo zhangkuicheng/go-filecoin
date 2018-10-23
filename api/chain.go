@@ -10,4 +10,5 @@ import (
 type Chain interface {
 	Head() ([]*cid.Cid, error)
 	Ls(ctx context.Context) <-chan interface{}
+	LsCids(ctx context.Context) <-chan interface{}
 }

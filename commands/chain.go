@@ -2,6 +2,8 @@
 package commands
 
 import (
+	"fmt"
+	
 	"gx/ipfs/QmPTfgFTo9PFr1PvPKyKoeMgBvYPh6cX3aDP7DHKVbnCbi/go-ipfs-cmds"
 	"gx/ipfs/QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky/go-ipfs-cmdkit"
 	"gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
@@ -40,7 +42,30 @@ var chainLsCmd = &cmds.Command{
 	Helptext: cmdkit.HelpText{
 		Tagline: "dump full block chain",
 	},
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("cids", "display only cids of blocks"),
+	},
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) {
+		onlyCids, _ := req.Options["cids"].(bool)
+		if onlyCids {
+			for raw := range GetAPI(env).Chain().LsCids(req.Context) {
+				switch v := raw.(type) {
+				case error:
+					re.SetError(v, cmdkit.ErrNormal)
+					return
+				case types.SortedCidSet:
+					if v.Len() == 0 {
+						panic("sorted cid sets from this channel should have at least one member")
+					}
+					fmt.Printf("v: %s\n", v)
+					re.Emit(v.ToSlice()) // nolint: errcheck
+				default:
+					re.SetError("unexpected type", cmdkit.ErrNormal)
+					return
+				}
+			}
+		}
+		
 		for raw := range GetAPI(env).Chain().Ls(req.Context) {
 			switch v := raw.(type) {
 			case error:
