@@ -48,8 +48,6 @@ func (node *Node) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb func(*
 //       We should replace with an index later.
 func (waiter *MessageWaiter) WaitForMessage(ctx context.Context, msgCid *cid.Cid, cb func(*types.Block, *types.SignedMessage, *types.MessageReceipt) error) error {
 	var emptyErr error
-	ctx = log.Start(ctx, "WaitForMessage")
-	defer log.Finish(ctx)
 	log.Info("Calling WaitForMessage")
 	// Ch will contain a stream of blocks to check for message (or errors).
 	// Blocks are either in new heaviest tipsets, or next oldest historical blocks.

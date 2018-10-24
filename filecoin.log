@@ -1,0 +1,3 @@
+[37mDEBU[0m[0000] go-filecoin running command                   [37margs[0m="[go-filecoin daemon]" [37mprogram[0m=go-filecoin
+[37mDEBU[0m[0000] SetHead { zDPWYqFCrsZGrGYnzQsAJGs22Lf71BZFHgGoSQWxbVHq2YwNRgJN }  [37mpkg[0m=chain [37mservice[0m=store
+[37mDEBU[0m[0000] writeHead { zDPWYqFCrsZGrGYnzQsAJGs22Lf71BZFHgGoSQWxbVHq2YwNRgJN }  [37mpkg[0m=chain [37mservice[0m=store

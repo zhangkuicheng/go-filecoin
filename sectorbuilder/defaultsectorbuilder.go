@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
 	bserv "gx/ipfs/QmTfTKeBhTLjSjxXQsjkF2b1DfZmYEMnknGE2y2gX57C6v/go-blockservice"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	ipld "gx/ipfs/QmX5CsuHyVZeTLxgRSYkgLSDQKb9UjE8xnhQzCEJWWWFsC/go-ipld-format"
@@ -20,8 +19,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/proofs"
 	"github.com/filecoin-project/go-filecoin/repo"
 )
-
-var log = logging.Logger("sectorbuilder") // nolint: deadcode
 
 // defaultSectorBuilder satisfies the SectorBuilder interface.
 type defaultSectorBuilder struct {
@@ -338,12 +335,6 @@ func (sb *defaultSectorBuilder) AddPiece(ctx context.Context, pi *PieceInfo) (se
 	}()
 	log.Debugf("SectorBuilder.AddPiece got sb.curUnsealedSectorLk to add piece %s", pi.Ref.String())
 
-	ctx = log.Start(ctx, "SectorBuilder.AddPiece")
-	log.SetTag(ctx, "piece", pi)
-	defer func() {
-		log.FinishWithErr(ctx, err)
-	}()
-
 	if pi.Size > sb.sectorSize {
 		return 0, ErrPieceTooLarge
 	}
@@ -451,11 +442,6 @@ func (sb *defaultSectorBuilder) syncFile(s *UnsealedSector) error {
 
 // writePiece writes piece bytes to an unsealed sector.
 func (sb *defaultSectorBuilder) writePiece(ctx context.Context, dest *UnsealedSector, pi *PieceInfo) (finalErr error) {
-	ctx = log.Start(ctx, "UnsealedSector.writePiece")
-	defer func() {
-		log.FinishWithErr(ctx, finalErr)
-	}()
-
 	root, err := sb.dserv.Get(ctx, pi.Ref)
 	if err != nil {
 		return err

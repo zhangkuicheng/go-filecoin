@@ -4,7 +4,6 @@ import (
 	"time"
 	"unsafe"
 
-	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 )
 
@@ -27,8 +26,6 @@ import (
 #include "./rust-proofs/sector-base/libsector_base.h"
 */
 import "C"
-
-var log = logging.Logger("fps") // nolint: deadcode
 
 // RustProver provides an interface to rust-proofs.
 type RustProver struct{}

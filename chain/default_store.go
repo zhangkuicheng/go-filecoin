@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
-	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
 	bserv "gx/ipfs/QmTfTKeBhTLjSjxXQsjkF2b1DfZmYEMnknGE2y2gX57C6v/go-blockservice"
 	"gx/ipfs/QmVG5gxteQNEMhrS8prJSmU2C9rebtFuTd3SYZ5kE3YZ5k/go-datastore"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
@@ -21,8 +20,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/state"
 	"github.com/filecoin-project/go-filecoin/types"
 )
-
-var logStore = logging.Logger("chain.store")
 
 var headKey = datastore.NewKey("/chain/heaviestTipSet")
 
@@ -367,13 +364,11 @@ func (store *DefaultStore) LatestState(ctx context.Context) (state.Tree, error) 
 // followed by each subsequent parent and ending with the genesis block, after which the channel
 // is closed. If an error is encountered while fetching a block, the error is sent, and the channel is closed.
 func (store *DefaultStore) BlockHistory(ctx context.Context) <-chan interface{} {
-	ctx = logStore.Start(ctx, "BlockHistory")
 	out := make(chan interface{})
 	tips := store.Head().ToSlice()
 
 	go func() {
 		defer close(out)
-		defer logStore.Finish(ctx)
 		err := store.walkChain(ctx, tips, func(tips []*types.Block) (cont bool, err error) {
 			var raw interface{}
 			raw, err = consensus.NewTipSet(tips...)

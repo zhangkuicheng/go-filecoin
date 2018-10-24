@@ -11,7 +11,6 @@ import (
 	"gx/ipfs/QmPMtD39NN63AEUNghk1LFQcTLcCmYL8MtRzdv8BRUsC4Z/go-libp2p-host"
 	"gx/ipfs/QmQZadYTDF4ud9DdK85PH2vReJRzUM9YfVW4ReB1q2m51p/go-hamt-ipld"
 	libp2ppeer "gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
-	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
 	routing "gx/ipfs/QmS4niovD1U6pRjUBXivr1zvvLBqiTKbERjFo994JU7oQS/go-libp2p-routing"
 	"gx/ipfs/QmT5K5mHn2KUyCDBntKoojQJAJftNzutxzpYR33w8JdN6M/go-libp2p-floodsub"
 	bserv "gx/ipfs/QmTfTKeBhTLjSjxXQsjkF2b1DfZmYEMnknGE2y2gX57C6v/go-blockservice"
@@ -53,8 +52,6 @@ import (
 )
 
 var filecoinDHTProtocol dhtprotocol.ID = "/fil/kad/1.0.0"
-
-var log = logging.Logger("node") // nolint: deadcode
 
 var (
 	// ErrNoMethod is returned when processing a message that does not have a method.
@@ -741,10 +738,6 @@ func (node *Node) StopMining(ctx context.Context) {
 
 // GetSignature fetches the signature for the given method on the appropriate actor.
 func (node *Node) GetSignature(ctx context.Context, actorAddr address.Address, method string) (_ *exec.FunctionSignature, err error) {
-	ctx = log.Start(ctx, "Node.GetSignature")
-	defer func() {
-		log.FinishWithErr(ctx, err)
-	}()
 	st, err := node.ChainReader.LatestState(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load state tree")
@@ -777,12 +770,6 @@ func (node *Node) GetSignature(ctx context.Context, actorAddr address.Address, m
 // the actor's memory and also scans the message pool for any pending
 // messages.
 func NextNonce(ctx context.Context, node *Node, address address.Address) (nonce uint64, err error) {
-	ctx = log.Start(ctx, "Node.NextNonce")
-	defer func() {
-		log.SetTag(ctx, "nonce", nonce)
-		log.FinishWithErr(ctx, err)
-	}()
-
 	st, err := node.ChainReader.LatestState(ctx)
 	if err != nil {
 		return 0, err
@@ -798,11 +785,6 @@ func NextNonce(ctx context.Context, node *Node, address address.Address) (nonce 
 // nonce is set to our best guess at the next appropriate value
 // (see NextNonce).
 func NewMessageWithNextNonce(ctx context.Context, node *Node, from, to address.Address, value *types.AttoFIL, method string, params []byte) (_ *types.Message, err error) {
-	ctx = log.Start(ctx, "Node.NewMessageWithNextNonce")
-	defer func() {
-		log.FinishWithErr(ctx, err)
-	}()
-
 	nonce, err := NextNonce(ctx, node, from)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't get next nonce")
@@ -826,11 +808,6 @@ func (node *Node) NewAddress() (address.Address, error) {
 // for interrogating actor state. The caller address is optional; if not
 // provided, an address will be chosen from the node's wallet.
 func (node *Node) CallQueryMethod(ctx context.Context, to address.Address, method string, args []byte, optFrom *address.Address) (_ [][]byte, _ uint8, err error) {
-	ctx = log.Start(ctx, "Node.CallQueryMethod")
-	defer func() {
-		log.FinishWithErr(ctx, err)
-	}()
-
 	headTs := node.ChainReader.Head()
 	tsas, err := node.ChainReader.GetTipSetAndState(ctx, headTs.String())
 	if err != nil {
@@ -866,11 +843,6 @@ func (node *Node) CreateMiner(ctx context.Context, accountAddr address.Address, 
 	if _, err := node.MiningAddress(); err != ErrNoMinerAddress {
 		return nil, fmt.Errorf("Can only have on miner per node")
 	}
-
-	ctx = log.Start(ctx, "Node.CreateMiner")
-	defer func() {
-		log.FinishWithErr(ctx, err)
-	}()
 
 	// TODO: make this more streamlined in the wallet
 	backend, err := node.Wallet.Find(accountAddr)

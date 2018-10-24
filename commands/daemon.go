@@ -12,7 +12,6 @@ import (
 
 	"gx/ipfs/QmPTfgFTo9PFr1PvPKyKoeMgBvYPh6cX3aDP7DHKVbnCbi/go-ipfs-cmds"
 	cmdhttp "gx/ipfs/QmPTfgFTo9PFr1PvPKyKoeMgBvYPh6cX3aDP7DHKVbnCbi/go-ipfs-cmds/http"
-	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
 	writer "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log/writer"
 	"gx/ipfs/QmSP88ryZkHSRn1fnngAaV2Vcn63WUJzAavnRM9CVdU1Ky/go-ipfs-cmdkit"
 	"gx/ipfs/QmV6FjemM1K8oXjrvuq3wuVWWoU2TLDPmNnKrxHzY3v6Ai/go-multiaddr-net"
@@ -26,8 +25,6 @@ import (
 	"github.com/filecoin-project/go-filecoin/repo"
 	"github.com/filecoin-project/go-filecoin/types"
 )
-
-var log = logging.Logger("commands")
 
 // exposed here, to be available during testing
 var sigCh = make(chan os.Signal, 1)
@@ -180,24 +177,21 @@ func runAPIAndWait(ctx context.Context, node *node.Node, config *config.Config, 
 	// the period is a stats configuration option, and may be changed while the
 	// node is running.
 	go func() {
+		return
 		for {
 			beat, err := time.ParseDuration(config.Stats.HeartbeatPeriod)
 			if err != nil {
-				log.Warningf("invalid heartbeat value: %s, defaulting to 3s", err)
+				log.WithError(err).Warning("invalid heartbeat value, defaulting to 3s")
 				beat, _ = time.ParseDuration("3s") // set a sane default
 			}
 			time.Sleep(beat)
 
-			ctx = log.Start(ctx, "HeartBeat")
-
 			hb, err := NewHeartbeat(node)
 			if err != nil {
-				log.Errorf("Could not get heartbeat: %v", err)
-				log.FinishWithErr(ctx, err)
+				log.WithError(err).Errorf("Could not get heartbeat")
 				continue
 			}
-			log.SetTag(ctx, "heartbeat", hb)
-			log.Finish(ctx)
+			hbLog.WithField("beat", hb).Info("heartbet")
 		}
 	}()
 

@@ -9,7 +9,6 @@ import (
 	host "gx/ipfs/QmPMtD39NN63AEUNghk1LFQcTLcCmYL8MtRzdv8BRUsC4Z/go-libp2p-host"
 	net "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
 	peer "gx/ipfs/QmQsErDt8Qgw1XrsXf2BpEzDgGWtB1YLsTAARBup5b6B9W/go-libp2p-peer"
-	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
 	ma "gx/ipfs/QmYmsdtJ3HsodkePE3eU3TsCaP2YvPZJ4LoXnNkDE5Tpt7/go-multiaddr"
 	cid "gx/ipfs/QmZFbDTY9jfSBms2MchvYM9oYRbAF19K7Pby47yDBfpPrb/go-cid"
 
@@ -18,8 +17,6 @@ import (
 
 // HelloProtocol is the libp2p protocol identifier for the hello protocol.
 const HelloProtocol = "/fil/hello/1.0.0"
-
-var log = logging.Logger("hello")
 
 // HelloMsg is the data structure of a single message in the hello protocol.
 type HelloMsg struct {
@@ -73,13 +70,13 @@ func (h *Hello) handleNewStream(s net.Stream) {
 
 	var hello HelloMsg
 	if err := json.NewDecoder(s).Decode(&hello); err != nil {
-		log.Warningf("bad hello message from peer %s: %s", from, err)
+		log.WithError(err).Warningf("bad hello message from peer %s: %s", from, err)
 		return
 	}
 
 	switch err := h.processHelloMessage(from, &hello); err {
 	case ErrBadGenesis:
-		log.Error("bad genesis, TODO: disconnect from peer")
+		log.WithError(ErrBadGenesis).Error("bad genesis, TODO: disconnect from peer")
 		return
 	default:
 		log.Error(err)
@@ -144,7 +141,7 @@ func (hn *helloNotify) Connected(n net.Network, c net.Conn) {
 		defer cancel()
 		p := c.RemotePeer()
 		if err := hn.hello().sayHello(ctx, p); err != nil {
-			log.Warningf("failed to send hello handshake to peer %s: %s", p, err)
+			log.WithError(err).Warningf("failed to send hello handshake to peer %s", p)
 		}
 	}()
 }
