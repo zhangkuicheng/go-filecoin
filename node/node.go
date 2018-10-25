@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 	"time"
 
@@ -603,7 +604,7 @@ func (node *Node) StartMining(ctx context.Context) error {
 
 	// initialize a sector store
 	sstore := proofs.NewDiskBackedSectorStore(node.Repo.StagingDir(), node.Repo.SealedDir())
-	if node.Repo.Config().Mining.PerformRealProofs {
+	if os.Getenv("FILECOIN_USE_SMALL_SECTORS") == "true" {
 		sstore = proofs.NewProofTestSectorStore(node.Repo.StagingDir(), node.Repo.SealedDir())
 	}
 	node.SectorStore = sstore
