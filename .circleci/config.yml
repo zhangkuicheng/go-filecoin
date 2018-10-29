@@ -138,7 +138,7 @@ jobs:
       - run:
           name: Test
           command: |
-            go run ./build/*.go test -covermode=atomic -coverprofile=coverage.txt &&
+            go run ./build/*.go test -v -count=20 -covermode=atomic -coverprofile=coverage.txt &&
             bash <(curl -s https://codecov.io/bash)
       - run:
           name: Functional Tests
