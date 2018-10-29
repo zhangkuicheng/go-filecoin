@@ -725,14 +725,12 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 	for _, option := range options {
 		option(td)
 	}
-	swarmListenFlag := fmt.Sprintf("--swarmlisten=%s", td.swarmAddr)
-	cmdAPIAddrFlag := fmt.Sprintf("--cmdapiaddr=%s", td.cmdAddr)
+
 	repoDirFlag := fmt.Sprintf("--repodir=%s", td.repoDir)
 	blockTimeFlag := fmt.Sprintf("--block-time=%s", BlockTimeTest)
 
 	// build command options
 	initopts := []string{
-		cmdAPIAddrFlag,
 		repoDirFlag,
 	}
 
@@ -758,6 +756,9 @@ func NewDaemon(t *testing.T, options ...func(*TestDaemon)) *TestDaemon {
 			t.Fatal(err)
 		}
 	}
+
+	swarmListenFlag := fmt.Sprintf("--swarmlisten=%s", td.swarmAddr)
+	cmdAPIAddrFlag := fmt.Sprintf("--cmdapiaddr=%s", td.cmdAddr)
 
 	finalArgs := []string{"daemon", repoDirFlag, cmdAPIAddrFlag, swarmListenFlag, blockTimeFlag}
 	td.test.Logf("(%s) run: %q\n", td.swarmAddr, strings.Join(finalArgs, " "))

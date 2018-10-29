@@ -263,7 +263,7 @@ func install() {
 func test(args ...string) {
 	log.Println("Testing...")
 
-	run(fmt.Sprintf("go test ./... %s", strings.Join(args, " ")))
+	run(fmt.Sprintf("go test -parallel 8 ./... %s", strings.Join(args, " ")))
 }
 
 func main() {
