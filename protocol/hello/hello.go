@@ -23,9 +23,19 @@ var log = logging.Logger("/fil/hello")
 
 // Message is the data structure of a single message in the hello protocol.
 type Message struct {
+	SenderAddr           string
 	HeaviestTipSetCids   []*cid.Cid
 	HeaviestTipSetHeight uint64
 	GenesisHash          *cid.Cid
+}
+
+func (msg *Message) String() string {
+	cidString := "{"
+	for _, c := range msg.HeaviestTipSetCids {
+		cidString = fmt.Sprintf("%s %s", cidString, c.String())
+	}
+	cidString = fmt.Sprintf("%s}", cidString)
+	return fmt.Sprintf("sender: %s | cids: %s | h: %d | gen: %s", msg.SenderAddr, cidString, msg.HeaviestTipSetHeight, msg.GenesisHash.String())
 }
 
 type syncCallback func(from peer.ID, cids []*cid.Cid, height uint64)
@@ -66,6 +76,13 @@ func New(h host.Host, gen *cid.Cid, syncCallback syncCallback, getHeaviestTipSet
 	return hello
 }
 
+// name returns multiaddr/pid of the hello handler's host
+func (h *Handler) name() string {
+	ma := h.host.Addrs()[0]
+	pid := h.host.ID()
+	return fmt.Sprintf("%s/%s", ma.String(), pid)
+}
+
 func (h *Handler) handleNewStream(s net.Stream) {
 	defer s.Close() // nolint: errcheck
 
@@ -76,6 +93,8 @@ func (h *Handler) handleNewStream(s net.Stream) {
 		log.Warningf("bad hello message from peer %s: %s", from, err)
 		return
 	}
+//	peerName := fmt.Sprintf("%s/%s", s.Conn().RemoteMultiaddr().String(), from)
+	fmt.Printf("%s processing: BEGIN %s END\n", h.name(), hello.String()) 
 
 	switch err := h.processHelloMessage(from, &hello); err {
 	case ErrBadGenesis:
@@ -97,7 +116,6 @@ func (h *Handler) processHelloMessage(from peer.ID, msg *Message) error {
 		log.Errorf("Our genesis cid: %s", h.genesis.String())
 		return ErrBadGenesis
 	}
-
 	h.chainSyncCB(from, msg.HeaviestTipSetCids, msg.HeaviestTipSetHeight)
 	return nil
 }
@@ -110,6 +128,7 @@ func (h *Handler) getOurHelloMessage() *Message {
 	}
 
 	return &Message{
+		SenderAddr:           h.name(),
 		GenesisHash:          h.genesis,
 		HeaviestTipSetCids:   heaviest.ToSortedCidSet().ToSlice(),
 		HeaviestTipSetHeight: height,
@@ -143,6 +162,8 @@ func (hn *helloNotify) Connected(n net.Network, c net.Conn) {
 		ctx, cancel := context.WithTimeout(context.Background(), helloTimeout)
 		defer cancel()
 		p := c.RemotePeer()
+//		peerName := fmt.Sprintf("%s/%s", c.RemoteMultiaddr().String(), p)		
+//		fmt.Printf("%s saying hello to %s BEGIN %s END \n", hn.hello().name(), peerName, hn.hello().getOurHelloMessage().String()) 
 		if err := hn.hello().sayHello(ctx, p); err != nil {
 			log.Warningf("failed to send hello handshake to peer %s: %s", p, err)
 		}
