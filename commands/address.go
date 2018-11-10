@@ -35,7 +35,7 @@ var addrsCmd = &cmds.Command{
 }
 
 type addressResult struct {
-	Address string
+	Address address.Address
 }
 
 var addrsNewCmd = &cmds.Command{
@@ -45,15 +45,19 @@ var addrsNewCmd = &cmds.Command{
 			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
-		re.Emit(&addressResult{addr.String()}) // nolint: errcheck
+		re.Emit(&addressResult{addr}) // nolint: errcheck
 	},
 	Type: &addressResult{},
 	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, a *addressResult) error {
-			_, err := fmt.Fprintln(w, a.Address)
+			_, err := fmt.Fprintln(w, a.Address.String())
 			return err
 		}),
 	},
+}
+
+type addressListResult struct {
+	Addresses []address.Address
 }
 
 var addrsLsCmd = &cmds.Command{
@@ -64,15 +68,21 @@ var addrsLsCmd = &cmds.Command{
 			return
 		}
 
-		for _, addr := range addrs {
-			re.Emit(&addressResult{addr.String()}) // nolint: errcheck
+		alr := &addressListResult{
+			Addresses: addrs,
 		}
+		re.Emit(alr) // nolint: errcheck
 	},
-	Type: &addressResult{},
+	Type: &addressListResult{},
 	Encoders: cmds.EncoderMap{
-		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, addr *addressResult) error {
-			_, err := fmt.Fprintln(w, addr.Address)
-			return err
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, alr *addressListResult) error {
+			for _, a := range alr.Addresses {
+				_, err := fmt.Fprintln(w, a.String())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
 		}),
 	},
 }
