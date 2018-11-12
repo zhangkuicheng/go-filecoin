@@ -3,6 +3,9 @@ package aggregator
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
 
 	host "gx/ipfs/QmPMtD39NN63AEUNghk1LFQcTLcCmYL8MtRzdv8BRUsC4Z/go-libp2p-host"
 	crypto "gx/ipfs/QmPvyPwuCgJ7pDmrKDxRtsScJgBaM5h4EpRL2qQJsmXf4n/go-libp2p-crypto"
@@ -12,6 +15,7 @@ import (
 
 	fcmetrics "github.com/filecoin-project/go-filecoin/metrics"
 	"github.com/filecoin-project/go-filecoin/tools/aggregator/event"
+	"github.com/filecoin-project/go-filecoin/tools/aggregator/service/feed"
 )
 
 var log = logging.Logger("aggregator/node")
@@ -36,11 +40,15 @@ type Service struct {
 	// Tracker keeps track of how many nodes are connected to the aggregator service
 	// as well as how many filecoin nodes are in and not in consensus.
 	Tracker *Tracker
+
+	Feed *feed.Feed
+
+	Sink EvtChan
 }
 
 // New creates a new aggregator service that listens on `listenPort` for
 // libp2p connections.
-func New(ctx context.Context, listenPort int, priv crypto.PrivKey) (*Service, error) {
+func New(ctx context.Context, listenPort, wsPort int, priv crypto.PrivKey) (*Service, error) {
 	h, err := NewLibp2pHost(ctx, priv, listenPort)
 	if err != nil {
 		return nil, err
@@ -58,22 +66,34 @@ func New(ctx context.Context, listenPort int, priv crypto.PrivKey) (*Service, er
 	RegisterNotifyBundle(h, t)
 
 	log.Infof("created aggregator, peerID: %s, listening on address: %s", h.ID().Pretty(), fullAddr.String())
+	sink := make(EvtChan, 100)
 	return &Service{
 		Host:        h,
 		FullAddress: fullAddr,
 		Tracker:     t,
+		Feed:        feed.NewFeed(ctx, wsPort, sink),
+		Sink:        sink,
 	}, nil
 }
 
-// Run will start a goroutine for each new connection from a filecoin node, and
-// add the connected nodes heartbeat to consensus tracking.
+// Run will setup the StreamHandler and runs the feed which serves the heartbeat
+// events on a websocket that the filecoin-dashboard can connect to and consume.
 func (a *Service) Run(ctx context.Context) {
-	// we create an error group the manage error handling in the
-	// input, filter, and output routines.
+	a.setupStreamHandler(ctx)
+	http.Handle("/", a.Feed)
+	go a.Feed.Run()
+	go func() {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", a.Feed.WSPort), nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
+}
+
+// setupStreamHandler will start a goroutine for each new connection from a filecoin node, and
+// add the connected nodes heartbeat to consensus tracking.
+func (a *Service) setupStreamHandler(ctx context.Context) {
 	a.Host.SetStreamHandler(fcmetrics.HeartbeatProtocol, func(s net.Stream) {
 		go func(ctx context.Context) {
-			log.Infof("new Stream with peer: %s", s.Conn().RemotePeer().Pretty())
-
 			defer s.Close() // nolint: errcheck
 
 			var peer = s.Conn().RemotePeer()
@@ -96,7 +116,13 @@ func (a *Service) Run(ctx context.Context) {
 						log.Errorf("heartbeat decode failed: %s", err)
 						return
 					}
-					a.Tracker.TrackConsensus(peer.String(), hb.Head)
+					hbEvt := event.HeartbeatEvent{
+						FromPeer:          peer,
+						ReceivedTimestamp: time.Now(),
+						Heartbeat:         hb,
+					}
+					a.Tracker.TrackConsensus(hbEvt.FromPeer.String(), hbEvt.Heartbeat.Head)
+					a.Sink <- hbEvt
 				}
 			}
 		}(ctx)

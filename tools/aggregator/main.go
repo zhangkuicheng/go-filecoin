@@ -48,11 +48,16 @@ func init() {
 func main() {
 	// Parse options from the command line
 	listenF := flag.Int("listen", 0, "port to wait for incoming connections")
+	wsportF := flag.Int("wsport", 0, "port to listen for dashboard connections")
 	peerKeyFile := flag.String("keyfile", "", "path to key pair file to generate pid from")
 	flag.Parse()
 
 	if *listenF == 0 {
 		log.Fatal("Ya'll please provide a port to bind on with -listen")
+	}
+
+	if *wsportF == 0 {
+		log.Fatal("Ya'll please provide a port to listen for websocket connections on with -wsport")
 	}
 
 	var priv crypto.PrivKey
@@ -82,13 +87,14 @@ func main() {
 	}(cancel)
 
 	// Make a host that listens on the given port
-	an, err := aggregator.New(ctx, *listenF, priv)
+	an, err := aggregator.New(ctx, *listenF, *wsportF, priv)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// run it till it dies
 	an.Run(ctx)
+	log.Info("Starter Aggregator")
+	// block until we get an interrupt
 	<-ctx.Done()
 
 }
