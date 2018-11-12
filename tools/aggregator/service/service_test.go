@@ -58,7 +58,7 @@ func TestService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	agg, err := New(aggCtx, 8889, priv)
+	agg, err := New(aggCtx, 8888, 8889, priv)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,10 +20,14 @@ type HeartbeatEvent struct {
 	Heartbeat fcmetrics.Heartbeat `json:"heartbeat"`
 }
 
-// MarshalJSON marshals a HeartbeatEvent to json
-func (t HeartbeatEvent) MarshalJSON() (data []byte, err error) {
+// MustMarshalJSON marshals a HeartbeatEvent to json, and panics if marshaling fails.
+func (t HeartbeatEvent) MustMarshalJSON() []byte {
 	event := t.getJSONMap()
-	return jsoniter.Marshal(event)
+	out, err := jsoniter.Marshal(event)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
 
 func (t HeartbeatEvent) getJSONMap() map[string]interface{} {

@@ -41,11 +41,11 @@ func RegisterNotifyBundle(h host.Host, t *Tracker) {
 		ListenF:      func(n net.Network, m ma.Multiaddr) { log.Debugf("Listener Opened: %s", m.String()) },
 		ListenCloseF: func(n net.Network, m ma.Multiaddr) { log.Debugf("Listened Closed: %s", m.String()) },
 		ConnectedF: func(n net.Network, c net.Conn) {
-			log.Infof("Node Connected: %s", c.RemotePeer().Pretty())
+			log.Infof("node Connected: %s", c.RemotePeer().Pretty())
 			t.ConnectNode(c.RemotePeer().String())
 		},
 		DisconnectedF: func(n net.Network, c net.Conn) {
-			log.Warningf("Node Disconnected: %s", c.RemotePeer().Pretty())
+			log.Warningf("node Disconnected: %s", c.RemotePeer().Pretty())
 			t.DisconnectNode(c.RemotePeer().String())
 		},
 		OpenedStreamF: func(n net.Network, s net.Stream) { log.Debugf("Stream Opened: %s", s.Conn().RemotePeer().Pretty()) },
