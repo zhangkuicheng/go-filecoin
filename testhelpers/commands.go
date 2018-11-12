@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/filecoin-project/go-filecoin/util/project"
+
 	manet "gx/ipfs/QmV6FjemM1K8oXjrvuq3wuVWWoU2TLDPmNnKrxHzY3v6Ai/go-multiaddr-net"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	ma "gx/ipfs/QmYmsdtJ3HsodkePE3eU3TsCaP2YvPZJ4LoXnNkDE5Tpt7/go-multiaddr"
@@ -800,12 +802,7 @@ func RunInit(td *TestDaemon, opts ...string) ([]byte, error) {
 	return process.CombinedOutput()
 }
 
-// GenesisFilePath returns the path of the WalletFile
+// GenesisFilePath returns the path of the GenesisFile
 func GenesisFilePath() string {
-	gopath, err := GetGoPath()
-	if err != nil {
-		panic(err)
-	}
-
-	return filepath.Join(gopath, "/src/github.com/filecoin-project/go-filecoin/fixtures/genesis.car")
+	return project.Root("fixtures/genesis.car")
 }
