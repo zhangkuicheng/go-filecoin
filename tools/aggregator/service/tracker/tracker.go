@@ -1,8 +1,44 @@
-package aggregator
+package tracker
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
+
+	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+var log = logging.Logger("aggregator/tracker")
+
+const aggregatorLabel = "aggregator"
+
+var (
+	connectedNodes = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "connected_nodes",
+			Help: "number of nodes connected to aggregator",
+		},
+		[]string{aggregatorLabel},
+	)
+
+	nodesConsensus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nodes_in_consensus",
+			Help: "number of nodes in consensus",
+		},
+		[]string{aggregatorLabel},
+	)
+
+	nodesDispute = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nodes_in_dispute",
+			Help: "number of nodes in dispute",
+		},
+		[]string{aggregatorLabel},
+	)
 )
 
 // Tracker tracks node consensus from heartbeats
@@ -20,11 +56,13 @@ type Tracker struct {
 	// - TipsCount
 	// - TrackedNodes
 	mux sync.Mutex
+
+	metricsP int
 }
 
-// TrackerSummary represents the information a tracker has on the nodes
+// Summary represents the information a tracker has on the nodes
 // its receiving heartbeats from
-type TrackerSummary struct {
+type Summary struct {
 	TrackedNodes     int
 	NodesInConsensus int
 	NodesInDispute   int
@@ -32,12 +70,25 @@ type TrackerSummary struct {
 }
 
 // NewTracker initializes a tracker
-func NewTracker() *Tracker {
+func NewTracker(mp int) *Tracker {
 	return &Tracker{
 		TrackedNodes: make(map[string]struct{}),
 		NodeTips:     make(map[string]string),
 		TipsCount:    make(map[string]int),
+		metricsP:     mp,
 	}
+}
+
+// SetupHandler sets-up the Trackers http handlers.
+func (t *Tracker) SetupHandler() {
+	prometheus.MustRegister(connectedNodes, nodesConsensus, nodesDispute)
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", t.metricsP), nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
+	log.Debug("setup tracker handlers")
 }
 
 // ConnectNode will add a node to the trackers `TrackedNode` set and
@@ -88,7 +139,7 @@ func (t *Tracker) TrackConsensus(peer, ts string) {
 }
 
 // TrackerSummary generates a summary of the metrics Tracker keeps, threadsafe
-func (t *Tracker) TrackerSummary() TrackerSummary {
+func (t *Tracker) TrackerSummary() Summary {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	tn := len(t.TrackedNodes)
@@ -97,7 +148,7 @@ func (t *Tracker) TrackerSummary() TrackerSummary {
 
 	nodesConsensus.WithLabelValues(aggregatorLabel).Set(float64(nc))
 	nodesDispute.WithLabelValues(aggregatorLabel).Set(float64(nd))
-	return TrackerSummary{
+	return Summary{
 		TrackedNodes:     tn,
 		NodesInConsensus: nc,
 		NodesInDispute:   nd,

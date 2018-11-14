@@ -9,6 +9,8 @@ import (
 	net "gx/ipfs/QmQSbtGXCyNrj34LWL8EgXyNNYDZ8r3SwQcpW5pPxVhLnM/go-libp2p-net"
 	libp2p "gx/ipfs/QmVM6VuGaWcAaYjxG2om6XxMmpP3Rt9rw4nbMXVNYAPLhS/go-libp2p"
 	ma "gx/ipfs/QmYmsdtJ3HsodkePE3eU3TsCaP2YvPZJ4LoXnNkDE5Tpt7/go-multiaddr"
+
+	"github.com/filecoin-project/go-filecoin/tools/aggregator/service/tracker"
 )
 
 // NewLibp2pHost creates a new libp2p host that listens on port `port`, and will
@@ -36,20 +38,20 @@ func NewFullAddr(h host.Host) (ma.Multiaddr, error) {
 
 // RegisterNotifyBundle adds a net.NotifyBundle to host `h` and will update
 // Tracker `t`'s TrackedNodes value.
-func RegisterNotifyBundle(h host.Host, t *Tracker) {
+func RegisterNotifyBundle(h host.Host, t *tracker.Tracker) {
 	notify := &net.NotifyBundle{
-		ListenF:      func(n net.Network, m ma.Multiaddr) { log.Debugf("Listener Opened: %s", m.String()) },
-		ListenCloseF: func(n net.Network, m ma.Multiaddr) { log.Debugf("Listened Closed: %s", m.String()) },
+		ListenF:      func(n net.Network, m ma.Multiaddr) { log.Debugf("listener opened: %s", m.String()) },
+		ListenCloseF: func(n net.Network, m ma.Multiaddr) { log.Debugf("listener closed: %s", m.String()) },
 		ConnectedF: func(n net.Network, c net.Conn) {
-			log.Infof("node Connected: %s", c.RemotePeer().Pretty())
+			log.Infof("node connected: %s", c.RemotePeer().Pretty())
 			t.ConnectNode(c.RemotePeer().String())
 		},
 		DisconnectedF: func(n net.Network, c net.Conn) {
-			log.Warningf("node Disconnected: %s", c.RemotePeer().Pretty())
+			log.Warningf("node disconnected: %s", c.RemotePeer().Pretty())
 			t.DisconnectNode(c.RemotePeer().String())
 		},
-		OpenedStreamF: func(n net.Network, s net.Stream) { log.Debugf("Stream Opened: %s", s.Conn().RemotePeer().Pretty()) },
-		ClosedStreamF: func(n net.Network, s net.Stream) { log.Debugf("Stream Opened: %s", s.Conn().RemotePeer().Pretty()) },
+		OpenedStreamF: func(n net.Network, s net.Stream) { log.Debugf("stream opened: %s", s.Conn().RemotePeer().Pretty()) },
+		ClosedStreamF: func(n net.Network, s net.Stream) { log.Debugf("stream opened: %s", s.Conn().RemotePeer().Pretty()) },
 	}
 	h.Network().Notify(notify)
 }

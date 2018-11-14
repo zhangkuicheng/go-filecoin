@@ -3,8 +3,6 @@ package aggregator
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/http"
 	"time"
 
 	host "gx/ipfs/QmPMtD39NN63AEUNghk1LFQcTLcCmYL8MtRzdv8BRUsC4Z/go-libp2p-host"
@@ -16,12 +14,10 @@ import (
 	fcmetrics "github.com/filecoin-project/go-filecoin/metrics"
 	"github.com/filecoin-project/go-filecoin/tools/aggregator/event"
 	"github.com/filecoin-project/go-filecoin/tools/aggregator/service/feed"
+	"github.com/filecoin-project/go-filecoin/tools/aggregator/service/tracker"
 )
 
-var log = logging.Logger("aggregator/node")
-
-// EvtChan message channel type
-type EvtChan chan event.HeartbeatEvent
+var log = logging.Logger("aggregator/service")
 
 // Service accepts heartbeats from filecoin nodes via a libp2p stream and
 // exports metrics about them. It aggregates state over the connected nodes
@@ -38,17 +34,21 @@ type Service struct {
 	FullAddress ma.Multiaddr
 
 	// Tracker keeps track of how many nodes are connected to the aggregator service
-	// as well as how many filecoin nodes are in and not in consensus.
-	Tracker *Tracker
+	// as well as how many filecoin nodes are in and not in consensus. The tracker
+	// exports prometheus metrics for the items it tracks.
+	Tracker *tracker.Tracker
 
+	// Feed exposes all aggregated heartbeats to filecoin dashboard connections
+	// over a websocket.
 	Feed *feed.Feed
 
-	Sink EvtChan
+	// Sink is the channel all aggregated heartbeats are written to.
+	Sink event.EvtChan
 }
 
 // New creates a new aggregator service that listens on `listenPort` for
 // libp2p connections.
-func New(ctx context.Context, listenPort, wsPort int, priv crypto.PrivKey) (*Service, error) {
+func New(ctx context.Context, listenPort, wsPort, mtPort int, priv crypto.PrivKey) (*Service, error) {
 	h, err := NewLibp2pHost(ctx, priv, listenPort)
 	if err != nil {
 		return nil, err
@@ -59,14 +59,13 @@ func New(ctx context.Context, listenPort, wsPort int, priv crypto.PrivKey) (*Ser
 		return nil, err
 	}
 
-	t := NewTracker()
+	t := tracker.NewTracker(mtPort)
 
 	// Register callbacks for nodes connecting and diconnecting, these callbacks
 	// will be used for updating the trackers `TrackedNodes` value.
 	RegisterNotifyBundle(h, t)
 
-	log.Infof("created aggregator, peerID: %s, listening on address: %s", h.ID().Pretty(), fullAddr.String())
-	sink := make(EvtChan, 100)
+	sink := make(event.EvtChan, 100)
 	return &Service{
 		Host:        h,
 		FullAddress: fullAddr,
@@ -79,14 +78,13 @@ func New(ctx context.Context, listenPort, wsPort int, priv crypto.PrivKey) (*Ser
 // Run will setup the StreamHandler and runs the feed which serves the heartbeat
 // events on a websocket that the filecoin-dashboard can connect to and consume.
 func (a *Service) Run(ctx context.Context) {
+	// handle filecoin node connections for heartbeats
 	a.setupStreamHandler(ctx)
-	http.Handle("/", a.Feed)
-	go a.Feed.Run()
-	go func() {
-		if err := http.ListenAndServe(fmt.Sprintf(":%d", a.Feed.WSPort), nil); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	// handle dashboard connections for websockets
+	a.Feed.SetupHandler()
+	// handle AlertManager connections for prometheus
+	a.Tracker.SetupHandler()
+	log.Infof("running aggregator, peerID: %s, listening on address: %s", a.Host.ID().Pretty(), a.FullAddress.String())
 }
 
 // setupStreamHandler will start a goroutine for each new connection from a filecoin node, and
@@ -127,4 +125,5 @@ func (a *Service) setupStreamHandler(ctx context.Context) {
 			}
 		}(ctx)
 	})
+	log.Debug("setup service stream handler")
 }

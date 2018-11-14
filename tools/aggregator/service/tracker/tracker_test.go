@@ -1,4 +1,4 @@
-package aggregator
+package tracker
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 
 func TestConnectNode(t *testing.T) {
 	assert := assert.New(t)
-	tracker := NewTracker()
+	tracker := NewTracker(0)
 
 	peer1 := "peer1"
 	peer2 := "peer2"
@@ -28,7 +28,7 @@ func TestConnectNode(t *testing.T) {
 
 func TestConsensus(t *testing.T) {
 	assert := assert.New(t)
-	tracker := NewTracker()
+	tracker := NewTracker(0)
 
 	peer1 := "peer1"
 	peer2 := "peer2"
@@ -40,7 +40,7 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(1, tracker.TipsCount[ts1])
 	assert.Equal(1, len(tracker.TrackedNodes))
 	assert.Equal(ts1, tracker.NodeTips[peer1])
-	assert.Equal(TrackerSummary{
+	assert.Equal(Summary{
 		TrackedNodes:     1,
 		NodesInConsensus: 1,
 		NodesInDispute:   0,
@@ -55,7 +55,7 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(2, len(tracker.TrackedNodes))
 	assert.Equal(ts1, tracker.NodeTips[peer1])
 	assert.Equal(ts1, tracker.NodeTips[peer2])
-	assert.Equal(TrackerSummary{
+	assert.Equal(Summary{
 		TrackedNodes:     2,
 		NodesInConsensus: 2,
 		NodesInDispute:   0,
@@ -70,7 +70,7 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(2, len(tracker.TrackedNodes))
 	assert.Equal(ts2, tracker.NodeTips[peer1])
 	assert.Equal(ts1, tracker.NodeTips[peer2])
-	assert.Equal(TrackerSummary{
+	assert.Equal(Summary{
 		TrackedNodes:     2,
 		NodesInConsensus: 0,
 		NodesInDispute:   2,
@@ -85,7 +85,7 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(2, len(tracker.TrackedNodes))
 	assert.Equal(ts2, tracker.NodeTips[peer1])
 	assert.Equal(ts2, tracker.NodeTips[peer2])
-	assert.Equal(TrackerSummary{
+	assert.Equal(Summary{
 		TrackedNodes:     2,
 		NodesInConsensus: 2,
 		NodesInDispute:   0,
