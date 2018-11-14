@@ -79,6 +79,7 @@ func NewTracker(mp int) *Tracker {
 	}
 }
 
+// SetupHandler sets-up the Trackers http handlers.
 func (t *Tracker) SetupHandler() {
 	prometheus.MustRegister(connectedNodes, nodesConsensus, nodesDispute)
 	http.Handle("/metrics", promhttp.Handler())
@@ -87,6 +88,7 @@ func (t *Tracker) SetupHandler() {
 			log.Fatal(err)
 		}
 	}()
+	log.Debug("setup tracker handlers")
 }
 
 // ConnectNode will add a node to the trackers `TrackedNode` set and

@@ -19,9 +19,6 @@ import (
 
 var log = logging.Logger("aggregator/service")
 
-// EvtChan message channel type
-type EvtChan chan event.HeartbeatEvent
-
 // Service accepts heartbeats from filecoin nodes via a libp2p stream and
 // exports metrics about them. It aggregates state over the connected nodes
 // eg.to determine if the nodes are staying in consensus.
@@ -46,7 +43,7 @@ type Service struct {
 	Feed *feed.Feed
 
 	// Sink is the channel all aggregated heartbeats are written to.
-	Sink EvtChan
+	Sink event.EvtChan
 }
 
 // New creates a new aggregator service that listens on `listenPort` for
@@ -68,8 +65,7 @@ func New(ctx context.Context, listenPort, wsPort, mtPort int, priv crypto.PrivKe
 	// will be used for updating the trackers `TrackedNodes` value.
 	RegisterNotifyBundle(h, t)
 
-	log.Infof("created aggregator, peerID: %s, listening on address: %s", h.ID().Pretty(), fullAddr.String())
-	sink := make(EvtChan, 100)
+	sink := make(event.EvtChan, 100)
 	return &Service{
 		Host:        h,
 		FullAddress: fullAddr,
@@ -88,6 +84,7 @@ func (a *Service) Run(ctx context.Context) {
 	a.Feed.SetupHandler()
 	// handle AlertManager connections for prometheus
 	a.Tracker.SetupHandler()
+	log.Infof("running aggregator, peerID: %s, listening on address: %s", a.Host.ID().Pretty(), a.FullAddress.String())
 }
 
 // setupStreamHandler will start a goroutine for each new connection from a filecoin node, and
@@ -128,4 +125,5 @@ func (a *Service) setupStreamHandler(ctx context.Context) {
 			}
 		}(ctx)
 	})
+	log.Debug("setup service stream handler")
 }

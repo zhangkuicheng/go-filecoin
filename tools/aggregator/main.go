@@ -86,7 +86,6 @@ func main() {
 	}
 
 	an.Run(ctx)
-	log.Info("starting aggregator service")
 	// block until we get an interrupt
 	<-ctx.Done()
 

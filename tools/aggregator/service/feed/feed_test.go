@@ -26,7 +26,7 @@ func TestFeed(t *testing.T) {
 	// make a feed
 	feed := NewFeed(ctx, 0, sourceCh)
 	// start the feed
-	go feed.Run()
+	go feed.run()
 	// add a writer that events will be written to
 	feed.mirrorw.AddWriter(pw)
 
@@ -66,7 +66,7 @@ func TestFeedMultiConns(t *testing.T) {
 	// make a feed
 	feed := NewFeed(ctx, 0, sourceCh)
 	// start the feed
-	go feed.Run()
+	go feed.run()
 	// add writers that events will be written to
 	feed.mirrorw.AddWriter(pw0)
 	feed.mirrorw.AddWriter(pw1)

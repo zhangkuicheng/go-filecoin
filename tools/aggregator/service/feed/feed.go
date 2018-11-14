@@ -44,13 +44,13 @@ type Feed struct {
 	WSPort int
 
 	ctx     context.Context
-	src     chan event.HeartbeatEvent // TODO make this type the same as EvtChan in service
+	src     event.EvtChan
 	mirrorw *mw.MirrorWriter
 }
 
-// NewFeed creates a new Feed, Feed's Run method will read from chan `source`, see
-// Run for details.
-func NewFeed(ctx context.Context, sp int, source chan event.HeartbeatEvent) *Feed {
+// NewFeed creates a new Feed, Feed's run method will read from chan `source`, see
+// run for details.
+func NewFeed(ctx context.Context, sp int, source event.EvtChan) *Feed {
 	return &Feed{
 		ctx:     ctx,
 		src:     source,
@@ -59,25 +59,27 @@ func NewFeed(ctx context.Context, sp int, source chan event.HeartbeatEvent) *Fee
 	}
 }
 
+// SetupHandler sets-up the Feeds http handlers and runs the feed.
 func (f *Feed) SetupHandler() {
 	http.Handle("/", f)
-	go f.Run()
+	go f.run()
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", f.WSPort), nil); err != nil {
 			log.Fatal(err)
 		}
 	}()
+	log.Debug("setup feed handlers")
 }
 
 // ServeHTTP upgrades a connection to a websocket and writes a stream from
-// the feed to each
+// the feed to each.
 func (f *Feed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Infof("new http connection %s", r.RemoteAddr)
 
 	// upgrade http connection to a websocket.
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Errorf("failed to upgrade connection: %s", err)
+		log.Warningf("failed to upgrade connection: %s", err)
 		return
 	}
 
@@ -92,7 +94,7 @@ func (f *Feed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ticker := time.NewTicker(pingPeriod)
 
 		defer func() {
-			log.Infof("closing http connection %s", conn.RemoteAddr())
+			log.Infof("closing http connection %s", r.RemoteAddr)
 			ticker.Stop()
 			conn.Close() // nolint: errcheck
 		}()
@@ -108,16 +110,16 @@ func (f *Feed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				// This means we have lost our connection to the client.
 				// The mirror writer will detect that the connection is no
 				// longer writable and prune it so we can just return.
-				log.Errorf("failed ping to websocket: %s", err)
+				log.Debugf("failed ping to websocket: %s", err)
 				return
 			}
 		}
 	}()
 }
 
-// Run writes messages from `feed.src` to feed's mirror writer, which will
+// run writes messages from `feed.src` to feed's mirror writer, which will
 // broadcast the written bytes to all Writers, see MirrorWritter for details.
-func (f *Feed) Run() {
+func (f *Feed) run() {
 	for {
 		select {
 		// A heartbeat is sent
@@ -125,10 +127,10 @@ func (f *Feed) Run() {
 			hbb := hb.MustMarshalJSON()
 			_, err := f.mirrorw.Write(hbb)
 			if err != nil {
-				log.Errorf("failed to broadcast heartbeat to writers: %s", err)
+				log.Warningf("failed to broadcast heartbeat to writers: %s", err)
 			}
 		case <-f.ctx.Done():
-			log.Infof("Run context done")
+			log.Infof("run context done")
 			f.mirrorw.Close() // nolint: errcheck
 			return
 		}

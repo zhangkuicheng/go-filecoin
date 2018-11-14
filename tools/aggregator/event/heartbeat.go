@@ -9,6 +9,9 @@ import (
 	fcmetrics "github.com/filecoin-project/go-filecoin/metrics"
 )
 
+// EvtChan message channel type
+type EvtChan chan HeartbeatEvent
+
 // HeartbeatEvent contains a heartbeat, the time it was received and who it was from
 type HeartbeatEvent struct {
 	// FromPeer is who created the event
@@ -32,7 +35,7 @@ func (t HeartbeatEvent) MustMarshalJSON() []byte {
 func (t HeartbeatEvent) getJSONMap() map[string]interface{} {
 	event := map[string]interface{}{
 		"receivedTimestamp": t.ReceivedTimestamp.UTC(),
-		"fromPeer":          t.FromPeer,
+		"fromPeer":          t.FromPeer.Pretty(),
 		"heartbeat":         t.Heartbeat,
 	}
 	return event

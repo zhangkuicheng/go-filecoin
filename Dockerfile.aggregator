@@ -54,7 +54,13 @@ COPY --from=0 /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=0 /tmp/tini /sbin/tini
 COPY --from=0 /etc/ssl/certs /etc/ssl/certs
 
-EXPOSE 8888
-EXPOSE 8889
+# dashboard (websocket) connect on
+EXPOSE 9080
 
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/aggregator", "-listen=8888", "-wsport=88889", "-keyfile=/opt/peerKeyFile"]
+# filecoin nodes connect on
+EXPOSE 9081
+
+# metrics exposed on (aggregator/service/metrics.go)
+EXPOSE 9082
+
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/aggregator", "-keyfile=/opt/peerKeyFile"]
