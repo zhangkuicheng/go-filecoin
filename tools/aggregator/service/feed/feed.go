@@ -119,7 +119,6 @@ func (f *Feed) Run() {
 			log.Infof("Run context done")
 			f.mirrorw.Close() // nolint: errcheck
 			return
-		default:
 		}
 
 	}
