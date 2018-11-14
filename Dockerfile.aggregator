@@ -54,7 +54,7 @@ COPY --from=0 /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=0 /tmp/tini /sbin/tini
 COPY --from=0 /etc/ssl/certs /etc/ssl/certs
 
-EXPOSE 9798
+EXPOSE 8888
+EXPOSE 8889
 
-# There's an fs-repo, and initializes one if there isn't.
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/aggregator", "-listen=9798", "-keyfile=/opt/peerKeyFile"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/aggregator", "-listen=8888", "-wsport=88889", "-keyfile=/opt/peerKeyFile"]
