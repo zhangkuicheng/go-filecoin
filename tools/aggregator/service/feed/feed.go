@@ -2,6 +2,7 @@ package feed
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -36,7 +37,8 @@ var (
 	}
 )
 
-// Feed takes an io.Reader and provides a stream to each connection
+// Feed reads HeartbearEvents from a channel and writes them to all writers in
+// its mirror writer. A writer in the mirror writer represensts a websocket connection.
 type Feed struct {
 	// Port the feed listens for connections on
 	WSPort int
@@ -55,6 +57,16 @@ func NewFeed(ctx context.Context, sp int, source chan event.HeartbeatEvent) *Fee
 		mirrorw: mw.NewMirrorWriter(),
 		WSPort:  sp,
 	}
+}
+
+func (f *Feed) SetupHandler() {
+	http.Handle("/", f)
+	go f.Run()
+	go func() {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", f.WSPort), nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
 }
 
 // ServeHTTP upgrades a connection to a websocket and writes a stream from
@@ -91,7 +103,7 @@ func (f *Feed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 
 		for range ticker.C {
-			log.Info("pinging websocket")
+			log.Debugf("pinging websocket: %v", conn.RemoteAddr().String())
 			if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait)); err != nil {
 				// This means we have lost our connection to the client.
 				// The mirror writer will detect that the connection is no

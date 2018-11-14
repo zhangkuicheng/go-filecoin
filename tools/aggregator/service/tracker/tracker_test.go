@@ -1,4 +1,4 @@
-package aggregator
+package tracker
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 
 func TestConnectNode(t *testing.T) {
 	assert := assert.New(t)
-	tracker := NewTracker()
+	tracker := NewTracker(0)
 
 	peer1 := "peer1"
 	peer2 := "peer2"
@@ -28,7 +28,7 @@ func TestConnectNode(t *testing.T) {
 
 func TestConsensus(t *testing.T) {
 	assert := assert.New(t)
-	tracker := NewTracker()
+	tracker := NewTracker(0)
 
 	peer1 := "peer1"
 	peer2 := "peer2"

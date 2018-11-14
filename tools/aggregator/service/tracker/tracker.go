@@ -1,8 +1,44 @@
-package aggregator
+package tracker
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
+
+	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+var log = logging.Logger("aggregator/tracker")
+
+const aggregatorLabel = "aggregator"
+
+var (
+	connectedNodes = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "connected_nodes",
+			Help: "number of nodes connected to aggregator",
+		},
+		[]string{aggregatorLabel},
+	)
+
+	nodesConsensus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nodes_in_consensus",
+			Help: "number of nodes in consensus",
+		},
+		[]string{aggregatorLabel},
+	)
+
+	nodesDispute = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "nodes_in_dispute",
+			Help: "number of nodes in dispute",
+		},
+		[]string{aggregatorLabel},
+	)
 )
 
 // Tracker tracks node consensus from heartbeats
@@ -20,6 +56,8 @@ type Tracker struct {
 	// - TipsCount
 	// - TrackedNodes
 	mux sync.Mutex
+
+	metricsP int
 }
 
 // TrackerSummary represents the information a tracker has on the nodes
@@ -32,12 +70,23 @@ type TrackerSummary struct {
 }
 
 // NewTracker initializes a tracker
-func NewTracker() *Tracker {
+func NewTracker(mp int) *Tracker {
 	return &Tracker{
 		TrackedNodes: make(map[string]struct{}),
 		NodeTips:     make(map[string]string),
 		TipsCount:    make(map[string]int),
+		metricsP:     mp,
 	}
+}
+
+func (t *Tracker) SetupHandler() {
+	prometheus.MustRegister(connectedNodes, nodesConsensus, nodesDispute)
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", t.metricsP), nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
 }
 
 // ConnectNode will add a node to the trackers `TrackedNode` set and
