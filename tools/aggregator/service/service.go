@@ -119,7 +119,7 @@ func (a *Service) setupStreamHandler(ctx context.Context) {
 						ReceivedTimestamp: time.Now(),
 						Heartbeat:         hb,
 					}
-					a.Tracker.TrackConsensus(hbEvt.FromPeer.String(), hbEvt.Heartbeat.Head)
+					a.Tracker.TrackConsensus(hbEvt.FromPeer.Pretty(), hbEvt.Heartbeat.Head)
 					a.Sink <- hbEvt
 				}
 			}

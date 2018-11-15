@@ -17,7 +17,7 @@ import (
 // have a peerID based on `priv`.
 func NewLibp2pHost(ctx context.Context, priv crypto.PrivKey, port int) (host.Host, error) {
 	opts := []libp2p.Option{
-		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port)),
+		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port)),
 		libp2p.Identity(priv),
 	}
 	return libp2p.New(context.Background(), opts...)
@@ -44,11 +44,13 @@ func RegisterNotifyBundle(h host.Host, t *tracker.Tracker) {
 		ListenCloseF: func(n net.Network, m ma.Multiaddr) { log.Debugf("listener closed: %s", m.String()) },
 		ConnectedF: func(n net.Network, c net.Conn) {
 			log.Infof("node connected: %s", c.RemotePeer().Pretty())
-			t.ConnectNode(c.RemotePeer().String())
+			t.ConnectNode(c.RemotePeer().Pretty())
+			log.Infof("aggregator peerstore: %v", h.Peerstore().Peers())
 		},
 		DisconnectedF: func(n net.Network, c net.Conn) {
 			log.Warningf("node disconnected: %s", c.RemotePeer().Pretty())
-			t.DisconnectNode(c.RemotePeer().String())
+			t.DisconnectNode(c.RemotePeer().Pretty())
+			log.Infof("aggregator peerstore: %v", h.Peerstore().Peers())
 		},
 		OpenedStreamF: func(n net.Network, s net.Stream) { log.Debugf("stream opened: %s", s.Conn().RemotePeer().Pretty()) },
 		ClosedStreamF: func(n net.Network, s net.Stream) { log.Debugf("stream opened: %s", s.Conn().RemotePeer().Pretty()) },

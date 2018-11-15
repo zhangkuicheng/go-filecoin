@@ -40,13 +40,16 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(1, tracker.TipsCount[ts1])
 	assert.Equal(1, len(tracker.TrackedNodes))
 	assert.Equal(ts1, tracker.NodeTips[peer1])
-	assert.Equal(Summary{
+
+	sum, err := tracker.TrackerSummary()
+	assert.NoError(err)
+	assert.Equal(&Summary{
 		TrackedNodes:     1,
 		NodesInConsensus: 1,
 		NodesInDispute:   0,
 		HeaviestTipset:   ts1,
 	},
-		tracker.TrackerSummary(),
+		sum,
 	)
 
 	tracker.ConnectNode(peer2)
@@ -55,13 +58,16 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(2, len(tracker.TrackedNodes))
 	assert.Equal(ts1, tracker.NodeTips[peer1])
 	assert.Equal(ts1, tracker.NodeTips[peer2])
-	assert.Equal(Summary{
+
+	sum, err = tracker.TrackerSummary()
+	assert.NoError(err)
+	assert.Equal(&Summary{
 		TrackedNodes:     2,
 		NodesInConsensus: 2,
 		NodesInDispute:   0,
 		HeaviestTipset:   ts1,
 	},
-		tracker.TrackerSummary(),
+		sum,
 	)
 
 	tracker.TrackConsensus(peer1, ts2)
@@ -70,13 +76,16 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(2, len(tracker.TrackedNodes))
 	assert.Equal(ts2, tracker.NodeTips[peer1])
 	assert.Equal(ts1, tracker.NodeTips[peer2])
-	assert.Equal(Summary{
+
+	sum, err = tracker.TrackerSummary()
+	assert.NoError(err)
+	assert.Equal(&Summary{
 		TrackedNodes:     2,
 		NodesInConsensus: 0,
 		NodesInDispute:   2,
 		HeaviestTipset:   "",
 	},
-		tracker.TrackerSummary(),
+		sum,
 	)
 
 	tracker.TrackConsensus(peer2, ts2)
@@ -85,13 +94,16 @@ func TestConsensus(t *testing.T) {
 	assert.Equal(2, len(tracker.TrackedNodes))
 	assert.Equal(ts2, tracker.NodeTips[peer1])
 	assert.Equal(ts2, tracker.NodeTips[peer2])
-	assert.Equal(Summary{
+
+	sum, err = tracker.TrackerSummary()
+	assert.NoError(err)
+	assert.Equal(&Summary{
 		TrackedNodes:     2,
 		NodesInConsensus: 2,
 		NodesInDispute:   0,
 		HeaviestTipset:   ts2,
 	},
-		tracker.TrackerSummary(),
+		sum,
 	)
 
 }

@@ -1,9 +1,11 @@
 package tracker
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	logging "gx/ipfs/QmRREK2CAZ5Re2Bd9zZFG6FeYDppUWt5cMgsoUEp3ktgSr/go-log"
 
@@ -69,6 +71,11 @@ type Summary struct {
 	HeaviestTipset   string
 }
 
+func (s *Summary) String() string {
+	return fmt.Sprintf("NumNodes: %d, Consensus: %d, Dispute: %d, Head: %s",
+		s.TrackedNodes, s.NodesInConsensus, s.NodesInDispute, s.HeaviestTipset)
+}
+
 // NewTracker initializes a tracker
 func NewTracker(mp int) *Tracker {
 	return &Tracker{
@@ -79,13 +86,48 @@ func NewTracker(mp int) *Tracker {
 	}
 }
 
+func (t *Tracker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var peers []string
+	for p := range t.TrackedNodes {
+		peers = append(peers, p)
+	}
+	js, err := json.Marshal(peers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
 // SetupHandler sets-up the Trackers http handlers.
 func (t *Tracker) SetupHandler() {
+	// register the prometheus metrics and configure an endpoint to query them.
 	prometheus.MustRegister(connectedNodes, nodesConsensus, nodesDispute)
 	http.Handle("/metrics", promhttp.Handler())
+
+	// tracer needs to report number of connected nodes, register it, see ServeHTTP
+	// impl for details on reporting.
+	http.Handle("/report", t)
+
+	// now serve the aformentioend endpoints
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", t.metricsP), nil); err != nil {
 			log.Fatal(err)
+		}
+	}()
+
+	// the tracker needs to update the prometheus metrics it serves.
+	updateMetrics := time.NewTicker(time.Second * 2)
+	go func() {
+		for range updateMetrics.C {
+			sum, err := t.TrackerSummary()
+			if err != nil {
+				log.Info("tracker not ready, waiting to receieve tipsets")
+				continue
+			}
+			log.Infof("tracker status: %s", sum.String())
 		}
 	}()
 	log.Debug("setup tracker handlers")
@@ -107,13 +149,25 @@ func (t *Tracker) DisconnectNode(peer string) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 
-	delete(t.TrackedNodes, peer)
-	curTs := t.NodeTips[peer]
-	t.TipsCount[curTs]--
-	if t.TipsCount[curTs] == 0 {
-		delete(t.TipsCount, curTs)
+	if _, ok := t.TrackedNodes[peer]; !ok {
+		log.Warningf("received disconnect from unknown peer: %s", peer)
+		return
 	}
+
+	delete(t.TrackedNodes, peer)
+
+	curTs, ok := t.NodeTips[peer]
+	if ok {
+		t.TipsCount[curTs]--
+
+		if t.TipsCount[curTs] == 0 {
+			delete(t.TipsCount, curTs)
+		}
+
+	}
+
 	delete(t.NodeTips, peer)
+
 	connectedNodes.WithLabelValues(aggregatorLabel).Dec()
 }
 
@@ -123,10 +177,18 @@ func (t *Tracker) TrackConsensus(peer, ts string) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 
-	// get the tipset the nodes is con currently
+	if _, ok := t.TrackedNodes[peer]; !ok {
+		// TODO this is a hack becasue I think libp2p notifee is broken
+		log.Warningf("Received heartbeat from unknown peer: %s", peer)
+		log.Infof("adding peer to TrackedNodes list: %v", t.TrackedNodes)
+		t.TrackedNodes[peer] = struct{}{}
+
+		connectedNodes.WithLabelValues(aggregatorLabel).Inc()
+	}
+
+	// get the tipset the nodes is currently on.
 	curTs, ok := t.NodeTips[peer]
 	if ok {
-		log.Debugf("peer: %s, current tipset: %s", peer, curTs)
 		t.TipsCount[curTs]--
 		if t.TipsCount[curTs] == 0 {
 			delete(t.TipsCount, curTs)
@@ -135,28 +197,25 @@ func (t *Tracker) TrackConsensus(peer, ts string) {
 
 	t.NodeTips[peer] = ts
 	t.TipsCount[ts]++
-	log.Debugf("update peer: %s, tipset: %s, nodes at tipset: %d", peer, ts, t.TipsCount[ts])
 }
 
 // TrackerSummary generates a summary of the metrics Tracker keeps, threadsafe
-func (t *Tracker) TrackerSummary() Summary {
+func (t *Tracker) TrackerSummary() (*Summary, error) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	tn := len(t.TrackedNodes)
-	nc, ht := nodesInConsensus(t.TipsCount)
+	nc, ht, err := nodesInConsensus(t.TipsCount)
+	if err != nil {
+		return nil, err
+	}
 	nd := tn - nc
 
 	nodesConsensus.WithLabelValues(aggregatorLabel).Set(float64(nc))
 	nodesDispute.WithLabelValues(aggregatorLabel).Set(float64(nd))
-	return Summary{
+	return &Summary{
 		TrackedNodes:     tn,
 		NodesInConsensus: nc,
 		NodesInDispute:   nd,
 		HeaviestTipset:   ht,
-	}
-}
-
-func (t *Tracker) String() string {
-	ts := t.TrackerSummary()
-	return fmt.Sprintf("Tracked Nodes: %d, In Consensus: %d, In Dispute: %d, HeaviestTipset: %s", ts.TrackedNodes, ts.NodesInConsensus, ts.NodesInDispute, ts.HeaviestTipset)
+	}, nil
 }
