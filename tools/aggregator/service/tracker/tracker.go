@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -79,10 +80,26 @@ func NewTracker(mp int) *Tracker {
 	}
 }
 
+func (t *Tracker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var peers []string
+	for p := range t.TrackedNodes {
+		peers = append(peers, p)
+	}
+	js, err := json.Marshal(peers)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
 // SetupHandler sets-up the Trackers http handlers.
 func (t *Tracker) SetupHandler() {
 	prometheus.MustRegister(connectedNodes, nodesConsensus, nodesDispute)
 	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/report", t)
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", t.metricsP), nil); err != nil {
 			log.Fatal(err)

@@ -61,7 +61,7 @@ func NewFeed(ctx context.Context, sp int, source event.EvtChan) *Feed {
 
 // SetupHandler sets-up the Feeds http handlers and runs the feed.
 func (f *Feed) SetupHandler() {
-	http.Handle("/", f)
+	http.Handle("/feed", f)
 	go f.run()
 	go func() {
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", f.WSPort), nil); err != nil {
