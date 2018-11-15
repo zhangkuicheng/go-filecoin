@@ -48,7 +48,7 @@ func RegisterNotifyBundle(h host.Host, t *tracker.Tracker) {
 			log.Infof("aggregator peerstore: %v", h.Peerstore().Peers())
 		},
 		DisconnectedF: func(n net.Network, c net.Conn) {
-			log.Warningf("node disconnected: %s", c.RemotePeer().Pretty())
+			log.Infof("node disconnected: %s", c.RemotePeer().Pretty())
 			t.DisconnectNode(c.RemotePeer().Pretty())
 			log.Infof("aggregator peerstore: %v", h.Peerstore().Peers())
 		},

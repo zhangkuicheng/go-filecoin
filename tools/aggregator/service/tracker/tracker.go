@@ -98,11 +98,11 @@ func (t *Tracker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	w.Write(js) // nolint: errcheck
 }
 
-// SetupHandler sets-up the Trackers http handlers.
-func (t *Tracker) SetupHandler() {
+// StartHandler sets-up the Trackers http handlers.
+func (t *Tracker) StartHandler() {
 	// register the prometheus metrics and configure an endpoint to query them.
 	prometheus.MustRegister(connectedNodes, nodesConsensus, nodesDispute)
 	http.Handle("/metrics", promhttp.Handler())
@@ -178,12 +178,12 @@ func (t *Tracker) TrackConsensus(peer, ts string) {
 	defer t.mux.Unlock()
 
 	if _, ok := t.TrackedNodes[peer]; !ok {
-		// TODO this is a hack becasue I think libp2p notifee is broken
+		// TODO this is a hack because I think libp2p notifee is broken
 		log.Warningf("Received heartbeat from unknown peer: %s", peer)
 		log.Infof("adding peer to TrackedNodes list: %v", t.TrackedNodes)
 		t.TrackedNodes[peer] = struct{}{}
 
-		connectedNodes.WithLabelValues(aggregatorLabel).Inc()
+		connectedNodes.WithLabelValues(aggregatorLabel).Set(float64(len(t.TrackedNodes)))
 	}
 
 	// get the tipset the nodes is currently on.

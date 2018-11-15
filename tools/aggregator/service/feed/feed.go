@@ -44,13 +44,13 @@ type Feed struct {
 	WSPort int
 
 	ctx     context.Context
-	src     event.EvtChan
+	src     event.Evtch
 	mirrorw *mw.MirrorWriter
 }
 
 // NewFeed creates a new Feed, Feed's run method will read from chan `source`, see
 // run for details.
-func NewFeed(ctx context.Context, sp int, source event.EvtChan) *Feed {
+func NewFeed(ctx context.Context, sp int, source event.Evtch) *Feed {
 	return &Feed{
 		ctx:     ctx,
 		src:     source,
@@ -59,8 +59,8 @@ func NewFeed(ctx context.Context, sp int, source event.EvtChan) *Feed {
 	}
 }
 
-// SetupHandler sets-up the Feeds http handlers and runs the feed.
-func (f *Feed) SetupHandler() {
+// StartHandler sets-up the Feeds http handlers and runs the feed.
+func (f *Feed) StartHandler() {
 	http.Handle("/feed", f)
 	go f.run()
 	go func() {
@@ -93,25 +93,31 @@ func (f *Feed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// This ticker is used to send ping messages to the client on a regular basis
 		ticker := time.NewTicker(pingPeriod)
 
-		defer func() {
-			log.Infof("closing http connection %s", r.RemoteAddr)
-			ticker.Stop()
-			conn.Close() // nolint: errcheck
-		}()
-
 		conn.SetReadDeadline(time.Now().Add(pongWait)) // nolint: errcheck
 		conn.SetPongHandler(func(string) error {
 			return conn.SetReadDeadline(time.Now().Add(pongWait))
 		})
 
-		for range ticker.C {
-			log.Debugf("pinging websocket: %v", conn.RemoteAddr().String())
-			if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait)); err != nil {
-				// This means we have lost our connection to the client.
-				// The mirror writer will detect that the connection is no
-				// longer writable and prune it so we can just return.
-				log.Debugf("failed ping to websocket: %s", err)
+		defer func() {
+			log.Infof("closing http connection %s", r.RemoteAddr)
+			ticker.Stop()
+			wrapper.Close() // nolint: errcheck
+		}()
+
+		for {
+			select {
+			case <-f.ctx.Done():
 				return
+			case <-ticker.C:
+				log.Debugf("pinging websocket: %v", conn.RemoteAddr().String())
+				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait)); err != nil {
+					// This means we have lost our connection to the client.
+					// The mirror writer will detect that the connection is no
+					// longer writable and prune it so we can just return.
+					log.Debugf("failed ping to websocket: %s", err)
+					return
+				}
+
 			}
 		}
 	}()

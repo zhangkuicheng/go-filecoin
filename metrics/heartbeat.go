@@ -189,7 +189,7 @@ func (hbs *HeartbeatService) Connect(ctx context.Context) error {
 
 	s, err := hbs.Host.NewStream(ctx, peerid, HeartbeatProtocol)
 	if err != nil {
-		log.Errorf("failed to open stream, peerID: %s, targetAddr: %s %s", peerid, targetAddr, err)
+		log.Warningf("failed to open stream, peerID: %s, targetAddr: %s %s", peerid, targetAddr, err)
 		return err
 	}
 	log.Infof("successfully to open stream, peerID: %s, targetAddr: %s", peerid, targetAddr)

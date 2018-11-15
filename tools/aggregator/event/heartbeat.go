@@ -9,8 +9,8 @@ import (
 	fcmetrics "github.com/filecoin-project/go-filecoin/metrics"
 )
 
-// EvtChan message channel type
-type EvtChan chan HeartbeatEvent
+// Evtch message channel type
+type Evtch chan HeartbeatEvent
 
 // HeartbeatEvent contains a heartbeat, the time it was received and who it was from
 type HeartbeatEvent struct {

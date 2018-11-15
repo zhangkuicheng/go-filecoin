@@ -18,7 +18,7 @@ var log = logging.Logger("mw")
 var MaxWriterBuffer = 512 * 1024
 
 // MirrorWriter implements a WriteCloser which syncs incoming bytes to multiple
-// [buffered] WriteClosers. They can be added with AddWriter().
+// [buffered] WriteClosers. They can be added with AddWriter(). Safe for concurrent use.
 type MirrorWriter struct {
 	active uint32
 

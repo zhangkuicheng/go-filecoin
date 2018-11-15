@@ -43,7 +43,7 @@ type Service struct {
 	Feed *feed.Feed
 
 	// Sink is the channel all aggregated heartbeats are written to.
-	Sink event.EvtChan
+	Sink event.Evtch
 }
 
 // New creates a new aggregator service that listens on `listenPort` for
@@ -65,7 +65,7 @@ func New(ctx context.Context, listenPort, wsPort, mtPort int, priv crypto.PrivKe
 	// will be used for updating the trackers `TrackedNodes` value.
 	RegisterNotifyBundle(h, t)
 
-	sink := make(event.EvtChan, 100)
+	sink := make(event.Evtch, 100)
 	return &Service{
 		Host:        h,
 		FullAddress: fullAddr,
@@ -81,9 +81,9 @@ func (a *Service) Run(ctx context.Context) {
 	// handle filecoin node connections for heartbeats
 	a.setupStreamHandler(ctx)
 	// handle dashboard connections for websockets
-	a.Feed.SetupHandler()
+	a.Feed.StartHandler()
 	// handle AlertManager connections for prometheus
-	a.Tracker.SetupHandler()
+	a.Tracker.StartHandler()
 	log.Infof("running aggregator, peerID: %s, listening on address: %s", a.Host.ID().Pretty(), a.FullAddress.String())
 }
 

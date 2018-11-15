@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -53,6 +54,10 @@ func mustMakeIPTBNodes(t *testing.T, count int) []testbedi.Core {
 }
 
 func TestService(t *testing.T) {
+	if _, err := exec.LookPath("go-filecoin"); err != nil {
+		t.Fatal("go-filecoin not in path, run `go ./build/*go install` to fix")
+	}
+
 	aggCtx := context.Background()
 	priv, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
 	if err != nil {
