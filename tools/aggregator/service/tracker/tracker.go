@@ -60,9 +60,9 @@ type Tracker struct {
 	metricsP int
 }
 
-// TrackerSummary represents the information a tracker has on the nodes
+// Summary represents the information a tracker has on the nodes
 // its receiving heartbeats from
-type TrackerSummary struct {
+type Summary struct {
 	TrackedNodes     int
 	NodesInConsensus int
 	NodesInDispute   int
@@ -139,7 +139,7 @@ func (t *Tracker) TrackConsensus(peer, ts string) {
 }
 
 // TrackerSummary generates a summary of the metrics Tracker keeps, threadsafe
-func (t *Tracker) TrackerSummary() TrackerSummary {
+func (t *Tracker) TrackerSummary() Summary {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	tn := len(t.TrackedNodes)
@@ -148,7 +148,7 @@ func (t *Tracker) TrackerSummary() TrackerSummary {
 
 	nodesConsensus.WithLabelValues(aggregatorLabel).Set(float64(nc))
 	nodesDispute.WithLabelValues(aggregatorLabel).Set(float64(nd))
-	return TrackerSummary{
+	return Summary{
 		TrackedNodes:     tn,
 		NodesInConsensus: nc,
 		NodesInDispute:   nd,
