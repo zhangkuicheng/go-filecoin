@@ -134,8 +134,7 @@ func (hbs *HeartbeatService) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-beatTicker.C:
-			hb := hbs.Beat()
-			if err := encoder.Encode(hb); err != nil {
+			if err := hbs.Beat(encoder); err != nil {
 				hbs.stream.Conn().Close() // nolint: errcheck
 				return err
 			}
@@ -144,7 +143,7 @@ func (hbs *HeartbeatService) Run(ctx context.Context) error {
 }
 
 // Beat will create a heartbeat.
-func (hbs *HeartbeatService) Beat() Heartbeat {
+func (hbs *HeartbeatService) Beat(enc *json.Encoder) error {
 	log.Debug("heartbeat service creating heartbeat")
 	nick := hbs.Config.Nickname
 	ts := hbs.HeadGetter()
@@ -153,11 +152,11 @@ func (hbs *HeartbeatService) Beat() Heartbeat {
 	if err != nil {
 		log.Warningf("heartbeat service failed to get chain height: %s", err)
 	}
-	return Heartbeat{
+	return enc.Encode(Heartbeat{
 		Head:     tipset,
 		Height:   height,
 		Nickname: nick,
-	}
+	})
 }
 
 // Connect will connects to `hbs.Config.BeatTarget` or returns an error
