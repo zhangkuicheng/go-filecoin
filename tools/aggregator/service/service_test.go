@@ -138,7 +138,9 @@ func (b *beater) MustBeat() {
 }
 
 func TestServiceSimple(t *testing.T) {
-	//require := require.New(t)
+	// Used for manual verification when deving
+	// TODO don't do this..
+	t.SkipNow()
 	assert := assert.New(t)
 
 	actx := context.Background()
@@ -203,6 +205,7 @@ func TestServiceSimple(t *testing.T) {
 
 func TestServiceStress(t *testing.T) {
 	// Used for manual verification when deving
+	// TODO don't do this..
 	t.SkipNow()
 	assert := assert.New(t)
 
