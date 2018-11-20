@@ -509,7 +509,7 @@ func (node *Node) handleNewHeaviestTipSet(ctx context.Context, head consensus.Ti
 				continue
 			}
 			if len(newHead) == 0 {
-				log.Error("TipSet of size 0 published on HeaviestTipSetCh. Ignoring and waiting for a new Heaviest TipSet.")
+				log.Info("TipSet of size 0 published on HeaviestTipSetCh. Ignoring and waiting for a new Heaviest TipSet.")
 				continue
 			}
 
