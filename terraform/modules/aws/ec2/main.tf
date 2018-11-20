@@ -144,6 +144,7 @@ data "template_file" "user_data" {
     logstash_hosts          = "${var.logstash_hosts}"
     instance_name           = "${var.instance_name}"
     alertmanager_url        = "${var.alertmanager_url}"
+    import_try_catch        = "${data.template_file.try_catch.rendered}"
   }
 }
 

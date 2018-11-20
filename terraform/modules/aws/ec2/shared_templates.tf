@@ -17,3 +17,7 @@ data "template_file" "setup_instance_storage" {
 data "template_file" "setup_lvm_instance_storage" {
   template = "${file("../../../scripts/setup_lvm_instance_storage.sh")}"
 }
+
+data "template_file" "try_catch" {
+  template = "${file("../../../scripts/try_catch.sh")}"
+}
