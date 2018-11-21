@@ -350,7 +350,19 @@ func (sm *Miner) onCommitFail(dealCid *cid.Cid, message string) {
 // OnNewHeaviestTipSet is a callback called by node, everytime the the latest head is updated.
 // It is used to check if we are in a new proving period and need to trigger PoSt submission.
 func (sm *Miner) OnNewHeaviestTipSet(ts consensus.TipSet) {
-	sectors := sm.node.SectorBuilder().SealedSectors()
+	// It is possible that a sector has been sealed by the SectorBuilder before
+	// we consume a value on the SectorBuilder#SectorSealResults channel C. If
+	// this is the case, SealedSectors#SealedSectors could contain a
+	// SealedSector which we have yet to see on C, which means that without the
+	// following guard that we might post a proof-of-spacetime to the chain for
+	// a sector which had not yet been committed.
+	var sectors []*sectorbuilder.SealedSector
+	for _, s := range sm.node.SectorBuilder().SealedSectors() {
+		_, ok := sm.dealsAwaitingSeal.sectorsToDeals[s.SectorID]
+		if !ok {
+			sectors = append(sectors, s)
+		}
+	}
 
 	if len(sectors) == 0 {
 		// no sector sealed, nothing to do
