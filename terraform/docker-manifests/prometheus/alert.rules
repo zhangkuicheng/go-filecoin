@@ -62,3 +62,23 @@ groups:
     annotations:
       summary: "Instance {{ $labels.instance }} high root inode usage"
       description: "{{ $labels.instance }} of job {{ $labels.job }} has been using > 80% disk inodes for more than 5 minutes."
+
+  # Alert if any node is in 'dispute' for more than 3 min
+  - alert: nodeInDisputeAlert
+    expr: nodes_in_dispute > 0
+    for: 3m
+    labels:
+      severity: page
+    annotations:
+      summary: "One or more Filecoin nodes in dispute."
+      description: "One or more Filecoin nodes has been in dispute for over 3 minuets."
+
+  # Alert if the cluster has not mined a block in 1 min
+  - alert: noBlockMined
+    expr: (time() - last_block_time) > 60
+    for: 0
+    labels:
+      severity: page
+    annotations:
+      summary: "Cluster on instance:{{ $labels.instance_name }} has not mined a block in over 1 minuet."
+      description: "The filecoin cluster running on instance:{{ $labels.instance_name }} has not mined a new block in over 1 minuet."
