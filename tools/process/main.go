@@ -1,12 +1,19 @@
-package process
+package main
 
 import (
 	"context"
 	"io/ioutil"
-	"testing"
+
+	logging "gx/ipfs/QmcuXC5cxs79ro2cUuHs4HQ2bkDLJUYokwL8aivcX6HW3C/go-log"
 )
 
-func TestSomething(t *testing.T) {
+var log = logging.Logger("process")
+
+func init() {
+	logging.SetAllLoggers(4)
+}
+
+func main() {
 	ctx := context.Background()
 	dir, err := ioutil.TempDir("", "ACTION")
 	if err != nil {
@@ -14,18 +21,18 @@ func TestSomething(t *testing.T) {
 	}
 	env, err := NewEnvironment(dir)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 
 	if err := env.AddGenesisMiner(ctx); err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 
 	if err := env.AddNode(ctx); err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 
 	if err := env.AddMiner(ctx); err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 }

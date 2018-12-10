@@ -37,6 +37,10 @@ type Localfilecoin struct {
 	dir     string
 	peerid  cid.Cid
 	apiaddr multiaddr.Multiaddr
+
+	// cached fields
+	minerAddress string
+	minerOwner   string
 }
 
 var NewNode testbedi.NewNodeFunc // nolint: golint
@@ -105,10 +109,7 @@ func (l *Localfilecoin) Start(ctx context.Context, wait bool, args ...string) (t
 	cmd := exec.CommandContext(ctx, "go-filecoin", dargs...)
 	cmd.Dir = dir
 
-	cmd.Env, err = l.env()
-	if err != nil {
-		return nil, err
-	}
+	cmd.Env = l.env()
 
 	iptbutil.SetupOpt(cmd)
 
@@ -205,10 +206,8 @@ func (l *Localfilecoin) Stop(ctx context.Context) error {
 
 // RunCmd runs a command in the context of the node.
 func (l *Localfilecoin) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
-	env, err := l.env()
-	if err != nil {
-		return nil, fmt.Errorf("error getting env: %s", err)
-	}
+	log.Infof("Run: %s", args)
+	env := l.env()
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Env = env
@@ -293,10 +292,7 @@ func (l *Localfilecoin) Shell(ctx context.Context, ns []testbedi.Core) error {
 		return fmt.Errorf("shell has FIL_PATH set, please unset before trying to use iptb shell")
 	}
 
-	nenvs, err := l.env()
-	if err != nil {
-		return err
-	}
+	nenvs := l.env()
 
 	// TODO(tperson): It would be great if we could guarantee that the shell
 	// is using the same binary. However, the users shell may prepend anything
@@ -354,11 +350,9 @@ func (l *Localfilecoin) String() string {
 
 // PeerID returns the nodes peerID.
 func (l *Localfilecoin) PeerID() (string, error) {
-	/*
-		if l.peerid != nil {
-			return l.peerid, nil
-		}
-	*/
+	if l.peerid != cid.Undef {
+		return l.peerid.String(), nil
+	}
 
 	var err error
 	l.peerid, err = l.GetPeerID()

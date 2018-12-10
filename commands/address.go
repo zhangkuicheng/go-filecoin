@@ -38,6 +38,8 @@ type addressResult struct {
 	Address string
 }
 
+type addressListResult []address.Address
+
 var addrsNewCmd = &cmds.Command{
 	Run: func(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment) error {
 		addr, err := GetAPI(env).Address().Addrs().New(req.Context)
@@ -62,17 +64,18 @@ var addrsLsCmd = &cmds.Command{
 			return err
 		}
 
+		var out []address.Address
 		for _, addr := range addrs {
-			if err := re.Emit(&addressResult{addr.String()}); err != nil {
-				return err
-			}
+			out = append(out, addr)
 		}
+
+		re.Emit(out)
 		return nil
 	},
-	Type: &addressResult{},
+	Type: &addressListResult{},
 	Encoders: cmds.EncoderMap{
-		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, addr *addressResult) error {
-			_, err := fmt.Fprintln(w, addr.Address)
+		cmds.Text: cmds.MakeTypedEncoder(func(req *cmds.Request, w io.Writer, addr *addressListResult) error {
+			_, err := fmt.Fprintln(w, addr)
 			return err
 		}),
 	},

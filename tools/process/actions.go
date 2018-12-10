@@ -1,11 +1,14 @@
-package process
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
+
+	iptb "github.com/ipfs/iptb/testbed"
 
 	"github.com/filecoin-project/go-filecoin/address"
 	gengen "github.com/filecoin-project/go-filecoin/gengen/util"
@@ -83,6 +86,7 @@ type Environment struct {
 }
 
 func NewEnvironment(dir string) (*Environment, error) {
+	log.Infof("Creating Environment: %s", dir)
 	gf, err := GenerateGenesis(10000000, dir)
 	if err != nil {
 		return nil, err
@@ -96,6 +100,9 @@ func NewEnvironment(dir string) (*Environment, error) {
 }
 
 func (e *Environment) AddProcess(p *Filecoin) {
+	for _, n := range e.processes {
+		n.Connect(context.Background(), p)
+	}
 	e.processes = append(e.processes, p)
 }
 
@@ -103,9 +110,37 @@ func (e *Environment) Processes(p *Filecoin) []*Filecoin {
 	return e.processes
 }
 
+// TODO don't put "go-filecoin" in the path, tell the process what to use here
+func (e *Environment) NewProcess(ctx context.Context, t, d string) (*Filecoin, error) {
+	log.Infof("NewProcess, type: %s, dir: %s", t, d)
+	ns := iptb.NodeSpec{
+		Type: t,
+		Dir:  d,
+	}
+
+	c, err := ns.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(d, 0775); err != nil {
+		return nil, err
+	}
+
+	return &Filecoin{
+		Core: c,
+
+		pluginType: t,
+		pluginDir:  d,
+
+		ctx: ctx,
+	}, nil
+}
+
 func (e *Environment) CreateGenesisMiner(ctx context.Context) (*Filecoin, error) {
+	log.Info("Run CreateGenesisMiner")
 	// Create a filecoin process structure
-	fc, err := NewProcess(ctx, "localfilecoin", fmt.Sprintf("./%s/0", e.Location))
+	fc, err := e.NewProcess(ctx, "localfilecoin", fmt.Sprintf("%s/0", e.Location))
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +179,10 @@ func (e *Environment) CreateGenesisMiner(ctx context.Context) (*Filecoin, error)
 	fc.MinerOwner = e.GenesisFile.WalletAddress
 	fc.MinerAddress = e.GenesisFile.MinerAddress
 
+	if err := fc.MiningStart(); err != nil {
+		return nil, err
+	}
+
 	return fc, nil
 }
 
@@ -153,12 +192,13 @@ func (e *Environment) AddGenesisMiner(ctx context.Context) error {
 		return err
 	}
 	e.GenesisMiner = fc
+	e.AddProcess(fc)
 	return nil
 }
 
 func (e *Environment) CreateNode(ctx context.Context) (*Filecoin, error) {
 	// Create a filecoin process structure
-	fc, err := NewProcess(ctx, "localfilecoin", fmt.Sprintf("./%s/0", e.Location))
+	fc, err := e.NewProcess(ctx, "localfilecoin", fmt.Sprintf("%s/%d", e.Location, len(e.processes)))
 	if err != nil {
 		return nil, err
 	}
@@ -184,12 +224,16 @@ func (e *Environment) CreateNode(ctx context.Context) (*Filecoin, error) {
 	if len(addrs) != 1 {
 		panic(addrs)
 	}
-	fc.DefaultWalletAddr = addrs[0]
+	fc.DefaultWalletAddr, err = address.NewFromString(addrs[0])
+	if err != nil {
+		return nil, err
+	}
 
 	return fc, nil
 }
 
 func (e *Environment) AddNode(ctx context.Context) error {
+	log.Info("Adding Node")
 	fc, err := e.CreateNode(ctx)
 	if err != nil {
 		return err
@@ -203,6 +247,7 @@ func (e *Environment) CreateMiner(ctx context.Context) (*Filecoin, error) {
 	if err != nil {
 		return nil, err
 	}
+	e.AddProcess(fc)
 
 	value, ok := types.NewAttoFILFromFILString("100")
 	if !ok {

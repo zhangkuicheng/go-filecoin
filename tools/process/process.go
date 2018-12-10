@@ -1,4 +1,4 @@
-package process
+package main
 
 import (
 	"context"
@@ -53,28 +53,6 @@ type Filecoin struct {
 	pluginDir  string
 
 	ctx context.Context
-}
-
-// TODO don't put "go-filecoin" in the path, tell the process what to use here
-func NewProcess(ctx context.Context, t, d string) (*Filecoin, error) {
-	ns := iptb.NodeSpec{
-		Type: t,
-		Dir:  d,
-	}
-
-	c, err := ns.Load()
-	if err != nil {
-		return nil, err
-	}
-
-	return &Filecoin{
-		Core: c,
-
-		pluginType: t,
-		pluginDir:  d,
-
-		ctx: ctx,
-	}, nil
 }
 
 // MustRunCmdJSON runs `args` against TestNode. The '--enc=json' flag is appened to the command specified by `args`,

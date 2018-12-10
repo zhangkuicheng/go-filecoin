@@ -1,7 +1,4 @@
-package process
-
-/*****************************************************************************/
-/****************************MINER********************************************/
+package main
 
 import (
 	"fmt"
@@ -20,16 +17,21 @@ import (
 
 // Starts the daemon and cache its peerID
 func (f *Filecoin) DaemonStart() error {
+	log.Info("Starting Filecoin daemon")
 	_, err := f.Start(f.ctx, false)
 	if err != nil {
 		return err
 	}
+
 	pid, err := f.PeerID()
 	if err != nil {
 		return err
 	}
-	f.ID, err = peer.IDFromString(pid)
+	log.Infof("Started Daemon with peerID: %s", pid)
+
+	f.ID, err = peer.IDB58Decode(pid)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	return nil
@@ -39,7 +41,7 @@ func (f *Filecoin) CreateMiner(fromAddr address.Address, pledge uint64, pid peer
 	var out address.Address
 	s_fromAddr := fromAddr.String()
 	s_pledge := fmt.Sprintf("%d", pledge)
-	s_pid := pid.String()
+	s_pid := pid.Pretty()
 	s_collateral := collateral.String()
 
 	if err := f.RunCmdJSON(&out, "go-filecoin", "miner", "create", s_pledge, s_collateral, "--from", s_fromAddr, "--peerid", s_pid); err != nil {
@@ -53,7 +55,7 @@ func (f *Filecoin) UpdatePeerID(fromAddr, minerAddr address.Address, newPid peer
 	var out cid.Cid
 	s_fromAddr := fromAddr.String()
 	s_minerAddr := minerAddr.String()
-	s_newPid := newPid.String()
+	s_newPid := newPid.Pretty()
 
 	if err := f.RunCmdJSON(&out, "go-filecoin", "miner", "update-peerid", s_minerAddr, s_newPid, "--from", s_fromAddr); err != nil {
 		return cid.Undef, err
@@ -191,8 +193,8 @@ func (f *Filecoin) AddressNew() (address.Address, error) {
 	}
 	return out, nil
 }
-func (f *Filecoin) AddressLs() ([]address.Address, error) {
-	var out []address.Address
+func (f *Filecoin) AddressLs() ([]string, error) {
+	var out []string
 
 	if err := f.RunCmdJSON(&out, "go-filecoin", "address", "ls"); err != nil {
 		return nil, err
