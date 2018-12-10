@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	"gx/ipfs/QmR8BauakNcBa3RbE4nbQu76PDiJgoQgz8AJdhJuiU4TAw/go-cid"
-	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 )
 
 func (l *Localfilecoin) isAlive() (bool, error) {
@@ -47,18 +47,18 @@ func (l *Localfilecoin) getPID() (int, error) {
 	return strconv.Atoi(string(b))
 }
 
-func (l *Localfilecoin) env() ([]string, error) {
+func (l *Localfilecoin) env() []string {
 	envs := os.Environ()
 	filecoinpath := "FIL_PATH=" + l.dir
 
 	for i, e := range envs {
 		if strings.HasPrefix(e, "FIL_PATH=") {
 			envs[i] = filecoinpath
-			return envs, nil
+			return envs
 		}
 	}
 
-	return append(envs, filecoinpath), nil
+	return append(envs, filecoinpath)
 }
 
 func (l *Localfilecoin) signalAndWait(p *os.Process, waitch <-chan struct{}, signal os.Signal, t time.Duration) error {
