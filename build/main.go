@@ -141,7 +141,7 @@ func deps() {
 		cmd("go get github.com/prometheus/client_golang/prometheus/promhttp"),
 		cmd("go get github.com/jstemmer/go-junit-report"),
 		cmdWithDir("./proofs/rust-proofs", "cargo --version"),
-		cmdWithDir("./proofs/rust-proofs", "cargo update"),
+		cmdWithDir("./proofs/rust-proofs", "cargo update -p backtrace --precise 0.3.9"),
 		cmdWithDir("./proofs/rust-proofs", "cargo build --release --all"),
 	}
 
