@@ -1,8 +1,6 @@
 package pluginlocalfilecoin
 
 import (
-	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,8 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"gx/ipfs/QmR8BauakNcBa3RbE4nbQu76PDiJgoQgz8AJdhJuiU4TAw/go-cid"
-	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
+	peer "gx/ipfs/QmcqU6QUDSXprb1518vYDGczrTJTyGwLG9eUa5iNX4xUtS/go-libp2p-peer"
+
+	"github.com/filecoin-project/go-filecoin/repo"
 )
 
 func (l *Localfilecoin) isAlive() (bool, error) {
@@ -79,32 +78,29 @@ func (l *Localfilecoin) readerFor(file string) (io.ReadCloser, error) {
 	return os.OpenFile(filepath.Join(l.dir, file), os.O_RDONLY, 0)
 }
 
-// GetPeerID returns the nodes peerID by running its `id` command.
-// TODO this a temp fix, should read the nodes keystore instead
-func (l *Localfilecoin) GetPeerID() (cid.Cid, error) {
-	// run the id command
-	out, err := l.RunCmd(context.TODO(), nil, "go-filecoin", "id", "--format=<id>")
+func (l *Localfilecoin) cachePeerID() error {
+	// save the daemons peerID to a file
+	rep, err := repo.OpenFSRepo(l.dir)
 	if err != nil {
-		return cid.Undef, err
+		return err
 	}
+	defer rep.Close()
 
-	if out.ExitCode() != 0 {
-		return cid.Undef, errors.New("Could not get PeerID, non-zero exit code")
-	}
-
-	_, err = io.Copy(os.Stdout, out.Stderr())
+	sk, err := rep.Keystore().Get("self")
 	if err != nil {
-		return cid.Undef, err
+		return err
 	}
 
-	// convert the reader to a string TODO this is annoying
-	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(out.Stdout())
+	peerID, err := peer.IDFromPrivateKey(sk)
 	if err != nil {
-		return cid.Undef, err
+		return err
 	}
-	cidStr := strings.TrimSpace(buf.String())
 
-	// decode the parsed string to a cid...maybe
-	return cid.Decode(cidStr)
+	db, err := l.db()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.Put(key_peerID, []byte(peerID.Pretty()))
 }

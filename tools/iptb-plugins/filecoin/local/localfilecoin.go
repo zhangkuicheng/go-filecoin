@@ -12,16 +12,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/filecoin-project/go-filecoin/config"
-
-	"gx/ipfs/QmR8BauakNcBa3RbE4nbQu76PDiJgoQgz8AJdhJuiU4TAw/go-cid"
 	"gx/ipfs/QmRKLtwMw131aK7ugC3G7ybpumMz78YrJe5dzneyindvG1/go-multiaddr"
-	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
+	badgerds "gx/ipfs/QmVoK2ivqzp5ZgWiEdBNFbKH7nzf9C4wPYr8cH7CGPMHtC/go-ds-badger"
 	logging "gx/ipfs/QmcuXC5cxs79ro2cUuHs4HQ2bkDLJUYokwL8aivcX6HW3C/go-log"
+	gds "gx/ipfs/Qmf4xQhNomPNhrtZc67qSnfJSjxjXs9LWvknJtSXwimPrM/go-datastore"
 
-	"github.com/filecoin-project/go-filecoin/tools/iptb-plugins/filecoin"
 	"github.com/ipfs/iptb/testbed/interfaces"
 	"github.com/ipfs/iptb/util"
+	"github.com/pkg/errors"
+
+	"github.com/filecoin-project/go-filecoin/config"
+	"github.com/filecoin-project/go-filecoin/tools/iptb-plugins/filecoin"
 )
 
 // PluginName is the name of the plugin
@@ -34,12 +35,16 @@ var errTimeout = errors.New("timeout")
 
 // Localfilecoin represents a filecoin node
 type Localfilecoin struct {
-	dir     string
-	peerid  cid.Cid
+	dir string
+	// cache
+	peerid  string
 	apiaddr multiaddr.Multiaddr
 }
 
 var NewNode testbedi.NewNodeFunc // nolint: golint
+const dsName = "iptb-data"
+
+var key_peerID = gds.NewKey("peerid")
 
 func init() {
 	NewNode = func(dir string, attrs map[string]string) (testbedi.Core, error) {
@@ -50,6 +55,10 @@ func init() {
 			dir: dir,
 		}, nil
 	}
+}
+
+func (l *Localfilecoin) db() (*badgerds.Datastore, error) {
+	return badgerds.NewDatastore(filepath.Join(l.dir, dsName), nil)
 }
 
 /** Core Interface **/
@@ -84,6 +93,8 @@ func (l *Localfilecoin) Init(ctx context.Context, args ...string) (testbedi.Outp
 	if err := l.WriteConfig(lcfg); err != nil {
 		return nil, err
 	}
+
+	l.cachePeerID()
 
 	return output, oerr
 }
@@ -205,6 +216,7 @@ func (l *Localfilecoin) Stop(ctx context.Context) error {
 
 // RunCmd runs a command in the context of the node.
 func (l *Localfilecoin) RunCmd(ctx context.Context, stdin io.Reader, args ...string) (testbedi.Output, error) {
+	log.Infof("[%s] | RUN: %s", l.peerid, args)
 	env, err := l.env()
 	if err != nil {
 		return nil, fmt.Errorf("error getting env: %s", err)
@@ -352,31 +364,23 @@ func (l *Localfilecoin) String() string {
 
 /** Libp2p Interface **/
 
-// PeerID returns the nodes peerID.
+// PeerID returns the peerID of the localfilecoin node
 func (l *Localfilecoin) PeerID() (string, error) {
-	/*
-		if l.peerid != nil {
-			return l.peerid, nil
-		}
-	*/
-
-	var err error
-	l.peerid, err = l.GetPeerID()
+	db, err := l.db()
 	if err != nil {
 		return "", err
 	}
+	defer db.Close()
 
-	return l.peerid.String(), err
+	bpeerID, err := db.Get(key_peerID)
+	if err != nil {
+		return "", err
+	}
+	return string(bpeerID), nil
 }
 
 // APIAddr returns the api address of the node.
 func (l *Localfilecoin) APIAddr() (string, error) {
-	/*
-		if l.apiaddr != nil {
-			return l.apiaddr, nil
-		}
-	*/
-
 	var err error
 	l.apiaddr, err = filecoin.GetAPIAddrFromRepo(l.dir)
 	if err != nil {
