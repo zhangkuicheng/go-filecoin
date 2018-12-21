@@ -12,9 +12,6 @@ import (
 )
 
 func init() {
-	// Super hacky?
-	os.Setenv("IPTB_ROOT", "+")
-
 	_, err := testbed.RegisterPlugin(testbed.IptbPlugin{
 		From:       "<builtin>",
 		NewNode:    local.NewNode,
@@ -32,10 +29,6 @@ func init() {
 		PluginName: docker.PluginName,
 		BuiltIn:    true,
 	}, false)
-
-	if err != nil {
-		panic(err)
-	}
 
 	if err != nil {
 		panic(err)
