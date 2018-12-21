@@ -267,6 +267,7 @@ func build() {
 	buildFilecoin()
 	buildGengen()
 	buildFaucet()
+	buildIptb()
 	buildGenesisFileServer()
 	generateGenesis()
 }
@@ -304,6 +305,12 @@ func buildFaucet() {
 	log.Println("Building faucet...")
 
 	runCmd(cmd([]string{"go", "build", "-o", "./tools/faucet/faucet", "./tools/faucet/"}...))
+}
+
+func buildIptb() {
+	log.Println("Building iptb...")
+
+	runCmd(cmd([]string{"go", "build", "-o", "./tools/iptb/iptb", "./tools/iptb/"}...))
 }
 
 func buildGenesisFileServer() {
