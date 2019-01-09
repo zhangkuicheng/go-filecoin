@@ -298,15 +298,15 @@ workflows:
   version: 2
   test_all:
     jobs:
-      - build_macos
-      - build_linux
-      - build_docker_img:
-          requires:
-            - build_linux
-          filters:
-            branches:
-              only:
-                - master
+      # - build_macos
+      # - build_linux
+      - build_docker_img
+          # requires:
+          #   - build_linux
+          # filters:
+          #   branches:
+          #     only:
+          #       - master
   build_nightly_cluster:
     triggers:
       - schedule:
