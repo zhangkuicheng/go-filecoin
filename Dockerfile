@@ -3,6 +3,7 @@ MAINTAINER Filecoin Dev Team
 
 RUN apt-get update && apt-get install -y ca-certificates file sudo clang
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="~/.cargo/bin:${PATH}"
 
 # This docker file is a modified version of
 # https://github.com/ipfs/go-ipfs/blob/master/Dockerfile
