@@ -4,7 +4,7 @@ MAINTAINER Filecoin Dev Team
 ARG FILECOIN_USE_PRECOMPILED_RUST_PROOFS
 ARG GITHUB_TOKEN
 
-RUN apt-get update && apt-get install -y ca-certificates file sudo clang
+RUN apt-get update && apt-get install -y ca-certificates file sudo clang jq
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y
 
 # This docker file is a modified version of
