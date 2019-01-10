@@ -251,7 +251,8 @@ jobs:
       - run:
           name: build an image of all binaries
           command: |
-            docker build -t filecoin:all --target=builder .
+            docker build --build-arg FILECOIN_USE_PRECOMPILED_RUST_PROOFS=true --build-arg GITHUB_TOKEN=$GITHUB_TOKEN \
+              -t filecoin:all --target=builder .
           no_output_timeout: 20m
 
       - run:

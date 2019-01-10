@@ -1,6 +1,9 @@
 FROM golang:1.11.1-stretch AS builder
 MAINTAINER Filecoin Dev Team
 
+ARG FILECOIN_USE_PRECOMPILED_RUST_PROOFS
+ARG GITHUB_TOKEN
+
 RUN apt-get update && apt-get install -y ca-certificates file sudo clang
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y
 
@@ -14,11 +17,11 @@ COPY . $SRC_DIR
 
 # Build the thing.
 RUN cd $SRC_DIR \
-&& . $HOME/.cargo/env \
-&& go run ./build/*go deps \
-&& go run ./build/*go build \
-&& go build -o ./faucet ./tools/faucet/main.go \
-&& go build -o ./genesis-file-server ./tools/genesis-file-server/main.go
+  && . $HOME/.cargo/env \
+  && FILECOIN_USE_PRECOMPILED_RUST_PROOFS=$FILECOIN_USE_PRECOMPILED_RUST_PROOFS GITHUB_TOKEN=$GITHUB_TOKEN go run ./build/*go deps \
+  && go run ./build/*go build \
+  && go build -o ./faucet ./tools/faucet/main.go \
+  && go build -o ./genesis-file-server ./tools/genesis-file-server/main.go
 
 # Build gengen
 RUN cd
