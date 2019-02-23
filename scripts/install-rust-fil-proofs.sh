@@ -73,7 +73,6 @@ install_local() {
 
   cp proofs/rust-fil-proofs/parameters.json ./proofs/misc/
   cp proofs/rust-fil-proofs/target/release/paramcache ./proofs/bin/
-  cp proofs/rust-fil-proofs/target/release/paramfetch ./proofs/bin/
   cp proofs/rust-fil-proofs/target/release/libfilecoin_proofs.h ./proofs/include/
   cp proofs/rust-fil-proofs/target/release/libfilecoin_proofs.a ./proofs/lib/
   cp proofs/rust-fil-proofs/target/release/libfilecoin_proofs.pc ./proofs/lib/pkgconfig/
