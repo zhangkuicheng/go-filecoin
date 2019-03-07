@@ -45,7 +45,6 @@ type NewContextParams struct {
 	GasTracker  *GasTracker
 	BlockHeight *types.BlockHeight
 	Ancestors   []types.TipSet
-	LookBack    int
 }
 
 // NewVMContext returns an initialized context.
@@ -59,7 +58,6 @@ func NewVMContext(params NewContextParams) *Context {
 		gasTracker:  params.GasTracker,
 		blockHeight: params.BlockHeight,
 		ancestors:   params.Ancestors,
-		lookBack:    params.LookBack,
 		deps:        makeDeps(params.State),
 	}
 }
