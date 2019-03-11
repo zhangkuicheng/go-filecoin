@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"gx/ipfs/QmR8BauakNcBa3RbE4nbQu76PDiJgoQgz8AJdhJuiU4TAw/go-cid"
+	"gx/ipfs/QmTu65MVbemtUxJEWgsTtzv9Zv9P8rvmqNA4eG9TrTRGYc/go-libp2p-peer"
 	"gx/ipfs/QmVmDhyTTUcQXFD1rRQ64fGLMSAoaQvNH3hwuaCFAPq2hy/errors"
 	cbor "gx/ipfs/QmcZLyosDwMKdB6NLRsiss9HXzDPhVhhRtPy67JFKTDQDX/go-ipld-cbor"
 
@@ -22,6 +23,7 @@ type cpPlumbing interface {
 	MessageWait(ctx context.Context, msgCid cid.Cid, cb func(*types.Block, *types.SignedMessage, *types.MessageReceipt) error) error
 	ChainLs(ctx context.Context) <-chan interface{}
 	SignBytes(data []byte, addr address.Address) (types.Signature, error)
+	NetworkGetPeerID() peer.ID
 }
 
 // CreatePaymentsParams structures all the parameters for the CreatePayments command. All values are required.

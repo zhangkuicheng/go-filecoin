@@ -346,7 +346,7 @@ func TestVMContextRand(t *testing.T) {
 		ctx := NewVMContext(vmCtxParams)
 
 		// 24 - lookback = 22 ... no such tip set in ancestors (null block)
-		_, err := ctx.SampleChainRandomness(types.NewBlockHeight(uint64(24)))
+		_, err := ctx.SampleChainRandomness(types.NewBlockHeight(uint64(22)))
 		assert.Error(err)
 
 		// 30 - lookback = 28 ... no such tip set in ancestors

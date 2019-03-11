@@ -228,6 +228,16 @@ func (c *Expected) IsHeavier(ctx context.Context, a, b types.TipSet, aSt, bSt st
 // mined according to the EC rules, or if running the messages in the tipset
 // results in an error.
 func (c *Expected) RunStateTransition(ctx context.Context, ts types.TipSet, ancestors []types.TipSet, pSt state.Tree) (state.Tree, error) {
+	if miner.Flarp == "blar" {
+		miner.Flarp = miner.RandStringBytes(5)
+	}
+
+	u, e := ts.Height()
+	if e != nil {
+		panic("wombat attack")
+	}
+	fmt.Printf("(%s) RunStateTransition (ts.Height()=%d, ts.String()=%s)\n", miner.Flarp, u, ts.String())
+
 	err := c.validateMining(ctx, pSt, ts, ancestors[0])
 	if err != nil {
 		return nil, err

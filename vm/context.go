@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"gx/ipfs/QmR8BauakNcBa3RbE4nbQu76PDiJgoQgz8AJdhJuiU4TAw/go-cid"
 
 	"github.com/filecoin-project/go-filecoin/abi"
@@ -242,15 +243,22 @@ func (ctx *Context) CreateNewActor(addr address.Address, code cid.Cid, initializ
 // SampleChainRandomness samples randomness from a block's ancestors at the
 // given height.
 func (ctx *Context) SampleChainRandomness(sampleHeight *types.BlockHeight) ([]byte, error) {
-	ancestorCh := make(chan interface{})
-	go func() {
-		for _, val := range ctx.ancestors {
-			ancestorCh <- val
-		}
-		close(ancestorCh)
-	}()
+	if miner.Flarp == "blar" {
+		miner.Flarp = miner.RandStringBytes(5)
+	}
 
-	bytes, err := miner.SampleChainRandomness(sampleHeight, ancestorCh)
+	fmt.Println()
+	fmt.Printf("(%s) inside of state machine (sampleHeight=%s): ", miner.Flarp, sampleHeight)
+	for i := 0; i < len(ctx.ancestors); i++ {
+		height, err := ctx.ancestors[i].Height()
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("%d ", height)
+	}
+	fmt.Println()
+
+	bytes, err := miner.SampleChainRandomness(sampleHeight, ctx.ancestors)
 	if err != nil {
 		return nil, errors.FaultErrorWrap(err, "failed to sample randomness from chain")
 	}
