@@ -149,7 +149,7 @@ func TestNetworkRetrieval(t *testing.T) {
 	genesisURI := env.GenesisCar()
 
 	fastenvOpts := fast.EnvironmentOpts{
-		InitOpts:   []fast.ProcessInitOption{fast.POGenesisFile(genesisURI), fast.PODevnetTest()},
+		InitOpts:   []fast.ProcessInitOption{fast.POGenesisFile(genesisURI), fast.PODevnetNightly()},
 		DaemonOpts: []fast.ProcessDaemonOption{},
 	}
 
