@@ -38,6 +38,7 @@ func RegisterPrometheusEndpoint(cfg *config.MetricsConfig) error {
 
 	// setup prometheus
 	registry := prom.NewRegistry()
+	goCollector := prom.NewGoCollector()
 	pe, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: "filecoin",
 		Registry:  registry,
@@ -46,6 +47,7 @@ func RegisterPrometheusEndpoint(cfg *config.MetricsConfig) error {
 		return err
 	}
 
+	registry.MustRegister(goCollector)
 	view.RegisterExporter(pe)
 	view.SetReportingPeriod(interval)
 
