@@ -114,6 +114,8 @@ func TestRetrieval(t *testing.T) {
 
 // TestRetrieval exercises storing and retreiving with the filecoin protocols
 func TestNetworkRetrieval(t *testing.T) {
+	t.SkipNow()
+
 	// Set the series global sleep delay to 30 seconds
 	series.GlobalSleepDelay = time.Second * 30
 	var sectorSize int64 = 266338304
