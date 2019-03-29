@@ -17,8 +17,7 @@ import (
 )
 
 // EnvironmentDevnet is a FAST lib environment that is meant to be used
-// when working locally, on the same network / machine. It's great for writing
-// functional tests!
+// when working with kitthawk devnets.
 type EnvironmentDevnet struct {
 	network  string
 	location string
@@ -29,9 +28,8 @@ type EnvironmentDevnet struct {
 	processes   []*Filecoin
 }
 
-// NewEnvironmentDevnet builds an environment with a local genesis that can be used
-// to initialize nodes and create a genesis node. The genesis file is provided by an http
-// server.
+// NewEnvironmentDevnet builds an environment that uses deployed infrastructure to
+// the kittyhawk devnets.
 func NewEnvironmentDevnet(network, location string) (Environment, error) {
 	env := &EnvironmentDevnet{
 		network:  network,
@@ -57,8 +55,7 @@ func (e *EnvironmentDevnet) GenesisCar() string {
 	return uri.String()
 }
 
-// GenesisMiner provides required information to create a genesis node and
-// load the wallet.
+// GenesisMiner returns a ErrNoGenesisMiner for this environment
 func (e *EnvironmentDevnet) GenesisMiner() (*GenesisMiner, error) {
 	return nil, ErrNoGenesisMiner
 }
