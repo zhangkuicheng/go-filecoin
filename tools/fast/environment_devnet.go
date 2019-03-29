@@ -146,34 +146,35 @@ func (e *EnvironmentDevnet) TeardownProcess(ctx context.Context, p *Filecoin) er
 	return os.RemoveAll(p.core.Dir())
 }
 
+// GetFunds retrieves a fixed amount of tokens from an environment
 func GetFunds(ctx context.Context, env Environment, p *Filecoin) error {
-	devenv, ok := env.(*EnvironmentDevnet)
-	if !ok {
-		return fmt.Errorf("Could not cast")
+	switch devenv := env.(type) {
+	case *EnvironmentDevnet:
+		var toAddr address.Address
+		if err := p.ConfigGet(ctx, "wallet.defaultAddress", &toAddr); err != nil {
+			return err
+		}
+
+		data := url.Values{}
+		data.Set("target", toAddr.String())
+
+		resp, err := http.PostForm("https://faucet."+devenv.network+".kittyhawk.wtf/tap", data)
+		if err != nil {
+			return err
+		}
+
+		msgcid := resp.Header.Get("Message-Cid")
+		mcid, err := cid.Decode(msgcid)
+		if err != nil {
+			return err
+		}
+
+		if _, err := p.MessageWait(ctx, mcid); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	var toAddr address.Address
-	if err := p.ConfigGet(ctx, "wallet.defaultAddress", &toAddr); err != nil {
-		return err
-	}
-
-	data := url.Values{}
-	data.Set("target", toAddr.String())
-
-	resp, err := http.PostForm("https://faucet."+devenv.network+".kittyhawk.wtf/tap", data)
-	if err != nil {
-		return err
-	}
-
-	msgcid := resp.Header.Get("Message-Cid")
-	mcid, err := cid.Decode(msgcid)
-	if err != nil {
-		return err
-	}
-
-	if _, err := p.MessageWait(ctx, mcid); err != nil {
-		return err
-	}
-
-	return nil
+	return fmt.Errorf("environment does not support GetFunds")
 }
