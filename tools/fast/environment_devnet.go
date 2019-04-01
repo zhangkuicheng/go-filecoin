@@ -99,6 +99,38 @@ func (e *EnvironmentDevnet) NewProcess(ctx context.Context, processType string, 
 	return p, nil
 }
 
+// AddProcess builds a Filecoin process which is backed by the `dir`, these processes are detached, and will
+// not be cleaned up during shutdown.
+func (e *EnvironmentDevnet) AddProcess(ctx context.Context, processType string, dir string, options map[string]string, eo EnvironmentOpts) (*Filecoin, error) {
+	e.processesMu.Lock()
+	defer e.processesMu.Unlock()
+
+	ns := iptb.NodeSpec{
+		Type:  processType,
+		Dir:   dir,
+		Attrs: options,
+	}
+
+	e.log.Infof("Added Process type: %s, dir: %s", processType, ns.Dir)
+
+	c, err := ns.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	// We require a slightly more extended core interface
+	fc, ok := c.(IPTBCoreExt)
+	if !ok {
+		return nil, fmt.Errorf("%s does not implement the extended IPTB.Core interface IPTBCoreExt", processType)
+	}
+
+	p := NewFilecoinProcess(ctx, fc, eo)
+	p.Detach()
+
+	e.processes = append(e.processes, p)
+	return p, nil
+}
+
 // Processes returns all processes the environment knows about.
 func (e *EnvironmentDevnet) Processes() []*Filecoin {
 	e.processesMu.Lock()
@@ -113,6 +145,10 @@ func (e *EnvironmentDevnet) Teardown(ctx context.Context) error {
 
 	e.log.Info("Teardown environment")
 	for _, p := range e.processes {
+		if p.detached {
+			continue
+		}
+
 		if err := p.core.Stop(ctx); err != nil {
 			return err
 		}

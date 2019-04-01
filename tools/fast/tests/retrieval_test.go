@@ -114,8 +114,6 @@ func TestRetrieval(t *testing.T) {
 
 // TestRetrieval exercises storing and retreiving with the filecoin protocols
 func TestNetworkRetrieval(t *testing.T) {
-	t.SkipNow()
-
 	// Set the series global sleep delay to 30 seconds
 	series.GlobalSleepDelay = time.Second * 30
 	var sectorSize int64 = 266338304
@@ -131,7 +129,7 @@ func TestNetworkRetrieval(t *testing.T) {
 	require.NoError(err)
 
 	// Create an environment that includes a genesis block with 1MM FIL
-	env, err := fast.NewEnvironmentDevnet("nightly", dir)
+	env, err := fast.NewEnvironmentDevnet("user", dir)
 	require.NoError(err)
 
 	// Teardown will shutdown all running processes the environment knows about
@@ -149,7 +147,7 @@ func TestNetworkRetrieval(t *testing.T) {
 	genesisURI := env.GenesisCar()
 
 	fastenvOpts := fast.EnvironmentOpts{
-		InitOpts:   []fast.ProcessInitOption{fast.POGenesisFile(genesisURI), fast.PODevnetNightly()},
+		InitOpts:   []fast.ProcessInitOption{fast.POGenesisFile(genesisURI), fast.PODevnetUser()},
 		DaemonOpts: []fast.ProcessDaemonOption{},
 	}
 

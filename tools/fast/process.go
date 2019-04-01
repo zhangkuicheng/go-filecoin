@@ -64,6 +64,9 @@ type IPTBCoreExt interface {
 type Filecoin struct {
 	PeerID peer.ID
 
+	// detached processes are not cleaned up by the environment
+	detached bool
+
 	initOpts   []ProcessInitOption
 	daemonOpts []ProcessDaemonOption
 
@@ -91,7 +94,12 @@ func NewFilecoinProcess(ctx context.Context, c IPTBCoreExt, eo EnvironmentOpts) 
 		ctx:        ctx,
 		initOpts:   eo.InitOpts,
 		daemonOpts: eo.DaemonOpts,
+		detached:   detached,
 	}
+}
+
+func (f *Filecoin) Detach() {
+	f.external = true
 }
 
 // InitDaemon initializes the filecoin daemon process.
