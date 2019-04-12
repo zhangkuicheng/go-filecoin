@@ -240,7 +240,6 @@ jobs:
   build_linux:
     docker:
       - image: circleci/golang:1.12.1
-    parallelism: 4
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
     resource_class: xlarge
     parameters:
@@ -359,6 +358,8 @@ jobs:
             - "bundle/"
             - "gengen/gengen"
             - "fixtures"
+            - "go-filecoin"
+            - "tools"
 
   unit_test_linux:
     docker:
@@ -411,6 +412,9 @@ jobs:
 
       - mkdir_test_results
 
+      - attach_workspace:
+          at: "."
+
       - go_test:
           sector_builder_tests: "<< parameters.sector_builder_tests >>"
 
@@ -447,41 +451,6 @@ jobs:
           name: Publish new release
           command: |
             ./scripts/publish-release.sh
-
-  build_faucet_and_genesis:
-    docker:
-      - image: circleci/golang:1.12.1
-    working_directory: /go/src/github.com/filecoin-project/go-filecoin
-    resource_class: small
-    steps:
-      - run:
-          name: Configure environment variables
-          command: |
-            echo 'export PATH="/usr/local/go/bin:${HOME}/.cargo/bin:${PATH}:${HOME}/go/bin:${HOME}/.bin"' >> $BASH_ENV
-            echo 'export GOPATH="${HOME}/go"' >> $BASH_ENV
-            echo 'export GO111MODULE=on' >> $BASH_ENV
-      - add_ssh_keys:
-          fingerprints:
-            - "1e:73:c5:15:75:e0:e4:98:54:3c:2b:9e:e8:94:14:2e"
-
-      - checkout
-      - rust_fil_proofs_checksum
-      - restore_cache:
-          keys:
-            - v5-go-deps-{{ .Branch }}-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "go.mod" }}-{{ checksum "/tmp/rust-fil-proofs-checksum.txt" }}
-            - v5-go-deps-{{ arch }}-{{ checksum  "build/main.go" }}-{{ checksum "go.mod" }}-{{ checksum "/tmp/rust-fil-proofs-checksum.txt" }}
-      - git_fetch_all_tags
-      - checkout
-      - run:
-          name: build faucet and genesis-file-server
-          command: |
-            go build -o ./faucet ./tools/faucet/main.go
-            go build -o ./genesis-file-server ./tools/genesis-file-server/main.go
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - "faucet"
-            - "genesis-file-server"
 
   build_docker_img:
     docker:
@@ -524,7 +493,7 @@ jobs:
       - update_submodules
 
       - run:
-          name: build an image of all binaries
+          name: build a base image
           command: |
             docker build -t filecoin:all --target=base --file Dockerfile.ci.base .
           no_output_timeout: 20m
@@ -645,19 +614,10 @@ workflows:
       - unit_test_linux:
           requires:
             - build_linux
-      - build_faucet_and_genesis:
-          requires:
-            - build_linux
-            - unit_test_linux
-          filters:
-            branches:
-              only:
-                - master
       - build_docker_img:
           requires:
             - build_linux
             - unit_test_linux
-            - build_faucet_and_genesis
           filters:
             branches:
               only:
@@ -700,14 +660,10 @@ workflows:
       - build_linux:
           nightly: true
       - build_macos
-      - build_faucet_and_genesis:
-          requires:
-            - build_linux
       - build_docker_img:
           nightly: true
           requires:
             - build_linux
-            - build_faucet_and_genesis
       - trigger_nightly_devnet_deploy:
           requires:
             - build_docker_img
@@ -738,17 +694,6 @@ workflows:
               only:
                 - /^\d+\.\d+\.\d+$/
 
-      - build_faucet_and_genesis:
-          requires:
-            - build_linux
-          filters:
-            branches:
-              ignore:
-                - /.*/
-            tags:
-              only:
-                - /^\d+\.\d+\.\d+$/
-
       - publish_release:
           requires:
             - build_linux
@@ -765,7 +710,6 @@ workflows:
           user_devnet: true
           requires:
             - build_linux
-            - build_faucet_and_genesis
           filters:
             branches:
               ignore:
@@ -807,17 +751,6 @@ workflows:
               only:
                 - /^test\-devnet\-\d+\.\d+\.\d+$/
 
-      - build_faucet_and_genesis:
-          requires:
-            - build_linux
-          filters:
-            branches:
-              ignore:
-                - /.*/
-            tags:
-              only:
-                - /^test\-devnet\-\d+\.\d+\.\d+$/
-
       - publish_release:
           requires:
             - build_linux
@@ -834,7 +767,6 @@ workflows:
           test_devnet: true
           requires:
             - build_linux
-            - build_faucet_and_genesis
           filters:
             branches:
               ignore:
