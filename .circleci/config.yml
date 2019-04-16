@@ -69,8 +69,9 @@ commands:
           command: |
             trap "go run github.com/jstemmer/go-junit-report < test-results/go-test-suite/go-test.out > test-results/go-test-suite/go-test-report.xml" EXIT
             export TEST_PACKAGES="$(go list ./... | circleci tests split)"
+            echo "test package: $TEST_PACKAGES"
             export TEST_PARALLELISM="4"
-            FILECOIN_RUN_SECTOR_BUILDER_TESTS=<< parameters.sector_builder_tests >> go run ./build/* test -functional=<< parameters.functional >> -integration=<< parameters.integration >> -unit=<< parameters.unit >> -v 2>&1 | tee test-results/go-test-suite/go-test.out
+            FILECOIN_RUN_SECTOR_BUILDER_TESTS=<< parameters.sector_builder_tests >> go run ./build test -functional=<< parameters.functional >> -integration=<< parameters.integration >> -unit=<< parameters.unit >> -v 2>&1 | tee test-results/go-test-suite/go-test.out
   git_fetch_all_tags:
     steps:
       - run:
@@ -414,7 +415,7 @@ jobs:
       - image: circleci/golang:1.12.1
     parallelism: 4
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
-    resource_class: large
+    resource_class: medium
     parameters:
       <<: *sector_builder_tests_param
       <<: *nightly_param
@@ -470,7 +471,7 @@ jobs:
       - image: circleci/golang:1.12.1
     parallelism: 4
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
-    resource_class: large
+    resource_class: medium
     parameters:
       <<: *sector_builder_tests_param
       <<: *nightly_param
@@ -531,7 +532,7 @@ jobs:
       - image: circleci/golang:1.12.1
     parallelism: 4
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
-    resource_class: large
+    resource_class: medium
     parameters:
       <<: *sector_builder_tests_param
       <<: *nightly_param
