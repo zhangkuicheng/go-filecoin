@@ -412,9 +412,9 @@ jobs:
   unit_test_linux:
     docker:
       - image: circleci/golang:1.12.1
-    parallelism: 4
+    parallelism: 10
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
-    resource_class: xlarge
+    resource_class: large
     parameters:
       <<: *sector_builder_tests_param
       <<: *nightly_param
@@ -468,9 +468,9 @@ jobs:
   integration_test_linux:
     docker:
       - image: circleci/golang:1.12.1
-    parallelism: 4
+    parallelism: 10
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
-    resource_class: xlarge
+    resource_class: large
     parameters:
       <<: *sector_builder_tests_param
       <<: *nightly_param
@@ -529,9 +529,9 @@ jobs:
   functional_test_linux:
     docker:
       - image: circleci/golang:1.12.1
-    parallelism: 4
+    parallelism: 10
     working_directory: /go/src/github.com/filecoin-project/go-filecoin
-    resource_class: xlarge
+    resource_class: large
     parameters:
       <<: *sector_builder_tests_param
       <<: *nightly_param
@@ -613,7 +613,6 @@ jobs:
           name: Publish new release
           command: |
             ./scripts/publish-release.sh
-
   build_docker_img:
     docker:
       - image: circleci/golang:latest
